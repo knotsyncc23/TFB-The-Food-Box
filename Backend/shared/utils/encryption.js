@@ -52,8 +52,6 @@ const ALL_KEYS = [ENCRYPTION_KEY, ...OLD_KEYS].filter(
   (b) => b && b.length === 32,
 );
 
-let hasLoggedDecryptWarning = false;
-
 // Validate encryption key
 if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 32) {
   console.warn('⚠️  WARNING: Encryption key is invalid or not 32 bytes. Encryption may fail.');
@@ -155,16 +153,9 @@ export function decrypt(encryptedText) {
     }
     // No key could decrypt - likely key mismatch/rotation or corrupted data
     return '';
-  } catch (error) {
-    // Avoid spamming logs in production when ENCRYPTION_KEY changed.
-    if (!hasLoggedDecryptWarning) {
-      hasLoggedDecryptWarning = true;
-      console.error('Decryption error (first occurrence):', error?.message || error);
-      console.error(
-        '💡 Check ENCRYPTION_KEY / ENCRYPTION_KEY_OLD on the server. Existing DB env values may have been encrypted with a different key.',
-      );
-    }
-    // If decryption fails, return empty string (might be unencrypted legacy data)
+  } catch {
+    // Silent fail: return empty. DB values may have been encrypted with a different key.
+    // Set ENCRYPTION_KEY / ENCRYPTION_KEY_OLD correctly on the server to fix.
     return '';
   }
 }

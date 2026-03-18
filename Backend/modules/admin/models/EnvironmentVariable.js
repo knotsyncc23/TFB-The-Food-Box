@@ -187,9 +187,8 @@ environmentVariableSchema.methods.toEnvObject = function() {
     if (obj[field] && isEncrypted(obj[field])) {
       try {
         obj[field] = decrypt(obj[field]);
-      } catch (error) {
-        console.error(`Error decrypting ${field}:`, error);
-        obj[field] = ''; // Return empty on decryption error
+      } catch {
+        obj[field] = ''; // Return empty on decryption error (silent)
       }
     }
   });
