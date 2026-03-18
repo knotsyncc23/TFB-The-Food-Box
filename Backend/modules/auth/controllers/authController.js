@@ -344,12 +344,12 @@ export const registerFcmToken = asyncHandler(async (req, res) => {
     return errorResponse(res, 400, "platform and fcmToken are required");
   }
 
-  const validPlatforms = ["web", "app", "ios"];
+  const validPlatforms = ["web", "app", "android", "ios"];
   if (!validPlatforms.includes(platform)) {
     return errorResponse(
       res,
       400,
-      "Invalid platform. Allowed values: web, app, ios",
+      "Invalid platform. Allowed values: web, app, android, ios",
     );
   }
 
@@ -358,10 +358,10 @@ export const registerFcmToken = asyncHandler(async (req, res) => {
     return errorResponse(res, 404, "User not found");
   }
 
-  // Update specific platform token (app = mobile app, stored in fcmTokenAndroid)
+  // Update specific platform token (web, app/android, ios)
   if (platform === "web") {
     user.fcmTokenWeb = fcmToken;
-  } else if (platform === "app") {
+  } else if (platform === "app" || platform === "android") {
     user.fcmTokenAndroid = fcmToken;
   } else if (platform === "ios") {
     user.fcmTokenIos = fcmToken;
@@ -388,12 +388,12 @@ export const removeFcmToken = asyncHandler(async (req, res) => {
     return errorResponse(res, 400, "platform is required");
   }
 
-  const validPlatforms = ["web", "app", "ios"];
+  const validPlatforms = ["web", "app", "android", "ios"];
   if (!validPlatforms.includes(platform)) {
     return errorResponse(
       res,
       400,
-      "Invalid platform. Allowed values: web, app, ios",
+      "Invalid platform. Allowed values: web, app, android, ios",
     );
   }
 
@@ -404,7 +404,7 @@ export const removeFcmToken = asyncHandler(async (req, res) => {
 
   if (platform === "web") {
     user.fcmTokenWeb = null;
-  } else if (platform === "app") {
+  } else if (platform === "app" || platform === "android") {
     user.fcmTokenAndroid = null;
   } else if (platform === "ios") {
     user.fcmTokenIos = null;

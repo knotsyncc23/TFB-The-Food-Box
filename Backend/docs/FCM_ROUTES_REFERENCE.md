@@ -48,8 +48,8 @@ Use the returned access token in the `Authorization: Bearer <token>` header for 
 
 ## 2. Register FCM token (refFcm – mobile / web)
 
-Use `platform: "web"` for web, or `"app"` / `"ios"` for mobile.  
-Backend stores the token per platform (`fcmTokenWeb`, `fcmTokenAndroid` for `app`, `fcmTokenIos`).
+Use `platform: "web"` for web, or `"app"` / `"android"` / `"ios"` for mobile.  
+Backend stores the token per platform (`fcmTokenWeb`, `fcmTokenAndroid` for app/android, `fcmTokenIos`).
 
 **Note:** Backend expects the field name `fcmToken` (not `token`).
 
@@ -89,7 +89,7 @@ Content-Type: application/json
 }
 ```
 
-For mobile, use `"platform": "app"` or `"platform": "ios"` in the same body.
+For mobile, use `"platform": "app"`, `"platform": "android"`, or `"platform": "ios"` in the same body.
 
 ---
 
@@ -128,19 +128,20 @@ Content-Type: application/json
 }
 ```
 
-Use `"platform": "app"` or `"platform": "ios"` for mobile.
+Use `"platform": "app"`, `"platform": "android"`, or `"platform": "ios"` for mobile.
 
 ---
 
 ## Summary – FCM routes with refFcm token (mobile/web)
 
-| Role      | Login URL                          | FCM register URL                     | FCM remove URL                        | Platform (refFcm) |
-|-----------|------------------------------------|--------------------------------------|---------------------------------------|-------------------|
-| User      | POST /api/auth/login               | POST /api/auth/fcm-token             | DELETE /api/auth/fcm-token             | web / app / ios   |
-| Restaurant| POST /api/restaurant/auth/login    | POST /api/restaurant/auth/fcm-token  | DELETE /api/restaurant/auth/fcm-token | web / app / ios   |
-| Delivery  | POST /api/delivery/auth/login      | POST /api/delivery/auth/fcm-token     | DELETE /api/delivery/auth/fcm-token   | web / app / ios   |
+| Role      | Login URL                          | FCM register URL                     | FCM remove URL                        | Platform (refFcm)        |
+|-----------|------------------------------------|--------------------------------------|---------------------------------------|--------------------------|
+| User      | POST /api/auth/login               | POST /api/auth/fcm-token             | DELETE /api/auth/fcm-token             | web / app / android / ios |
+| Restaurant| POST /api/restaurant/auth/login    | POST /api/restaurant/auth/fcm-token  | DELETE /api/restaurant/auth/fcm-token | web / app / android / ios |
+| Delivery  | POST /api/delivery/auth/login      | POST /api/delivery/auth/fcm-token     | DELETE /api/delivery/auth/fcm-token   | web / app / android / ios |
 
 **Platform values:**
 - `web` – Web browser
-- `app` – Mobile app (Android)
+- `app` – Mobile app (Android, preferred)
+- `android` – Mobile app (Android, alias for app)
 - `ios` – Mobile app (iOS)

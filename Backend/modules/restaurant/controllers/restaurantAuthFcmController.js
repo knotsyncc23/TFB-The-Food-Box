@@ -15,12 +15,12 @@ export const registerRestaurantFcmToken = asyncHandler(async (req, res) => {
     return errorResponse(res, 400, "platform and fcmToken are required");
   }
 
-  const validPlatforms = ["web", "app", "ios"];
+  const validPlatforms = ["web", "app", "android", "ios"];
   if (!validPlatforms.includes(platform)) {
     return errorResponse(
       res,
       400,
-      "Invalid platform. Allowed values: web, app, ios",
+      "Invalid platform. Allowed values: web, app, android, ios",
     );
   }
 
@@ -31,7 +31,7 @@ export const registerRestaurantFcmToken = asyncHandler(async (req, res) => {
 
   if (platform === "web") {
     restaurant.fcmTokenWeb = fcmToken;
-  } else if (platform === "app") {
+  } else if (platform === "app" || platform === "android") {
     restaurant.fcmTokenAndroid = fcmToken;
   } else if (platform === "ios") {
     restaurant.fcmTokenIos = fcmToken;
@@ -58,12 +58,12 @@ export const removeRestaurantFcmToken = asyncHandler(async (req, res) => {
     return errorResponse(res, 400, "platform is required");
   }
 
-  const validPlatforms = ["web", "app", "ios"];
+  const validPlatforms = ["web", "app", "android", "ios"];
   if (!validPlatforms.includes(platform)) {
     return errorResponse(
       res,
       400,
-      "Invalid platform. Allowed values: web, app, ios",
+      "Invalid platform. Allowed values: web, app, android, ios",
     );
   }
 
@@ -74,7 +74,7 @@ export const removeRestaurantFcmToken = asyncHandler(async (req, res) => {
 
   if (platform === "web") {
     restaurant.fcmTokenWeb = null;
-  } else if (platform === "app") {
+  } else if (platform === "app" || platform === "android") {
     restaurant.fcmTokenAndroid = null;
   } else if (platform === "ios") {
     restaurant.fcmTokenIos = null;
