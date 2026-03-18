@@ -38,7 +38,11 @@ export const sendOTP = asyncHandler(async (req, res) => {
   }
 
   try {
-    const result = await otpService.generateAndSendOTP(phone, purpose, null);
+    // In production we allow a higher OTP limit for delivery logins to reduce support load.
+    // Web clients can still be blocked by SMS provider throttling.
+    const opts =
+      purpose === "login" ? { maxPerHour: 100 } : undefined;
+    const result = await otpService.generateAndSendOTP(phone, purpose, null, opts);
     return successResponse(res, 200, result.message, {
       expiresIn: result.expiresIn,
       identifierType: result.identifierType,

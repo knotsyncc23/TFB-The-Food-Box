@@ -3,16 +3,25 @@
  * Writes: active_orders, delivery_boys. Uses route_cache key format for consistency.
  */
 
-import { getDb, isFirebaseRealtimeAvailable } from "../config/firebaseRealtime.js";
+import { initializeFirebaseRealtime } from "../config/firebaseRealtime.js";
+
+async function getFirebaseDbSafe() {
+  try {
+    const db = initializeFirebaseRealtime();
+    return db || null;
+  } catch (err) {
+    return null;
+  }
+}
 
 /**
  * Upsert active_orders/<orderId> with route polyline and initial positions.
  * Call after assigning order to delivery boy.
  */
 export async function upsertActiveOrder(payload) {
-  if (!isFirebaseRealtimeAvailable()) return;
   try {
-    const db = getDb();
+    const db = await getFirebaseDbSafe();
+    if (!db) return;
     const {
       orderId,
       boy_id,
@@ -52,9 +61,9 @@ export async function upsertActiveOrder(payload) {
  * Update only rider position for an active order.
  */
 export async function updateActiveOrderLocation(orderId, boy_lat, boy_lng) {
-  if (!isFirebaseRealtimeAvailable()) return;
   try {
-    const db = getDb();
+    const db = await getFirebaseDbSafe();
+    if (!db) return;
     await db.ref("active_orders").child(orderId).update({
       boy_lat,
       boy_lng,
@@ -69,9 +78,9 @@ export async function updateActiveOrderLocation(orderId, boy_lat, boy_lng) {
  * Set or update delivery_boys/<boyId> (online status and location).
  */
 export async function setDeliveryBoyStatus(boyId, { lat, lng, status = "online" }) {
-  if (!isFirebaseRealtimeAvailable()) return;
   try {
-    const db = getDb();
+    const db = await getFirebaseDbSafe();
+    if (!db) return;
     const updates = {
       last_updated: Date.now(),
       status: status === false ? "offline" : (status || "online"),
@@ -90,9 +99,9 @@ export async function setDeliveryBoyStatus(boyId, { lat, lng, status = "online" 
  * Update delivery boy location (and optionally active order rider position).
  */
 export async function updateDeliveryBoyLocation(boyId, lat, lng, orderId = null) {
-  if (!isFirebaseRealtimeAvailable()) return;
   try {
-    const db = getDb();
+    const db = await getFirebaseDbSafe();
+    if (!db) return;
     const now = Date.now();
     await db.ref("delivery_boys").child(boyId).update({
       lat,
@@ -116,9 +125,9 @@ export async function updateDeliveryBoyLocation(boyId, lat, lng, orderId = null)
  * Update status (and optionally polyline/distance/duration) on an active order.
  */
 export async function updateActiveOrderStatus(orderId, fields) {
-  if (!isFirebaseRealtimeAvailable()) return;
   try {
-    const db = getDb();
+    const db = await getFirebaseDbSafe();
+    if (!db) return;
     await db.ref("active_orders").child(orderId).update({
       ...fields,
       last_updated: Date.now(),
@@ -132,9 +141,9 @@ export async function updateActiveOrderStatus(orderId, fields) {
  * Remove order from active_orders when delivered/cancelled.
  */
 export async function removeActiveOrder(orderId) {
-  if (!isFirebaseRealtimeAvailable()) return;
   try {
-    const db = getDb();
+    const db = await getFirebaseDbSafe();
+    if (!db) return;
     await db.ref("active_orders").child(orderId).remove();
   } catch (err) {
     console.warn("Firebase removeActiveOrder failed:", err.message);

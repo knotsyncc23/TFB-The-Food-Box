@@ -5,7 +5,7 @@ import LocationPrompt from "./LocationPrompt"
 import { CartProvider } from "../context/CartContext"
 import { OrdersProvider } from "../context/OrdersContext"
 import { isModuleAuthenticated } from "@/lib/utils/auth"
-import { registerFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
+import { getWebNotificationPermission, registerFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
 // Lazy load overlays to reduce initial bundle size
 const SearchOverlay = lazy(() => import("./SearchOverlay"))
 const LocationSelectorOverlay = lazy(() => import("./LocationSelectorOverlay"))
@@ -112,6 +112,7 @@ function LocationSelectorProvider({ children }) {
 
 export default function UserLayout() {
   const location = useLocation()
+  const [notifPerm, setNotifPerm] = useState(() => getWebNotificationPermission())
 
   useEffect(() => {
     // Reset scroll to top whenever location changes (pathname, search, or hash)
@@ -136,6 +137,12 @@ export default function UserLayout() {
       window.removeEventListener("userAuthChanged", tryRegisterFcm)
       if (timeoutId) clearTimeout(timeoutId)
     }
+  }, [])
+
+  // Keep permission state updated
+  useEffect(() => {
+    const t = setInterval(() => setNotifPerm(getWebNotificationPermission()), 1500)
+    return () => clearInterval(t)
   }, [])
 
   // Note: Authentication checks and redirects are handled by ProtectedRoute components
@@ -165,6 +172,24 @@ export default function UserLayout() {
           <OrdersProvider>
             <SearchOverlayProvider>
               <LocationSelectorProvider>
+                {/* Enable notifications banner (needs user gesture to prompt) */}
+                {isModuleAuthenticated("user") && notifPerm === "default" ? (
+                  <div className="mx-3 mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold">Enable notifications</div>
+                      <div className="text-xs text-blue-800/80 truncate">
+                        To receive order updates and offers.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => registerFcmTokenForLoggedInUser({ forcePrompt: true }).catch(() => {})}
+                      className="shrink-0 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                    >
+                      Enable
+                    </button>
+                  </div>
+                ) : null}
                 {/* <Navbar /> */}
                 {showBottomNav && <DesktopNavbar />}
                 <LocationPrompt />

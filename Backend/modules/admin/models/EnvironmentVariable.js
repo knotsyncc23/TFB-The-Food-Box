@@ -83,6 +83,13 @@ const environmentVariableSchema = new mongoose.Schema(
       default: '',
       trim: true
     },
+
+    // Firebase Realtime Database
+    FIREBASE_DATABASE_URL: {
+      type: String,
+      default: 'https://tifunbox-default-rtdb.asia-southeast1.firebasedatabase.app',
+      trim: true
+    },
     
     // SMTP
     SMTP_HOST: {

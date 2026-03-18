@@ -17,6 +17,7 @@ dotenv.config();
 import { connectDB } from "./config/database.js";
 import { connectRedis } from "./config/redis.js";
 import { initializeFirebaseRealtime } from "./config/firebaseRealtime.js";
+import { getAllEnvVars } from "./shared/utils/envService.js";
 
 // Import middleware
 import { errorHandler } from "./shared/middleware/errorHandler.js";
@@ -294,6 +295,21 @@ connectDB().then(() => {
   initializeCloudinary().catch((err) =>
     console.error("Failed to initialize Cloudinary:", err),
   );
+
+  // After DB is connected, hydrate runtime env from admin-configured variables.
+  // This lets you set FIREBASE_DATABASE_URL from Admin Panel and have backend use it everywhere.
+  (async () => {
+    try {
+      const envData = await getAllEnvVars();
+      if (envData?.FIREBASE_DATABASE_URL) {
+        process.env.FIREBASE_DATABASE_URL = String(envData.FIREBASE_DATABASE_URL).trim();
+      }
+      // Re-attempt Firebase init after hydration (safe to call multiple times)
+      initializeFirebaseRealtime();
+    } catch (err) {
+      console.warn("⚠️ Failed to hydrate env from database:", err.message);
+    }
+  })();
 });
 
 // Redis connection is optional - only connects if REDIS_ENABLED=true

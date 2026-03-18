@@ -22,16 +22,33 @@ const fetchFirebaseConfig = async () => {
 
     if (response.data.success && response.data.data) {
       const config = response.data.data;
-      // Backend/DB is the source of truth
-      if (config.FIREBASE_API_KEY) firebaseConfig.apiKey = config.FIREBASE_API_KEY;
-      if (config.FIREBASE_AUTH_DOMAIN) firebaseConfig.authDomain = config.FIREBASE_AUTH_DOMAIN;
-      if (config.FIREBASE_PROJECT_ID) firebaseConfig.projectId = config.FIREBASE_PROJECT_ID;
-      if (config.FIREBASE_STORAGE_BUCKET) firebaseConfig.storageBucket = config.FIREBASE_STORAGE_BUCKET;
-      if (config.FIREBASE_MESSAGING_SENDER_ID) firebaseConfig.messagingSenderId = config.FIREBASE_MESSAGING_SENDER_ID;
-      if (config.FIREBASE_APP_ID) firebaseConfig.appId = config.FIREBASE_APP_ID;
-      if (config.FIREBASE_VAPID_KEY) firebaseConfig.vapidKey = config.FIREBASE_VAPID_KEY;
-      if (config.MEASUREMENT_ID) firebaseConfig.measurementId = config.MEASUREMENT_ID;
-      if (config.FIREBASE_DATABASE_URL) firebaseConfig.databaseURL = config.FIREBASE_DATABASE_URL;
+      // Backend/DB is the source of truth, but ignore obviously-invalid values
+      const safeStr = (v) => (typeof v === "string" ? v.trim() : "");
+      const looksLikeWebApiKey = (v) => /^AIza[0-9A-Za-z\-_]{10,}$/.test(v);
+      const looksLikeSenderId = (v) => /^[0-9]{6,}$/.test(v);
+      const looksLikeProjectId = (v) => /^[a-z0-9-]{3,}$/.test(v);
+
+      const apiKey = safeStr(config.FIREBASE_API_KEY);
+      const authDomain = safeStr(config.FIREBASE_AUTH_DOMAIN);
+      const projectId = safeStr(config.FIREBASE_PROJECT_ID);
+      const storageBucket = safeStr(config.FIREBASE_STORAGE_BUCKET);
+      const messagingSenderId = safeStr(config.FIREBASE_MESSAGING_SENDER_ID);
+      const appId = safeStr(config.FIREBASE_APP_ID);
+      const vapidKey = safeStr(config.FIREBASE_VAPID_KEY);
+      const measurementId = safeStr(config.MEASUREMENT_ID);
+      const databaseURL = safeStr(config.FIREBASE_DATABASE_URL);
+
+      if (apiKey && looksLikeWebApiKey(apiKey)) firebaseConfig.apiKey = apiKey;
+      if (authDomain) firebaseConfig.authDomain = authDomain;
+      if (projectId && looksLikeProjectId(projectId)) firebaseConfig.projectId = projectId;
+      if (storageBucket) firebaseConfig.storageBucket = storageBucket;
+      if (messagingSenderId && looksLikeSenderId(messagingSenderId)) {
+        firebaseConfig.messagingSenderId = messagingSenderId;
+      }
+      if (appId) firebaseConfig.appId = appId;
+      if (vapidKey) firebaseConfig.vapidKey = vapidKey;
+      if (measurementId) firebaseConfig.measurementId = measurementId;
+      if (databaseURL) firebaseConfig.databaseURL = databaseURL;
 
       console.log("✅ Firebase config loaded from backend env");
       return true;
@@ -79,6 +96,35 @@ async function ensureFirebaseInitialized() {
     firebaseConfig.databaseURL =
       firebaseConfig.databaseURL || import.meta.env.VITE_FIREBASE_DATABASE_URL || "";
   }
+  // If DB returned a bad/placeholder config, allow VITE_ env to fill missing fields too
+  // (e.g. FIREBASE_API_KEY stored in DB but not a valid web API key)
+  firebaseConfig.apiKey =
+    firebaseConfig.apiKey || import.meta.env.VITE_FIREBASE_API_KEY || "";
+  firebaseConfig.authDomain =
+    firebaseConfig.authDomain || import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "";
+  firebaseConfig.projectId =
+    firebaseConfig.projectId || import.meta.env.VITE_FIREBASE_PROJECT_ID || "";
+  firebaseConfig.storageBucket =
+    firebaseConfig.storageBucket ||
+    import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ||
+    "";
+  firebaseConfig.messagingSenderId =
+    firebaseConfig.messagingSenderId ||
+    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ||
+    "";
+  firebaseConfig.appId =
+    firebaseConfig.appId || import.meta.env.VITE_FIREBASE_APP_ID || "";
+  firebaseConfig.measurementId =
+    firebaseConfig.measurementId ||
+    import.meta.env.VITE_FIREBASE_MEASUREMENT_ID ||
+    "";
+  firebaseConfig.vapidKey =
+    firebaseConfig.vapidKey ||
+    import.meta.env.VITE_FIREBASE_VAPID_KEY ||
+    import.meta.env.VITE_FCM_VAPID_KEY ||
+    "";
+  firebaseConfig.databaseURL =
+    firebaseConfig.databaseURL || import.meta.env.VITE_FIREBASE_DATABASE_URL || "";
 
   // Validate Firebase configuration
   const requiredFields = [

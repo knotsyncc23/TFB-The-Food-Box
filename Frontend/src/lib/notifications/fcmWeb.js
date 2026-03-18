@@ -1,12 +1,21 @@
-import { getMessaging, getToken, isSupported } from "firebase/messaging";
+import { getMessaging, getToken, isSupported, onMessage } from "firebase/messaging";
 import { ensureFirebaseInitialized, getFirebaseVapidKey } from "@/lib/firebase";
-import { authAPI, restaurantAPI } from "@/lib/api";
+import { adminAPI, authAPI, deliveryAPI, restaurantAPI } from "@/lib/api";
 
 const FCM_SW_PATH = "/firebase-messaging-sw.js";
 const FCM_SW_SCOPE = "/firebase-cloud-messaging-push-scope/";
 
-// Internal helper to get a browser FCM token (shared by user + restaurant)
-async function getBrowserFcmToken() {
+export function getWebNotificationPermission() {
+  try {
+    if (typeof Notification === "undefined") return "unsupported";
+    return Notification.permission; // "default" | "granted" | "denied"
+  } catch {
+    return "unsupported";
+  }
+}
+
+// Internal helper to get a browser FCM token (shared by user/restaurant/delivery/admin)
+async function getBrowserFcmToken({ forcePrompt = false } = {}) {
   console.log("[FCM] Starting web FCM registration flow");
 
   // Ensure Firebase app is initialized
@@ -23,16 +32,24 @@ async function getBrowserFcmToken() {
     return null;
   }
 
-  // Request notification permission
-  if (typeof Notification !== "undefined") {
-    const permission = await Notification.requestPermission();
-    console.log("[FCM] Notification permission:", permission);
-    if (permission !== "granted") {
-      return null;
-    }
-  } else {
+  // Request notification permission (only prompt on explicit user gesture)
+  if (typeof Notification === "undefined") {
     console.warn("[FCM] Notification API not available");
     return null;
+  }
+  const currentPerm = Notification.permission;
+  if (currentPerm === "denied") {
+    console.warn("[FCM] Notification permission denied at browser level");
+    return null;
+  }
+  if (currentPerm === "default") {
+    if (!forcePrompt) {
+      console.warn("[FCM] Permission is default; not prompting without user gesture");
+      return null;
+    }
+    const permission = await Notification.requestPermission();
+    console.log("[FCM] Notification permission:", permission);
+    if (permission !== "granted") return null;
   }
 
   const messaging = getMessaging(app);
@@ -50,6 +67,23 @@ async function getBrowserFcmToken() {
   });
   await registration.ready;
 
+  // Ensure the SW has Firebase config for background notifications
+  try {
+    registration.active?.postMessage({
+      type: "FIREBASE_CONFIG",
+      payload: {
+        apiKey: app.options?.apiKey,
+        authDomain: app.options?.authDomain,
+        projectId: app.options?.projectId,
+        storageBucket: app.options?.storageBucket,
+        messagingSenderId: app.options?.messagingSenderId,
+        appId: app.options?.appId,
+      },
+    });
+  } catch (e) {
+    console.warn("[FCM] Failed to post Firebase config to service worker:", e?.message || e);
+  }
+
   const token = await getToken(messaging, {
     vapidKey,
     serviceWorkerRegistration: registration,
@@ -66,9 +100,24 @@ async function getBrowserFcmToken() {
   return token;
 }
 
-export async function registerFcmTokenForLoggedInUser() {
+export async function subscribeToForegroundFcmMessages(onPayload) {
+  const app = await ensureFirebaseInitialized();
+  if (!app) return () => {};
+  const supported = await isSupported().catch(() => false);
+  if (!supported) return () => {};
+
+  const messaging = getMessaging(app);
+  const unsubscribe = onMessage(messaging, (payload) => {
+    try {
+      onPayload?.(payload);
+    } catch {}
+  });
+  return unsubscribe;
+}
+
+export async function registerFcmTokenForLoggedInUser({ forcePrompt = false } = {}) {
   try {
-    const token = await getBrowserFcmToken();
+    const token = await getBrowserFcmToken({ forcePrompt });
     if (!token) return;
 
     console.log("[FCM] Token to send (user):", token.substring(0, 30) + "...");
@@ -94,9 +143,9 @@ export async function registerFcmTokenForLoggedInUser() {
   }
 }
 
-export async function registerFcmTokenForRestaurant() {
+export async function registerFcmTokenForRestaurant({ forcePrompt = false } = {}) {
   try {
-    const token = await getBrowserFcmToken();
+    const token = await getBrowserFcmToken({ forcePrompt });
     if (!token) return;
 
     console.log(
@@ -118,6 +167,28 @@ export async function registerFcmTokenForRestaurant() {
   }
 }
 
+export async function registerFcmTokenForDelivery({ forcePrompt = false } = {}) {
+  try {
+    const token = await getBrowserFcmToken({ forcePrompt });
+    if (!token) return;
+    const res = await deliveryAPI.registerFcmToken?.("web", token);
+    return res?.data;
+  } catch (error) {
+    console.error("[FCM][Delivery] Error during web FCM registration:", error?.message || error);
+  }
+}
+
+export async function registerFcmTokenForAdmin({ forcePrompt = false } = {}) {
+  try {
+    const token = await getBrowserFcmToken({ forcePrompt });
+    if (!token) return;
+    const res = await adminAPI.registerFcmToken?.("web", token);
+    return res?.data;
+  } catch (error) {
+    console.error("[FCM][Admin] Error during web FCM registration:", error?.message || error);
+  }
+}
+
 export async function removeFcmTokenForLoggedInUser() {
   try {
     await authAPI.removeFcmToken("web");
@@ -131,6 +202,22 @@ export async function removeFcmTokenForRestaurant() {
     await restaurantAPI.removeFcmToken("web");
   } catch (error) {
     console.error("[FCM][Restaurant] Error removing FCM token for web:", error);
+  }
+}
+
+export async function removeFcmTokenForDelivery() {
+  try {
+    await deliveryAPI.removeFcmToken?.("web");
+  } catch (error) {
+    console.error("[FCM][Delivery] Error removing FCM token for web:", error);
+  }
+}
+
+export async function removeFcmTokenForAdmin() {
+  try {
+    await adminAPI.removeFcmToken?.("web");
+  } catch (error) {
+    console.error("[FCM][Admin] Error removing FCM token for web:", error);
   }
 }
 

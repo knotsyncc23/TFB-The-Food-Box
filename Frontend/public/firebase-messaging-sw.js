@@ -13,6 +13,38 @@ const firebaseConfig = {
   appId: "",
 };
 
+self.addEventListener("message", (event) => {
+  try {
+    const data = event?.data;
+    if (data?.type !== "FIREBASE_CONFIG") return;
+    const cfg = data?.payload || {};
+
+    firebaseConfig.apiKey = cfg.apiKey || firebaseConfig.apiKey;
+    firebaseConfig.authDomain = cfg.authDomain || firebaseConfig.authDomain;
+    firebaseConfig.projectId = cfg.projectId || firebaseConfig.projectId;
+    firebaseConfig.storageBucket = cfg.storageBucket || firebaseConfig.storageBucket;
+    firebaseConfig.messagingSenderId =
+      cfg.messagingSenderId || firebaseConfig.messagingSenderId;
+    firebaseConfig.appId = cfg.appId || firebaseConfig.appId;
+
+    if (firebaseConfig.projectId && firebaseConfig.appId) {
+      if (!firebase.apps?.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      firebase.messaging().setBackgroundMessageHandler((payload) => {
+        const title = payload.notification?.title || "Notification";
+        const options = {
+          body: payload.notification?.body || "",
+          icon: payload.notification?.icon || "/favicon.ico",
+        };
+        return self.registration.showNotification(title, options);
+      });
+    }
+  } catch {
+    // ignore
+  }
+});
+
 self.addEventListener("install", () => {
   self.skipWaiting();
 });

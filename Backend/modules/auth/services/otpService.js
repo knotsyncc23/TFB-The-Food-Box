@@ -70,9 +70,11 @@ class OTPService {
    * @param {string} phone - Phone number (optional if email provided)
    * @param {string} email - Email address (optional if phone provided)
    * @param {string} purpose - Purpose of OTP (login, register, etc.)
+   * @param {Object} [options]
+   * @param {number} [options.maxPerHour] - Override OTP rate limit for this call (production only)
    * @returns {Promise<Object>}
    */
-  async generateAndSendOTP(phone = null, purpose = 'login', email = null) {
+  async generateAndSendOTP(phone = null, purpose = 'login', email = null, options = {}) {
     try {
       // Validate that either phone or email is provided
       if (!phone && !email) {
@@ -82,8 +84,14 @@ class OTPService {
       const identifier = phone || email;
       const identifierType = phone ? 'phone' : 'email';
 
-      // Check rate limiting (max 3 OTPs per identifier per hour) - using MongoDB
+      // Check rate limiting (default max 3 OTPs per identifier per hour) - using MongoDB
       if (process.env.NODE_ENV === 'production') {
+        const configuredMax = parseInt(process.env.OTP_RATE_LIMIT_MAX_PER_HOUR || '', 10);
+        const maxPerHour =
+          typeof options?.maxPerHour === 'number' && Number.isFinite(options.maxPerHour)
+            ? options.maxPerHour
+            : (Number.isFinite(configuredMax) ? configuredMax : 3);
+
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
         const rateLimitQuery = {
           [identifierType]: identifier,
@@ -92,7 +100,7 @@ class OTPService {
         };
         
         const recentOtpCount = await Otp.countDocuments(rateLimitQuery);
-        if (recentOtpCount >= 3) {
+        if (recentOtpCount >= maxPerHour) {
           throw new Error('Too many OTP requests. Please try again after some time.');
         }
       }

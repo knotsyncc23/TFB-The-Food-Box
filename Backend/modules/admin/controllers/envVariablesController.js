@@ -72,7 +72,7 @@ export const getPublicEnvVariables = asyncHandler(async (req, res) => {
       FIREBASE_DATABASE_URL:
         envData.FIREBASE_DATABASE_URL ||
         process.env.FIREBASE_DATABASE_URL ||
-        "https://tastizoo-default-rtdb.asia-southeast1.firebasedatabase.app",
+        "https://tifunbox-default-rtdb.asia-southeast1.firebasedatabase.app",
     };
 
     return successResponse(

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import { Search, Download, Bell, Edit, Trash2, Upload, Settings, Image as ImageIcon } from "lucide-react"
 import {
   Dialog,
@@ -32,6 +32,44 @@ export default function PushNotification() {
   const [editingNotification, setEditingNotification] = useState(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const fileInputRef = useRef(null)
+  const [loading, setLoading] = useState(false)
+
+  // Load real notification history from backend (fallback to dummy if API fails)
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        setLoading(true)
+        const res = await adminAPI.getPushNotifications({ limit: 50, page: 1 })
+        const items = res?.data?.data?.items || []
+        if (!mounted) return
+        if (Array.isArray(items) && items.length) {
+          const mapped = items.map((n, idx) => ({
+            sl: idx + 1,
+            _id: n._id,
+            title: n.title,
+            description: n.description,
+            image: n.image || null,
+            zone: n.zone || "All",
+            target: n.sendTo || "Customer",
+            status: true,
+            createdAt: n.createdAt,
+            total: n.total,
+            sent: n.sent,
+            failed: n.failed,
+          }))
+          setNotifications(mapped)
+        }
+      } catch {
+        // keep dummy
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    })()
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const filteredNotifications = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -63,11 +101,31 @@ export default function PushNotification() {
         zone: formData.zone,
       })
       if (res?.data?.success) {
-        const { sent, failed, total } = res.data.data || {}
+        const { sent, failed, total, notification } = res.data.data || {}
         const msg = total === 0
           ? "No devices with FCM tokens found. Users need to enable notifications."
           : `Notification sent: ${sent} delivered${failed ? `, ${failed} failed` : ""} (${total} total)` 
         alert(msg)
+        // Add to top of list so admin can see it immediately
+        if (notification?._id) {
+          setNotifications(prev => ([
+            {
+              sl: 1,
+              _id: notification._id,
+              title: notification.title,
+              description: notification.description,
+              image: notification.image || null,
+              zone: notification.zone || "All",
+              target: notification.sendTo || formData.sendTo,
+              status: true,
+              createdAt: notification.createdAt,
+              total: notification.total,
+              sent: notification.sent,
+              failed: notification.failed,
+            },
+            ...prev.map((p, idx) => ({ ...p, sl: idx + 2 })),
+          ]))
+        }
         handleReset()
       } else {
         alert(res?.data?.message || "Failed to send notification.")
@@ -273,6 +331,9 @@ export default function PushNotification() {
               <span className="px-3 py-1 rounded-full text-sm font-semibold bg-slate-100 text-slate-700">
                 {filteredNotifications.length}
               </span>
+              {loading ? (
+                <span className="text-xs text-slate-500">Loading…</span>
+              ) : null}
             </div>
 
             <div className="flex items-center gap-3">

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 import { API_BASE_URL } from '@/lib/api/config';
 import { restaurantAPI } from '@/lib/api';
-import { registerFcmTokenForRestaurant } from '@/lib/notifications/fcmWeb';
+import { getWebNotificationPermission, registerFcmTokenForRestaurant } from '@/lib/notifications/fcmWeb';
 import alertSound from '@/assets/audio/alert.mp3';
 
 /**
@@ -29,9 +29,14 @@ export const useRestaurantNotifications = () => {
           const id = restaurant._id?.toString() || restaurant.restaurantId;
           setRestaurantId(id);
 
-          // Also ensure FCM token is registered for this restaurant account
-          // This will no-op if permission is not granted or messaging unsupported.
-          registerFcmTokenForRestaurant();
+          // Also ensure FCM token is registered for this restaurant account.
+          // Note: browsers only allow prompting on explicit user gesture.
+          const perm = getWebNotificationPermission();
+          if (perm === "default") {
+            // Signal UI to show "Enable notifications" button
+            window.dispatchEvent(new Event("restaurantNeedsNotificationPermission"));
+          }
+          registerFcmTokenForRestaurant().catch(() => {});
         }
       } catch (error) {
         console.error('Error fetching restaurant:', error);

@@ -8,6 +8,7 @@ import User from "../../modules/auth/models/User.js";
 import Delivery from "../../modules/delivery/models/Delivery.js";
 import Restaurant from "../../modules/restaurant/models/Restaurant.js";
 import Zone from "../../modules/admin/models/Zone.js";
+import { ensureFirebaseAdminInitialized } from "../../config/firebaseAdmin.js";
 
 /**
  * Collect FCM tokens from entities based on sendTo and zone
@@ -61,7 +62,8 @@ async function getFcmTokens(sendTo, zone) {
  */
 async function sendToToken(token, payload) {
   try {
-    if (!admin.apps.length) {
+    const ok = await ensureFirebaseAdminInitialized();
+    if (!ok || !admin.apps.length) {
       return { success: false, error: "Firebase Admin not initialized" };
     }
 
@@ -135,7 +137,8 @@ export async function sendPushNotification({
 }) {
   const result = { sent: 0, failed: 0, total: 0, errors: [] };
 
-  if (!admin.apps.length) {
+  const ok = await ensureFirebaseAdminInitialized();
+  if (!ok || !admin.apps.length) {
     result.errors.push("Firebase Admin not initialized");
     return result;
   }

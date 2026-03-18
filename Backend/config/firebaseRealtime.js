@@ -113,6 +113,14 @@ export function initializeFirebaseRealtime() {
     const app = admin.app();
     db = databaseURL ? app.database(databaseURL) : app.database();
     initialized = true;
+    try {
+      const urlHost = typeof databaseURL === "string" ? new URL(databaseURL).host : "";
+      console.log(
+        `✅ Firebase Realtime Database initialized (project: ${creds.projectId}, db: ${urlHost || "default"})`,
+      );
+    } catch {
+      console.log(`✅ Firebase Realtime Database initialized (project: ${creds.projectId})`);
+    }
     return db;
   } catch (error) {
     // If an app already exists and we hit duplicate-app style issues, just reuse it
@@ -120,6 +128,14 @@ export function initializeFirebaseRealtime() {
       const app = admin.app();
       db = databaseURL ? app.database(databaseURL) : app.database();
       initialized = true;
+      try {
+        const urlHost = typeof databaseURL === "string" ? new URL(databaseURL).host : "";
+        console.log(
+          `✅ Firebase Realtime Database initialized (reused app, project: ${creds.projectId}, db: ${urlHost || "default"})`,
+        );
+      } catch {
+        console.log(`✅ Firebase Realtime Database initialized (reused app, project: ${creds.projectId})`);
+      }
       return db;
     } catch (innerErr) {
       console.error(
