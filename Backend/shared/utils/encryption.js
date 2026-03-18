@@ -3,37 +3,56 @@ import crypto from 'crypto';
 // Encryption key - should be stored in environment variable
 // Fallback to a default key (change in production!)
 // Use a 32-byte key for AES-256
+const normalizeEncryptionKey = (rawKey) => {
+  if (!rawKey) return null;
+  const key = String(rawKey).trim();
+  if (!key) return null;
+
+  // Check if it's a hex string (64 hex characters = 32 bytes)
+  if (/^[0-9a-fA-F]{64}$/.test(key)) {
+    return Buffer.from(key, 'hex');
+  }
+
+  // If it's a hex string but not exactly 64 chars, try to use it
+  if (/^[0-9a-fA-F]+$/i.test(key)) {
+    // Pad or truncate to 64 hex chars (32 bytes)
+    const hexKey = key.padEnd(64, '0').slice(0, 64);
+    return Buffer.from(hexKey, 'hex');
+  }
+
+  // If it's a regular string, derive 32-byte key from it
+  if (key.length >= 32) {
+    // Use first 32 bytes as UTF-8
+    return Buffer.from(key.slice(0, 32), 'utf8');
+  }
+
+  // Derive key using scrypt
+  return crypto.scryptSync(key, 'salt', 32);
+};
+
 const getEncryptionKey = () => {
   if (process.env.ENCRYPTION_KEY) {
-    const key = process.env.ENCRYPTION_KEY.trim();
-    
-    // Check if it's a hex string (64 hex characters = 32 bytes)
-    if (/^[0-9a-fA-F]{64}$/.test(key)) {
-      // Convert hex string to buffer (32 bytes)
-      return Buffer.from(key, 'hex');
-    }
-    
-    // If it's a hex string but not exactly 64 chars, try to use it
-    if (/^[0-9a-fA-F]+$/i.test(key)) {
-      // Pad or truncate to 64 hex chars (32 bytes)
-      const hexKey = key.padEnd(64, '0').slice(0, 64);
-      return Buffer.from(hexKey, 'hex');
-    }
-    
-    // If it's a regular string, derive 32-byte key from it
-    if (key.length >= 32) {
-      // Use first 32 bytes as UTF-8
-      return Buffer.from(key.slice(0, 32), 'utf8');
-    }
-    
-    // Derive key using scrypt
-    return crypto.scryptSync(key, 'salt', 32);
+    const normalized = normalizeEncryptionKey(process.env.ENCRYPTION_KEY);
+    if (normalized) return normalized;
   }
   // Fallback: generate a key from a default string (CHANGE IN PRODUCTION!)
   return crypto.scryptSync('appzeto-food-encryption-key-change-in-production-2024', 'salt', 32);
 };
 
 const ENCRYPTION_KEY = getEncryptionKey();
+
+// Optional: allow decrypting legacy values after rotating the key
+// Format: ENCRYPTION_KEY_OLD="key1,key2,..." (same formats supported as ENCRYPTION_KEY)
+const OLD_KEYS = (process.env.ENCRYPTION_KEY_OLD || '')
+  .split(',')
+  .map((k) => normalizeEncryptionKey(k))
+  .filter((b) => b && b.length === 32);
+
+const ALL_KEYS = [ENCRYPTION_KEY, ...OLD_KEYS].filter(
+  (b) => b && b.length === 32,
+);
+
+let hasLoggedDecryptWarning = false;
 
 // Validate encryption key
 if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 32) {
@@ -122,18 +141,29 @@ export function decrypt(encryptedText) {
     const tag = Buffer.from(encryptedText.slice(TAG_POSITION * 2, ENCRYPTED_POSITION * 2), 'hex');
     const encrypted = encryptedText.slice(ENCRYPTED_POSITION * 2);
     
-    // Derive key from encryption key and salt
-    const key = crypto.scryptSync(ENCRYPTION_KEY, salt, 32);
-    
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-    decipher.setAuthTag(tag);
-    
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    
-    return decrypted;
+    for (const baseKey of ALL_KEYS) {
+      try {
+        const key = crypto.scryptSync(baseKey, salt, 32);
+        const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+        decipher.setAuthTag(tag);
+        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+      } catch {
+        // Try next key
+      }
+    }
+    // No key could decrypt - likely key mismatch/rotation or corrupted data
+    return '';
   } catch (error) {
-    console.error('Decryption error:', error);
+    // Avoid spamming logs in production when ENCRYPTION_KEY changed.
+    if (!hasLoggedDecryptWarning) {
+      hasLoggedDecryptWarning = true;
+      console.error('Decryption error (first occurrence):', error?.message || error);
+      console.error(
+        '💡 Check ENCRYPTION_KEY / ENCRYPTION_KEY_OLD on the server. Existing DB env values may have been encrypted with a different key.',
+      );
+    }
     // If decryption fails, return empty string (might be unencrypted legacy data)
     return '';
   }

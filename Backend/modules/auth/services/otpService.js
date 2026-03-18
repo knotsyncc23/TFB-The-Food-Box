@@ -86,6 +86,10 @@ class OTPService {
 
       // Check rate limiting (default max 3 OTPs per identifier per hour) - using MongoDB
       if (process.env.NODE_ENV === 'production') {
+        // Never rate-limit configured test numbers (used for staging/support)
+        if (phone && isTestPhoneNumber(phone)) {
+          // Skip limiter entirely
+        } else {
         const configuredMax = parseInt(process.env.OTP_RATE_LIMIT_MAX_PER_HOUR || '', 10);
         const maxPerHour =
           typeof options?.maxPerHour === 'number' && Number.isFinite(options.maxPerHour)
@@ -102,6 +106,7 @@ class OTPService {
         const recentOtpCount = await Otp.countDocuments(rateLimitQuery);
         if (recentOtpCount >= maxPerHour) {
           throw new Error('Too many OTP requests. Please try again after some time.');
+        }
         }
       }
 
