@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { restaurantAPI } from "@/lib/api"
 import { firebaseAuth, googleProvider, ensureFirebaseInitialized } from "@/lib/firebase"
+import { hasFlutterGoogleBridge, nativeGoogleSignIn } from "@/lib/utils/flutterGoogleAuthBridge"
 import { useCompanyName } from "@/lib/hooks/useCompanyName"
 
 // Common country codes
@@ -339,11 +340,61 @@ export default function RestaurantLogin() {
     try {
       // Ensure Firebase Auth + Google provider are initialized
       await ensureFirebaseInitialized()
-      const { signInWithPopup } = await import("firebase/auth")
       if (!firebaseAuth || !googleProvider) {
         throw new Error("Firebase is not configured correctly for Google login")
       }
 
+      // 1) Flutter WebView bridge path
+      if (hasFlutterGoogleBridge()) {
+        const flutterResult = await nativeGoogleSignIn()
+
+        if (!flutterResult?.success || !flutterResult?.idToken) {
+          setIsSending(false)
+          setApiError("Google sign-in cancelled or failed. Please try again.")
+          return
+        }
+
+        const idToken = flutterResult.idToken
+
+        // 2) Preferred: use Firebase credential with idToken
+        try {
+          const { GoogleAuthProvider, signInWithCredential } = await import("firebase/auth")
+          const credential = GoogleAuthProvider.credential(idToken)
+          const userCredential = await signInWithCredential(firebaseAuth, credential)
+
+          if (userCredential?.user) {
+            await processSignedInUser(userCredential.user, "flutter-webview")
+            return
+          }
+
+          throw new Error("Firebase did not return a user after credential exchange")
+        } catch (credentialError) {
+          // 3) Fallback: call backend directly
+          console.warn(
+            "Flutter Google token credential failed; falling back to backend login:",
+            credentialError?.message || credentialError,
+          )
+
+          const response = await restaurantAPI.firebaseGoogleLogin(idToken)
+          const data = response?.data?.data || {}
+
+          const accessToken = data.accessToken
+          const restaurant = data.restaurant
+
+          if (accessToken && restaurant) {
+            redirectHandledRef.current = true
+            setAuthData("restaurant", accessToken, restaurant)
+            window.dispatchEvent(new Event("restaurantAuthChanged"))
+            navigate("/restaurant", { replace: true })
+            return
+          }
+
+          throw new Error("Invalid backend response during Flutter login fallback")
+        }
+      }
+
+      // 4) Normal browser path
+      const { signInWithPopup } = await import("firebase/auth")
       const result = await signInWithPopup(firebaseAuth, googleProvider)
       if (result?.user) {
         await processSignedInUser(result.user, "popup-result")

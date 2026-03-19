@@ -17,9 +17,11 @@ const logger = winston.createLogger({
 class FirebaseAuthService {
   constructor() {
     this.initialized = false;
-    // Initialize asynchronously (don't await in constructor)
-    this.init().catch((err) => {
+    // Initialize asynchronously, but keep a shared promise so callers can await it.
+    // This prevents "race" failures on the first auth request after server startup.
+    this.initPromise = this.init().catch((err) => {
       logger.error(`Error initializing Firebase: ${err.message}`);
+      return false;
     });
   }
 
@@ -120,6 +122,20 @@ class FirebaseAuthService {
     } catch (error) {
       logger.error(`Error in Firebase init: ${error.message}`);
     }
+  }
+
+  /**
+   * Wait for Firebase Admin initialization to finish (success or failure).
+   * @returns {Promise<boolean>} true if initialized successfully
+   */
+  async ensureInitialized() {
+    if (this.initialized) return true;
+    try {
+      await this.initPromise;
+    } catch (_) {
+      // initPromise already logs internally; swallow to return false below.
+    }
+    return this.initialized;
   }
 
   isEnabled() {

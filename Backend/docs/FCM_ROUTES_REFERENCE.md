@@ -126,7 +126,7 @@ Content-Type: application/json
 {
   "platform": "app"
 }
-```
+
 
 Use `"platform": "web"` for web, or `"platform": "app"`, `"platform": "android"`, or `"platform": "ios"` for mobile.
 

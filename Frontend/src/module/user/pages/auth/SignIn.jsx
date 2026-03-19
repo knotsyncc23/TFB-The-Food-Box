@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select"
 import { authAPI } from "@/lib/api"
 import { firebaseAuth, googleProvider, ensureFirebaseInitialized } from "@/lib/firebase"
+import { hasFlutterGoogleBridge, nativeGoogleSignIn } from "@/lib/utils/flutterGoogleAuthBridge"
 import { setAuthData } from "@/lib/utils/auth"
 import { registerFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
 import loginBanner from "@/assets/loginbanner.jpg"
@@ -406,6 +407,66 @@ export default function SignIn() {
         throw new Error("Firebase Auth is not initialized. Please check your Firebase configuration.")
       }
 
+      // 1) Flutter WebView bridge path (works in in-app browser)
+      if (hasFlutterGoogleBridge()) {
+        const flutterResult = await nativeGoogleSignIn()
+
+        if (!flutterResult?.success || !flutterResult?.idToken) {
+          setApiError("Google sign-in cancelled or failed. Please try again.")
+          setIsLoading(false)
+          return
+        }
+
+        const idToken = flutterResult.idToken
+
+        // 2) Preferred: try to sign in via Firebase credential using idToken
+        try {
+          const { GoogleAuthProvider, signInWithCredential } = await import("firebase/auth")
+          const credential = GoogleAuthProvider.credential(idToken)
+          const userCredential = await signInWithCredential(firebaseAuth, credential)
+
+          if (userCredential?.user) {
+            await processSignedInUser(userCredential.user, "flutter-webview")
+            return
+          }
+
+          throw new Error("Firebase did not return a user after credential exchange")
+        } catch (credentialError) {
+          // 3) Fallback: token might already be Firebase ID token; call backend directly.
+          console.warn(
+            "Flutter Google token credential failed; falling back to backend login:",
+            credentialError?.message || credentialError,
+          )
+
+          const response = await authAPI.firebaseGoogleLogin(idToken, "user")
+          const data = response?.data?.data || {}
+
+          const accessToken = data.accessToken
+          const appUser = data.user
+
+          if (accessToken && appUser) {
+            redirectHandledRef.current = true
+            setAuthData("user", accessToken, appUser)
+            window.dispatchEvent(new Event("userAuthChanged"))
+
+            registerFcmTokenForLoggedInUser().catch(() => {})
+
+            // Clear any URL hash or params
+            const hasHash = window.location.hash.length > 0
+            const hasQueryParams = window.location.search.length > 0
+            if (hasHash || hasQueryParams) {
+              window.history.replaceState({}, document.title, window.location.pathname)
+            }
+
+            navigate("/user", { replace: true })
+            return
+          }
+
+          throw new Error("Invalid backend response during Flutter login fallback")
+        }
+      }
+
+      // 4) Normal browser path
       const { signInWithPopup } = await import("firebase/auth")
 
       // Log current origin for debugging
@@ -420,7 +481,6 @@ export default function SignIn() {
       })
 
       if (result && result.user) {
-        // Process signed-in user
         await processSignedInUser(result.user, "popup-result")
       }
     } catch (error) {
