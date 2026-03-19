@@ -92,6 +92,20 @@ router.post(
   validate(fcmRegisterSchema),
   registerFcmToken,
 );
+router.put(
+  "/fcm-token",
+  authenticate,
+  mergeFcmQueryForBody,
+  validate(fcmRegisterSchema),
+  registerFcmToken,
+);
+router.patch(
+  "/fcm-token",
+  authenticate,
+  mergeFcmQueryForBody,
+  validate(fcmRegisterSchema),
+  registerFcmToken,
+);
 router.delete(
   "/fcm-token",
   authenticate,

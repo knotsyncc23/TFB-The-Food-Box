@@ -134,6 +134,20 @@ router.post(
   validate(fcmRegisterSchema),
   registerRestaurantFcmToken,
 );
+router.put(
+  "/fcm-token",
+  authenticate,
+  mergeFcmQueryForBody,
+  validate(fcmRegisterSchema),
+  registerRestaurantFcmToken,
+);
+router.patch(
+  "/fcm-token",
+  authenticate,
+  mergeFcmQueryForBody,
+  validate(fcmRegisterSchema),
+  registerRestaurantFcmToken,
+);
 router.delete(
   "/fcm-token",
   authenticate,

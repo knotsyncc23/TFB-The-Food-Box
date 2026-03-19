@@ -129,6 +129,8 @@ router.post('/logout', logout);
 
 // FCM device token registration (authenticated)
 router.post('/fcm-token', authenticate, mergeFcmQueryForBody, validate(fcmRegisterSchema), registerFcmToken);
+router.put('/fcm-token', authenticate, mergeFcmQueryForBody, validate(fcmRegisterSchema), registerFcmToken);
+router.patch('/fcm-token', authenticate, mergeFcmQueryForBody, validate(fcmRegisterSchema), registerFcmToken);
 router.delete('/fcm-token', authenticate, mergeFcmQueryForBody, validate(fcmDeleteSchema), removeFcmToken);
 
 // Firebase Google login (using Firebase Auth ID token)
