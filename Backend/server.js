@@ -382,13 +382,46 @@ app.use(mongoSanitize());
 
 // Rate limiting (disabled in development mode)
 if (process.env.NODE_ENV === "production") {
-  const limiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  const rateLimitWindowMs =
+    parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000; // 15 minutes
+  const writeMaxRequests =
+    parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 300;
+  const readMaxRequests =
+    parseInt(process.env.RATE_LIMIT_GET_MAX_REQUESTS, 10) || 2000;
+
+  const clientKeyGenerator = (req) => {
+    // Prefer first forwarded IP when behind proxy/CDN.
+    const xff = req.headers["x-forwarded-for"];
+    if (typeof xff === "string" && xff.trim()) {
+      return xff.split(",")[0].trim();
+    }
+    return req.ip;
+  };
+
+  // High limit for public/read-heavy traffic (home/search/list pages).
+  const readLimiter = rateLimit({
+    windowMs: rateLimitWindowMs,
+    max: readMaxRequests,
+    keyGenerator: clientKeyGenerator,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.method !== "GET",
+    message: "Too many read requests from this IP, please try again later.",
+  });
+
+  // Stricter limit for writes and auth-sensitive requests.
+  const writeLimiter = rateLimit({
+    windowMs: rateLimitWindowMs,
+    max: writeMaxRequests,
+    keyGenerator: clientKeyGenerator,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.method === "GET",
     message: "Too many requests from this IP, please try again later.",
   });
 
-  app.use("/api/", limiter);
+  app.use("/api/", readLimiter);
+  app.use("/api/", writeLimiter);
 } else {
 }
 
