@@ -140,8 +140,25 @@ export const saveEnvVariables = asyncHandler(async (req, res) => {
       );
     }
 
+    // Sensitive fields should never be accidentally erased by blank payloads.
+    // This protects against cases where decryption/key mismatch makes values appear empty in UI.
+    const protectedSecretFields = new Set([
+      "RAZORPAY_API_KEY",
+      "RAZORPAY_SECRET_KEY",
+      "CLOUDINARY_API_KEY",
+      "CLOUDINARY_API_SECRET",
+      "FIREBASE_API_KEY",
+      "FIREBASE_CLIENT_EMAIL",
+      "FIREBASE_PRIVATE_KEY",
+      "SMTP_USER",
+      "SMTP_PASS",
+      "SMSINDIAHUB_API_KEY",
+      "VITE_GOOGLE_MAPS_API_KEY",
+    ]);
+
     // Update all fields (encryption will happen in pre-save hook)
     const updatedFields = [];
+    const skippedProtectedFields = [];
     Object.keys(envData).forEach((key) => {
       if (envVars.schema.paths[key]) {
         // Set the value directly - pre-save hook will encrypt it
@@ -152,6 +169,18 @@ export const saveEnvVariables = asyncHandler(async (req, res) => {
           value = String(value);
         } else {
           value = "";
+        }
+
+        // Prevent accidental secret wipe:
+        // If incoming value is blank for protected field and DB already has non-blank value,
+        // keep existing DB value unchanged.
+        const existingValue = envVars[key];
+        const incomingBlank = typeof value === "string" && value.trim() === "";
+        const existingNonBlank =
+          typeof existingValue === "string" && existingValue.trim() !== "";
+        if (protectedSecretFields.has(key) && incomingBlank && existingNonBlank) {
+          skippedProtectedFields.push(key);
+          return;
         }
 
         envVars[key] = value;
@@ -166,6 +195,11 @@ export const saveEnvVariables = asyncHandler(async (req, res) => {
     logger.info(
       `Updated ${updatedFields.length} fields: ${updatedFields.join(", ")}`,
     );
+    if (skippedProtectedFields.length > 0) {
+      logger.warn(
+        `Skipped blank updates for protected fields: ${skippedProtectedFields.join(", ")}`,
+      );
+    }
 
     // Update metadata
     envVars.lastUpdatedBy = admin._id;
