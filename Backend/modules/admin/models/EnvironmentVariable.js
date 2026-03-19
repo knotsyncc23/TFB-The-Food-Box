@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { encrypt, decrypt, isEncrypted } from '../../../shared/utils/encryption.js';
+import { decrypt, isEncrypted } from '../../../shared/utils/encryption.js';
 
 const environmentVariableSchema = new mongoose.Schema(
   {
@@ -196,7 +196,10 @@ environmentVariableSchema.methods.toEnvObject = function() {
   return obj;
 };
 
-// Pre-save hook to encrypt sensitive fields
+// Pre-save hook to normalize sensitive field values.
+// NOTE: Encryption on save is intentionally disabled to avoid runtime
+// decrypt-key mismatch issues in production. Existing encrypted values
+// are still handled in toEnvObject() above.
 environmentVariableSchema.pre('save', function(next) {
   const sensitiveFields = [
     'RAZORPAY_API_KEY',
@@ -232,25 +235,13 @@ environmentVariableSchema.pre('save', function(next) {
       if (!fieldValue || (typeof fieldValue === 'string' && fieldValue.trim() === '')) {
         // Set to empty string if null/undefined
         this[field] = '';
-        continue; // Skip encryption for empty values
+        continue;
       }
-      
-      // Only encrypt if value is a string and not already encrypted
+
+      // Encryption is disabled: persist plain text values directly.
+      // If admin submits an already encrypted value, keep it as-is.
       if (typeof fieldValue === 'string' && !isEncrypted(fieldValue)) {
-        try {
-          const encryptedValue = encrypt(fieldValue);
-          if (encryptedValue && encryptedValue.trim() !== '') {
-            this[field] = encryptedValue;
-          } else {
-            console.warn(`Encryption returned empty for field: ${field}, keeping original value`);
-            // Keep original value if encryption returns empty
-          }
-        } catch (encryptError) {
-          console.error(`Error encrypting ${field}:`, encryptError.message);
-          console.error(`Field value length: ${fieldValue?.length}`);
-          // Continue with unencrypted value if encryption fails
-          // This allows the save to proceed even if encryption fails
-        }
+        this[field] = fieldValue.trim();
       }
     } catch (fieldError) {
       console.error(`Error processing field ${field}:`, fieldError.message);
