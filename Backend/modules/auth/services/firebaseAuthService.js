@@ -46,20 +46,22 @@ class FirebaseAuthService {
       // Fallback: read from firebaseconfig.json in backend root or config folder if env vars are not set
       if (!projectId || !clientEmail || !privateKey) {
         try {
-          // Try config folder first (if service account file is there)
-          const configFolderPath = path.resolve(
-            process.cwd(),
-            "config",
-            "zomato-607fa-firebase-adminsdk-fbsvc-f5f782c2cc.json",
-          );
-          const rootPath = path.resolve(process.cwd(), "firebaseconfig.json");
+          // Try common service-account file names
+          const serviceAccountPaths = [
+            path.resolve(process.cwd(), "config", "serviceAccountKey.json"),
+            path.resolve(process.cwd(), "config", "firebaseconfig.json"),
+            path.resolve(process.cwd(), "firebaseconfig.json"),
+            // Legacy/hard-coded filename (keep for backward compatibility)
+            path.resolve(
+              process.cwd(),
+              "config",
+              "zomato-607fa-firebase-adminsdk-fbsvc-f5f782c2cc.json",
+            ),
+          ];
 
-          let serviceAccountPath = null;
-          if (fs.existsSync(configFolderPath)) {
-            serviceAccountPath = configFolderPath;
-          } else if (fs.existsSync(rootPath)) {
-            serviceAccountPath = rootPath;
-          }
+          const serviceAccountPath = serviceAccountPaths.find((p) =>
+            fs.existsSync(p),
+          );
 
           if (serviceAccountPath) {
             const raw = fs.readFileSync(serviceAccountPath, "utf-8");
