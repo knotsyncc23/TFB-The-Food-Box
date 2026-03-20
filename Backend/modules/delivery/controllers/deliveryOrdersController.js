@@ -1803,6 +1803,45 @@ export const completeDelivery = asyncHandler(async (req, res) => {
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             deliveryDistance = R * c;
           }
+          // Final fallback: restaurantId might be a string (populate failed)
+          if (
+            (!deliveryDistance || deliveryDistance <= 0) &&
+            order.address?.location?.coordinates
+          ) {
+            const restaurantIdVal =
+              order.restaurantId?._id || order.restaurantId;
+            let restaurantDoc = null;
+            if (restaurantIdVal) {
+              if (mongoose.Types.ObjectId.isValid(restaurantIdVal)) {
+                restaurantDoc = await Restaurant.findById(restaurantIdVal)
+                  .select("location")
+                  .lean();
+              } else {
+                restaurantDoc = await Restaurant.findOne({
+                  restaurantId: restaurantIdVal,
+                })
+                  .select("location")
+                  .lean();
+              }
+            }
+            if (restaurantDoc?.location?.coordinates) {
+              const [restaurantLng, restaurantLat] =
+                restaurantDoc.location.coordinates;
+              const [customerLng, customerLat] =
+                order.address.location.coordinates;
+              const R = 6371;
+              const dLat = ((customerLat - restaurantLat) * Math.PI) / 180;
+              const dLng = ((customerLng - restaurantLng) * Math.PI) / 180;
+              const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos((restaurantLat * Math.PI) / 180) *
+                  Math.cos((customerLat * Math.PI) / 180) *
+                  Math.sin(dLng / 2) *
+                  Math.sin(dLng / 2);
+              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+              deliveryDistance = R * c;
+            }
+          }
 
           let totalEarning = 0;
           let commissionBreakdown = null;
@@ -1977,6 +2016,43 @@ export const completeDelivery = asyncHandler(async (req, res) => {
           Math.sin(dLng / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       deliveryDistance = R * c;
+    }
+    // Final fallback: restaurantId might be a string (populate failed)
+    if (
+      (!deliveryDistance || deliveryDistance <= 0) &&
+      order.address?.location?.coordinates
+    ) {
+      const restaurantIdVal = order.restaurantId?._id || order.restaurantId;
+      let restaurantDoc = null;
+      if (restaurantIdVal) {
+        if (mongoose.Types.ObjectId.isValid(restaurantIdVal)) {
+          restaurantDoc = await Restaurant.findById(restaurantIdVal)
+            .select("location")
+            .lean();
+        } else {
+          restaurantDoc = await Restaurant.findOne({
+            restaurantId: restaurantIdVal,
+          })
+            .select("location")
+            .lean();
+        }
+      }
+      if (restaurantDoc?.location?.coordinates) {
+        const [restaurantLng, restaurantLat] =
+          restaurantDoc.location.coordinates;
+        const [customerLng, customerLat] = order.address.location.coordinates;
+        const R = 6371;
+        const dLat = ((customerLat - restaurantLat) * Math.PI) / 180;
+        const dLng = ((customerLng - restaurantLng) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((restaurantLat * Math.PI) / 180) *
+            Math.cos((customerLat * Math.PI) / 180) *
+            Math.sin(dLng / 2) *
+            Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        deliveryDistance = R * c;
+      }
     }
     // Calculate earnings using admin's commission rules
     let totalEarning = 0;
