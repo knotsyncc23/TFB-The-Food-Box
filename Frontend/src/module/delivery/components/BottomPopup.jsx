@@ -287,7 +287,8 @@ export default function BottomPopup({
             className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-[110] overflow-hidden flex flex-col"
             style={{ 
               maxHeight: isCollapsed ? "120px" : maxHeight,
-              touchAction: 'none'
+              touchAction: 'none',
+              paddingBottom: 'env(safe-area-inset-bottom)'
             }}
           >
             {/* Top Drag Handle Bar - Always visible for dragging */}
@@ -370,4 +371,3 @@ export default function BottomPopup({
     </AnimatePresence>
   )
 }
-

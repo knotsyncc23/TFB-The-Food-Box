@@ -10270,7 +10270,7 @@ export default function DeliveryHome() {
         stickyFooter={true}
       >
         <div className="flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto pb-28">
           {/* Success Icon and Title */}
           <div className="text-center mb-6">
             <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -10390,7 +10390,10 @@ export default function DeliveryHome() {
           </div>
 
           {!isDeliveryCompleted && (
-            <div className="pt-3">
+            <div
+              className="pt-3 pb-4 sticky bottom-0 bg-white"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            >
               {/* Order Delivered Button with Swipe */}
               <div className="relative w-full">
                 <motion.div

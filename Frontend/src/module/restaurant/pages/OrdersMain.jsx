@@ -2221,19 +2221,6 @@ function OrderCard({
   return (
     <div className="w-full bg-white rounded-2xl p-4 mb-3 border border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
       {/* Cancel button - only show for preparing orders */}
-      {showCancel && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onCancel({ orderId, mongoId, customerName });
-          }}
-          className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-white/95 border border-red-100 text-red-600 shadow-md hover:bg-red-50 transition-colors z-10"
-          title="Cancel Order"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      )}
       <div
         onClick={() =>
           onSelect?.({
@@ -2270,7 +2257,7 @@ function OrderCard({
         {/* Content */}
         <div className="flex-1 flex flex-col justify-between min-h-[80px]">
           {/* Top row */}
-          <div className={`flex items-start justify-between gap-2 ${showCancel ? "pr-10" : ""}`}>
+          <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-black leading-tight truncate">
                 Order #{orderId}
@@ -2280,19 +2267,7 @@ function OrderCard({
               </p>
             </div>
 
-            <div className="flex flex-col items-end gap-1 min-w-0 flex-shrink">
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium border flex-wrap break-words ${isReady
-                  ? "border-red-500 text-red-600"
-                  : "border-gray-800 text-gray-900"
-                  }`}
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${isReady ? "bg-red-500" : "bg-gray-800"
-                    }`}
-                />
-                <span className="whitespace-nowrap">{status}</span>
-              </span>
+            <div className="flex flex-col items-end gap-1 min-w-0 shrink-0 max-w-[120px]">
               <span className="text-[11px] text-gray-500 text-right break-words">
                 {timePlaced}
               </span>
@@ -2333,7 +2308,7 @@ function OrderCard({
             </div>
             {/* Hide ETA for ready orders */}
             {status !== 'ready' && eta && (
-              <div className="flex items-baseline gap-1 shrink-0">
+              <div className="flex items-baseline gap-1 shrink-0 pr-2">
                 <span className="text-[11px] text-gray-500 whitespace-nowrap">ETA</span>
                 <span className="text-xs font-medium text-black whitespace-nowrap">
                   {eta}
