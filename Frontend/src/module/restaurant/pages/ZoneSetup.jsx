@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { MapPin, Search, Save, Loader2, ArrowLeft } from "lucide-react"
 import RestaurantNavbar from "../components/RestaurantNavbar"
-import { restaurantAPI } from "@/lib/api"
+import { restaurantAPI, zoneAPI } from "@/lib/api"
 import { getGoogleMapsApiKey } from "@/lib/utils/googleMapsApiKey"
 import { Loader } from "@googlemaps/js-api-loader"
+import { toast } from "sonner"
 
 export default function ZoneSetup() {
   const navigate = useNavigate()
@@ -13,6 +14,7 @@ export default function ZoneSetup() {
   const markerRef = useRef(null)
   const autocompleteInputRef = useRef(null)
   const autocompleteRef = useRef(null)
+  const existingZonesPolygonsRef = useRef([])
   
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState("")
   const [mapLoading, setMapLoading] = useState(true)
@@ -21,9 +23,11 @@ export default function ZoneSetup() {
   const [locationSearch, setLocationSearch] = useState("")
   const [selectedLocation, setSelectedLocation] = useState(null)
   const [selectedAddress, setSelectedAddress] = useState("")
+  const [existingZones, setExistingZones] = useState([])
 
   useEffect(() => {
     fetchRestaurantData()
+    fetchExistingZones()
     loadGoogleMaps()
   }, [])
 
@@ -103,6 +107,20 @@ export default function ZoneSetup() {
     }
   }
 
+  const fetchExistingZones = async () => {
+    try {
+      const response = await zoneAPI.getActiveZones()
+      if (response?.data?.success && response.data?.data?.zones) {
+        setExistingZones(response.data.data.zones)
+      } else {
+        setExistingZones([])
+      }
+    } catch (error) {
+      console.error("Error fetching existing zones:", error)
+      setExistingZones([])
+    }
+  }
+
   const loadGoogleMaps = async () => {
     try {
       console.log("📍 Starting Google Maps load...")
@@ -116,13 +134,13 @@ export default function ZoneSetup() {
         if (!apiKey || apiKey.trim() === "") {
           console.error("❌ API key is empty or not found in database")
           setMapLoading(false)
-          alert("Google Maps API key not found in database. Please contact administrator to add the API key in admin panel.")
+          toast.error("Google Maps API key not found in database. Please contact administrator to add the API key in admin panel.")
           return
         }
       } catch (apiKeyError) {
         console.error("❌ Error fetching API key from database:", apiKeyError)
         setMapLoading(false)
-        alert("Failed to fetch Google Maps API key from database. Please check your connection or contact administrator.")
+        toast.error("Failed to fetch Google Maps API key from database. Please check your connection or contact administrator.")
         return
       }
       
@@ -149,7 +167,7 @@ export default function ZoneSetup() {
       if (!mapRef.current) {
         console.error("❌ mapRef.current is still null after waiting")
         setMapLoading(false)
-        alert("Failed to initialize map container. Please refresh the page.")
+        toast.error("Failed to initialize map container. Please refresh the page.")
         return
       }
 
@@ -175,12 +193,12 @@ export default function ZoneSetup() {
       } else {
         console.error("❌ No API key available")
         setMapLoading(false)
-        alert("Google Maps API key not found. Please contact administrator.")
+        toast.error("Google Maps API key not found. Please contact administrator.")
       }
     } catch (error) {
       console.error("❌ Error loading Google Maps:", error)
       setMapLoading(false)
-      alert(`Failed to load Google Maps: ${error.message}. Please refresh the page or contact administrator.`)
+      toast.error(`Failed to load Google Maps: ${error.message}. Please refresh the page or contact administrator.`)
     }
   }
 
@@ -238,9 +256,70 @@ export default function ZoneSetup() {
     } catch (error) {
       console.error("❌ Error in initializeMap:", error)
       setMapLoading(false)
-      alert("Failed to initialize map. Please refresh the page.")
+      toast.error("Failed to initialize map. Please refresh the page.")
     }
   }
+
+  // Draw existing zones on the map
+  const drawExistingZonesOnMap = (google, map) => {
+    if (!existingZones || existingZones.length === 0) return
+
+    // Clear previous polygons
+    existingZonesPolygonsRef.current.forEach(polygon => {
+      if (polygon) polygon.setMap(null)
+    })
+    existingZonesPolygonsRef.current = []
+
+    existingZones.forEach((zone) => {
+      if (!zone.coordinates || zone.coordinates.length < 3) return
+
+      const path = zone.coordinates.map(coord => {
+        const lat = typeof coord === 'object' ? (coord.latitude || coord.lat) : null
+        const lng = typeof coord === 'object' ? (coord.longitude || coord.lng) : null
+        if (lat === null || lng === null) return null
+        return new google.maps.LatLng(lat, lng)
+      }).filter(Boolean)
+
+      if (path.length < 3) return
+
+      const polygon = new google.maps.Polygon({
+        paths: path,
+        strokeColor: "#3b82f6",
+        strokeOpacity: 0.6,
+        strokeWeight: 2,
+        fillColor: "#3b82f6",
+        fillOpacity: 0.15,
+        editable: false,
+        draggable: false,
+        clickable: true,
+        zIndex: 0
+      })
+
+      polygon.setMap(map)
+      existingZonesPolygonsRef.current.push(polygon)
+
+      const infoWindow = new google.maps.InfoWindow({
+        content: `
+          <div style="padding: 8px;">
+            <strong>${zone.name || zone.zoneName || 'Unnamed Zone'}</strong><br/>
+            <small>Country: ${zone.country || 'N/A'}</small>
+          </div>
+        `
+      })
+
+      polygon.addListener('click', () => {
+        infoWindow.setPosition(polygon.getPath().getAt(0))
+        infoWindow.open(map)
+      })
+    })
+  }
+
+  // Redraw existing zones when data changes or map is ready
+  useEffect(() => {
+    if (!mapLoading && mapInstanceRef.current && existingZones.length > 0 && window.google) {
+      drawExistingZonesOnMap(window.google, mapInstanceRef.current)
+    }
+  }, [existingZones, mapLoading])
 
   const updateMarker = (lat, lng, address) => {
     if (!mapInstanceRef.current || !window.google) return
@@ -315,14 +394,26 @@ export default function ZoneSetup() {
 
   const handleSaveLocation = async () => {
     if (!selectedLocation) {
-      alert("Please select a location on the map first")
+      toast.error("Please select a location on the map first")
       return
     }
 
     try {
-      setSaving(true)
-      
       const { lat, lng, address } = selectedLocation
+      const latNum = parseFloat(lat)
+      const lngNum = parseFloat(lng)
+
+      if (!existingZones || existingZones.length === 0) {
+        toast.error("No active delivery zones are available. Please contact administrator.")
+        return
+      }
+
+      if (!isLocationInAnyZone(latNum, lngNum, existingZones)) {
+        toast.error("Selected location is outside all active zones. Please choose a location within a delivery zone.")
+        return
+      }
+
+      setSaving(true)
       
       // Update restaurant location
       const response = await restaurantAPI.updateProfile({
@@ -337,19 +428,38 @@ export default function ZoneSetup() {
 
       if (response?.data?.data?.restaurant) {
         setRestaurantData(response.data.data.restaurant)
-        alert("Location saved successfully!")
-        
-        // Refresh the page to update navbar
-        window.location.reload()
+        toast.success("Location saved successfully!")
       } else {
         throw new Error("Failed to save location")
       }
     } catch (error) {
       console.error("Error saving location:", error)
-      alert(error.response?.data?.message || "Failed to save location. Please try again.")
+      toast.error(error.response?.data?.message || "Failed to save location. Please try again.")
     } finally {
       setSaving(false)
     }
+  }
+
+  const isPointInZone = (lat, lng, zoneCoordinates) => {
+    if (!zoneCoordinates || zoneCoordinates.length < 3) return false
+    let inside = false
+    for (let i = 0, j = zoneCoordinates.length - 1; i < zoneCoordinates.length; j = i++) {
+      const coordI = zoneCoordinates[i]
+      const coordJ = zoneCoordinates[j]
+      const xi = typeof coordI === 'object' ? (coordI.latitude || coordI.lat) : null
+      const yi = typeof coordI === 'object' ? (coordI.longitude || coordI.lng) : null
+      const xj = typeof coordJ === 'object' ? (coordJ.latitude || coordJ.lat) : null
+      const yj = typeof coordJ === 'object' ? (coordJ.longitude || coordJ.lng) : null
+      if (xi === null || yi === null || xj === null || yj === null) continue
+      const intersect = (yi > lng) !== (yj > lng) && (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi)
+      if (intersect) inside = !inside
+    }
+    return inside
+  }
+
+  const isLocationInAnyZone = (lat, lng, zones) => {
+    if (!zones || zones.length === 0) return false
+    return zones.some(zone => isPointInZone(lat, lng, zone.coordinates))
   }
 
   return (

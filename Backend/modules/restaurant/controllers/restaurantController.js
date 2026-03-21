@@ -664,6 +664,32 @@ export const updateRestaurantProfile = asyncHandler(async (req, res) => {
         if (!location.latitude) location.latitude = location.coordinates[1];
       }
 
+      const locationLat = parseFloat(location.latitude);
+      const locationLng = parseFloat(location.longitude);
+      if (!Number.isNaN(locationLat) && !Number.isNaN(locationLng)) {
+        const activeZones = await Zone.find({ isActive: true }).lean();
+        if (!activeZones || activeZones.length === 0) {
+          return errorResponse(
+            res,
+            400,
+            "No active delivery zones are available. Please contact administrator.",
+          );
+        }
+
+        const isInAnyZone = isRestaurantInAnyZone(
+          locationLat,
+          locationLng,
+          activeZones,
+        );
+        if (!isInAnyZone) {
+          return errorResponse(
+            res,
+            400,
+            "Selected location is outside all active zones. Please choose a location within a delivery zone.",
+          );
+        }
+      }
+
       updateData.location = location;
     }
 

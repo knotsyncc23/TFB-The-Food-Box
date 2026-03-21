@@ -299,6 +299,10 @@ export const zoneAPI = {
       params: { lat, lng },
     });
   },
+  // Get all active zones (public)
+  getActiveZones: () => {
+    return apiClient.get(API_ENDPOINTS.ZONE.ACTIVE);
+  },
 };
 
 // Export restaurant API helper functions
