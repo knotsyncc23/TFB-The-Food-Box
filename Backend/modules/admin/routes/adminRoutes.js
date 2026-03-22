@@ -170,6 +170,10 @@ import {
   updatePrivacy,
 } from "../controllers/privacyPolicyController.js";
 import {
+  getContactUs,
+  updateContactUs,
+} from "../controllers/contactUsController.js";
+import {
   getRefund,
   updateRefund,
 } from "../controllers/refundPolicyController.js";
@@ -442,6 +446,10 @@ router.put("/terms", updateTerms);
 // Privacy Policy Management
 router.get("/privacy", getPrivacy);
 router.put("/privacy", updatePrivacy);
+
+// Contact Us (CMS)
+router.get("/contact-us", getContactUs);
+router.put("/contact-us", updateContactUs);
 
 // Refund Policy Management
 router.get("/refund", getRefund);

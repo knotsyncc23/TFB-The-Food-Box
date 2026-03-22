@@ -339,6 +339,8 @@ export const API_ENDPOINTS = {
     TERMS_PUBLIC: "/terms/public",
     PRIVACY: "/admin/privacy",
     PRIVACY_PUBLIC: "/privacy/public",
+    CONTACT_US: "/admin/contact-us",
+    CONTACT_US_PUBLIC: "/contact-us/public",
     REFUND: "/admin/refund",
     REFUND_PUBLIC: "/refund/public",
     SHIPPING: "/admin/shipping",

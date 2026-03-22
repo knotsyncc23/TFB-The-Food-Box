@@ -14,6 +14,13 @@ loadBusinessSettings().catch(() => {
   // Silently fail - settings will load when admin is authenticated
 })
 
+// Push: single global FCM foreground handler (bakalacart-style); non-blocking
+setTimeout(() => {
+  import("./lib/notifications/fcmWeb.js")
+    .then(({ initializePushNotifications }) => initializePushNotifications())
+    .catch(() => {})
+}, 0)
+
 // Global flag to track Google Maps loading state
 window.__googleMapsLoading = window.__googleMapsLoading || false;
 window.__googleMapsLoaded = window.__googleMapsLoaded || false;

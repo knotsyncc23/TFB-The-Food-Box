@@ -97,6 +97,7 @@ const Gallery = lazy(() => import("../pages/settings/Gallery"));
 const LoginSetup = lazy(() => import("../pages/settings/LoginSetup"));
 const TermsAndCondition = lazy(() => import("../pages/settings/TermsAndCondition"));
 const PrivacyPolicy = lazy(() => import("../pages/settings/PrivacyPolicy"));
+const ContactUsPage = lazy(() => import("../pages/settings/ContactUs"));
 const AboutUs = lazy(() => import("../pages/settings/AboutUs"));
 const RefundPolicy = lazy(() => import("../pages/settings/RefundPolicy"));
 const ShippingPolicy = lazy(() => import("../pages/settings/ShippingPolicy"));
@@ -285,6 +286,7 @@ export default function AdminRouter() {
           {/* Pages & Social Media */}
           <Route path="pages-social-media/terms" element={<TermsAndCondition />} />
           <Route path="pages-social-media/privacy" element={<PrivacyPolicy />} />
+          <Route path="pages-social-media/contact-us" element={<ContactUsPage />} />
           <Route path="pages-social-media/about" element={<AboutUs />} />
           <Route path="pages-social-media/refund" element={<RefundPolicy />} />
           <Route path="pages-social-media/shipping" element={<ShippingPolicy />} />

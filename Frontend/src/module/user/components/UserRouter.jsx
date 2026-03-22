@@ -69,6 +69,7 @@ const RedeemGoldCoupon = lazy(() => import("../pages/profile/RedeemGoldCoupon"))
 const About = lazy(() => import("../pages/profile/About"))
 const Terms = lazy(() => import("../pages/profile/Terms"))
 const Privacy = lazy(() => import("../pages/profile/Privacy"))
+const ContactUs = lazy(() => import("../pages/profile/ContactUs"))
 const ContentPolicy = lazy(() => import("../pages/profile/ContentPolicy"))
 const Refund = lazy(() => import("../pages/profile/Refund"))
 const Shipping = lazy(() => import("../pages/profile/Shipping"))
@@ -341,6 +342,14 @@ export default function UserRouter() {
             }
           />
           <Route
+            path="/profile/contact-us"
+            element={
+              <ProtectedRoute requiredRole="user" loginPath="/user/auth/sign-in">
+                <ContactUs />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/profile/refund"
             element={
               <ProtectedRoute requiredRole="user" loginPath="/user/auth/sign-in">
@@ -400,6 +409,7 @@ export default function UserRouter() {
           {/* Public legal pages (no login required) */}
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/contact-us" element={<ContactUs />} />
           <Route path="/content-policy" element={<ContentPolicy />} />
 
           {/* Auth */}

@@ -346,6 +346,7 @@ export const sidebarMenuData = [
             label: "Privacy Policy",
             path: "/admin/pages-social-media/privacy",
           },
+          { label: "Contact Us", path: "/admin/pages-social-media/contact-us" },
           { label: "About Us", path: "/admin/pages-social-media/about" },
           { label: "Refund Policy", path: "/admin/pages-social-media/refund" },
           {

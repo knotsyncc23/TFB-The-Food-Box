@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom"
 import { useState, useEffect } from "react"
-import { ArrowLeft, ArrowRight, Heart, Users, Shield, Clock, Star, Award, FileText, Lock, Loader2, Receipt, Truck, XCircle } from "lucide-react"
+import { ArrowLeft, ArrowRight, Heart, Users, Shield, Clock, Star, Award, FileText, Lock, Loader2, Receipt, Truck, XCircle, Mail } from "lucide-react"
 import { motion } from "framer-motion"
 import AnimatedPage from "../../components/AnimatedPage"
 import { Button } from "@/components/ui/button"
@@ -237,6 +237,24 @@ export default function About() {
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-500">
                       Learn how we protect your data
+                    </div>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
+                </Link>
+
+                <Link
+                  to="/profile/contact-us"
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group"
+                >
+                  <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2 group-hover:bg-gray-200 dark:group-hover:bg-gray-700 transition-colors">
+                    <Mail className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-base font-medium text-gray-900 dark:text-white group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                      Contact Us
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-500">
+                      Get in touch with our support team
                     </div>
                   </div>
                   <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />

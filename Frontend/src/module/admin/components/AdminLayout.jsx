@@ -25,27 +25,15 @@ export default function AdminLayout() {
     }
   }, [])
 
-  // Admin foreground notifications (FCM, if enabled)
+  // Admin in-app toast for foreground FCM (OS notification is handled globally in fcmWeb.initializePushNotifications)
   useEffect(() => {
-    let unsub = () => {}
-    subscribeToForegroundFcmMessages((payload) => {
-      const title = payload?.notification?.title || "Notification"
-      const body = payload?.notification?.body || ""
+    const unsub = subscribeToForegroundFcmMessages((payload) => {
+      const title =
+        payload?.notification?.title || payload?.data?.title || "Notification"
+      const body =
+        payload?.notification?.body || payload?.data?.body || ""
       toast(title, { description: body })
-      try {
-        if (
-          typeof Notification !== "undefined" &&
-          Notification.permission === "granted"
-        ) {
-          new Notification(title, { body })
-        }
-      } catch {}
     })
-      .then((u) => {
-        unsub = u
-      })
-      .catch(() => {})
-
     return () => {
       try {
         unsub?.()
