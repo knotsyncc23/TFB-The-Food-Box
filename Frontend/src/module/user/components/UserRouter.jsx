@@ -333,22 +333,8 @@ export default function UserRouter() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/profile/privacy"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/user/auth/sign-in">
-                <Privacy />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile/contact-us"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/user/auth/sign-in">
-                <ContactUs />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/profile/privacy" element={<Privacy />} />
+          <Route path="/profile/contact-us" element={<ContactUs />} />
           <Route
             path="/profile/refund"
             element={
@@ -409,6 +395,7 @@ export default function UserRouter() {
           {/* Public legal pages (no login required) */}
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/contact" element={<ContactUs />} />
           <Route path="/contact-us" element={<ContactUs />} />
           <Route path="/content-policy" element={<ContentPolicy />} />
 

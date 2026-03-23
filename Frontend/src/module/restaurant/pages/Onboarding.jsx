@@ -33,6 +33,7 @@ const cuisinesOptions = [
 ]
 
 const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+const step3Sections = ["Company", "GST", "FSSAI", "Bank"]
 
 const ONBOARDING_STORAGE_KEY = "restaurant_onboarding_data"
 
@@ -233,6 +234,7 @@ export default function RestaurantOnboarding() {
   })
 
   const [step3Errors, setStep3Errors] = useState({})
+  const [step3Section, setStep3Section] = useState(0)
 
   const validateStep3Field = (field, value, allStep3 = step3) => {
     const s = { ...allStep3, [field]: value }
@@ -306,6 +308,29 @@ export default function RestaurantOnboarding() {
   const handleStep3Blur = (field) => {
     const err = validateStep3Field(field, step3[field])
     setStep3Errors((prev) => ({ ...prev, [field]: err || null }))
+  }
+
+  const validateStep3Section = (sectionIndex) => {
+    const sectionFields = {
+      0: ["panNumber", "nameOnPan", "panImage"],
+      1: step3.gstRegistered ? ["gstNumber", "gstLegalName", "gstAddress", "gstImage"] : [],
+      2: ["fssaiNumber", "fssaiExpiry", "fssaiImage"],
+      3: ["accountNumber", "confirmAccountNumber", "ifscCode", "accountType", "accountHolderName"],
+    }
+    const fields = sectionFields[sectionIndex] || []
+    const errs = {}
+    fields.forEach((f) => {
+      const e = validateStep3Field(f, step3[f])
+      if (e) errs[f] = e
+    })
+    if (Object.keys(errs).length > 0) {
+      setStep3Errors((prev) => ({ ...prev, ...errs }))
+      Object.values(errs).forEach((msg, idx) => {
+        setTimeout(() => toast.error(msg, { duration: 3500 }), idx * 100)
+      })
+      return false
+    }
+    return true
   }
 
   // Load from localStorage on mount and check URL parameter
@@ -812,7 +837,7 @@ export default function RestaurantOnboarding() {
           </div>
           <span className={`text-[10px] mt-1 font-medium hidden sm:block ${step >= i ? "text-black" : "text-gray-400"
             }`}>
-            {i === 1 ? "Basic Info" : i === 2 ? "Operations" : i === 3 ? "Legal" : "Launch"}
+            {i === 1 ? "Verify Kitchen" : i === 2 ? "First Menu Setup" : i === 3 ? "Documents" : "Launch"}
           </span>
           {i < 4 && (
             <div className={`absolute left-[50%] top-4 w-full h-[2px] -z-0 ${step > i ? "bg-black" : "bg-gray-200"
@@ -954,11 +979,18 @@ export default function RestaurantOnboarding() {
         // Only proceed to step 3 if save was successful
         if (response?.data?.data?.onboarding || response?.data?.data) {
           console.log('✅ Step2 completed successfully, moving to step 3')
+          setStep3Section(0)
           setStep(3)
         } else {
           throw new Error('Failed to save step2 data')
         }
       } else if (step === 3) {
+        if (step3Section < step3Sections.length - 1) {
+          const ok = validateStep3Section(step3Section)
+          if (!ok) return
+          setStep3Section((s) => Math.min(step3Sections.length - 1, s + 1))
+          return
+        }
         // Upload PAN image if it's a File object
         let panImageUpload = null
         if (step3.panImage instanceof File) {
@@ -1292,10 +1324,9 @@ export default function RestaurantOnboarding() {
     <div className="space-y-6">
       {/* Images section */}
       <section className="bg-white p-4 sm:p-6 rounded-md space-y-5">
-        <h2 className="text-lg font-semibold text-black">Menu & photos</h2>
+        <h2 className="text-lg font-semibold text-black">Add your first menu item</h2>
         <p className="text-xs text-gray-500">
-          Add clear photos of your printed menu and a primary profile image. This helps customers
-          understand what you serve.
+          Start with clear menu photos and one profile image so your kitchen looks ready quickly.
         </p>
 
         {/* Menu images */}
@@ -1554,7 +1585,34 @@ export default function RestaurantOnboarding() {
   const renderStep3 = () => (
     <div className="space-y-6">
       <section className="bg-white p-4 sm:p-6 rounded-md space-y-4">
-        <h2 className="text-lg font-semibold text-black">PAN details</h2>
+        <h2 className="text-lg font-semibold text-black">Document verification</h2>
+        <p className="text-sm text-gray-600">
+          Complete one small section at a time. This helps you finish onboarding faster.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {step3Sections.map((sectionName, index) => {
+            const active = step3Section === index
+            const done = step3Section > index
+            return (
+              <button
+                key={sectionName}
+                type="button"
+                onClick={() => {
+                  if (index <= step3Section) setStep3Section(index)
+                }}
+                className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${active ? "bg-black text-white border-black" : done ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-50 text-gray-500 border-gray-200"}`}
+              >
+                {index + 1}. {sectionName}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {step3Section === 0 && (
+        <section className="bg-white p-4 sm:p-6 rounded-md space-y-4">
+          <h2 className="text-lg font-semibold text-black">Business verification (Company/PAN)</h2>
+          <p className="text-xs text-gray-500">This confirms your kitchen as a verified business.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label className="text-xs text-gray-700">PAN number</Label>
@@ -1647,10 +1705,12 @@ export default function RestaurantOnboarding() {
           </div>
           {step3Errors.panImage && <p className="text-xs text-red-500 mt-1">{step3Errors.panImage}</p>}
         </div>
-      </section>
+        </section>
+      )}
 
-      <section className="bg-white p-4 sm:p-6 rounded-md space-y-4">
-        <h2 className="text-lg font-semibold text-black">GST details</h2>
+      {step3Section === 1 && (
+        <section className="bg-white p-4 sm:p-6 rounded-md space-y-4">
+        <h2 className="text-lg font-semibold text-black">GST verification</h2>
         <div className="flex gap-4 items-center text-sm">
           <span className="text-gray-700">GST registered?</span>
           <button
@@ -1761,10 +1821,12 @@ export default function RestaurantOnboarding() {
             {step3Errors.gstImage && <p className="text-xs text-red-500 mt-1">{step3Errors.gstImage}</p>}
           </div>
         )}
-      </section>
+        </section>
+      )}
 
-      <section className="bg-white p-4 sm:p-6 rounded-md space-y-4">
-        <h2 className="text-lg font-semibold text-black">FSSAI details</h2>
+      {step3Section === 2 && (
+        <section className="bg-white p-4 sm:p-6 rounded-md space-y-4">
+        <h2 className="text-lg font-semibold text-black">FSSAI verification</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Input
@@ -1871,9 +1933,11 @@ export default function RestaurantOnboarding() {
           </>
         </div>
         {step3Errors.fssaiImage && <p className="text-xs text-red-500 mt-1">{step3Errors.fssaiImage}</p>}
-      </section>
+        </section>
+      )}
 
-      <section className="bg-white p-4 sm:p-6 rounded-md space-y-4">
+      {step3Section === 3 && (
+        <section className="bg-white p-4 sm:p-6 rounded-md space-y-4">
         <h2 className="text-lg font-semibold text-black">Bank account details</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -1955,7 +2019,8 @@ export default function RestaurantOnboarding() {
           />
           {step3Errors.accountHolderName && <p className="text-xs text-red-500 mt-1">{step3Errors.accountHolderName}</p>}
         </div>
-      </section>
+        </section>
+      )}
     </div>
   )
 
@@ -2070,7 +2135,13 @@ export default function RestaurantOnboarding() {
             <Button
               variant="ghost"
               disabled={step === 1 || saving}
-              onClick={() => setStep((s) => Math.max(1, s - 1))}
+              onClick={() => {
+                if (step === 3 && step3Section > 0) {
+                  setStep3Section((s) => Math.max(0, s - 1))
+                  return
+                }
+                setStep((s) => Math.max(1, s - 1))
+              }}
               className="text-sm font-medium text-gray-600 hover:text-black hover:bg-gray-50 flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -2108,6 +2179,8 @@ export default function RestaurantOnboarding() {
                   </div>
                 ) : step === 4 ? (
                   "Complete Launch"
+                ) : step === 3 && step3Section < step3Sections.length - 1 ? (
+                  "Next Section"
                 ) : (
                   "Continue"
                 )}
