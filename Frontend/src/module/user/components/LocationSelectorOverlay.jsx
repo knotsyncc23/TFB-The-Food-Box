@@ -1070,12 +1070,8 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
         duration: 2000,
       })
 
-      // Wait 2 seconds then close overlay without route navigation.
-      // This keeps the user on the same page and allows components to re-render
-      // from the emitted userLocationUpdated event/local state changes.
-      setTimeout(() => {
-        onClose()
-      }, 2000)
+      // Keep the selector open after location update.
+      // This avoids any close/navigation side-effects and keeps users on the same screen.
     } catch (error) {
       // Handle permission denied or other errors
       if (error.code === 1 || error.message?.includes("denied") || error.message?.includes("permission")) {
