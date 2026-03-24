@@ -54,9 +54,13 @@ const attemptChunkRecoveryReload = () => {
   const onceKey = "tfb_chunk_recovery_once"
   if (safeSessionGet(onceKey) === "1") return
   safeSessionSet(onceKey, "1")
-  const url = new URL(window.location.href)
-  url.searchParams.set("_r", String(Date.now()))
-  window.location.replace(url.toString())
+  try {
+    // Use in-place reload to avoid cross-browser handoff restrictions on iOS in-app browsers.
+    window.location.reload()
+  } catch {
+    // Last-resort same-tab navigation fallback.
+    window.location.href = window.location.href
+  }
 }
 
 const isLikelyChunkLoadError = (message = "") => {
