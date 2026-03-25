@@ -151,7 +151,18 @@ function getTokenForCurrentRoute() {
     return localStorage.getItem("delivery_accessToken");
   }
   if (ctx.tokenKey === "user_accessToken") {
-    return getModuleToken("user") || localStorage.getItem("accessToken");
+    const moduleToken = getModuleToken("user")
+    if (moduleToken) return moduleToken
+
+    // Legacy fallback: only use legacy `accessToken` if it is truly a `user` token.
+    // This prevents role/token mismatches like attaching an admin/restaurant token to `/user/*` APIs.
+    const legacyToken = localStorage.getItem("accessToken")
+    if (legacyToken) {
+      const legacyRole = getRoleFromToken(legacyToken)
+      if (legacyRole === "user") return legacyToken
+    }
+
+    return null
   }
 
   return localStorage.getItem("accessToken");
