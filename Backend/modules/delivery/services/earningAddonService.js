@@ -29,6 +29,43 @@ export const checkAndAwardEarningAddon = async (deliveryId, orderId, orderDelive
     if (!activeOffers || activeOffers.length === 0) {
       return null;
     }
+
+    // Count delivered orders for an offer window.
+    // Some orders may miss `deliveredAt`, so we fall back to tracking.delivered.timestamp, then createdAt.
+    const countDeliveredOrdersInRange = async (deliveryPartnerId, start, end) => {
+      const pipeline = [
+        {
+          $match: {
+            deliveryPartnerId: deliveryPartnerId,
+            status: "delivered",
+          },
+        },
+        {
+          $project: {
+            ts: {
+              $ifNull: [
+                "$deliveredAt",
+                { $ifNull: ["$tracking.delivered.timestamp", "$createdAt"] },
+              ],
+            },
+          },
+        },
+        {
+          $match: {
+            $expr: {
+              $and: [
+                { $gte: ["$ts", start] },
+                { $lte: ["$ts", end] },
+              ],
+            },
+          },
+        },
+        { $count: "count" },
+      ]
+
+      const result = await Order.aggregate(pipeline);
+      return result?.[0]?.count || 0;
+    };
     // Check each offer to see if delivery boy qualifies
     for (const offer of activeOffers) {
       try {
@@ -51,15 +88,13 @@ export const checkAndAwardEarningAddon = async (deliveryId, orderId, orderDelive
         const countFromDate = offerCreatedAt > offerStartDate ? offerCreatedAt : offerStartDate;
         const endDate = new Date(offer.endDate);
         
-        // Count delivered orders AFTER offer creation and within the offer end date
-        const orderCount = await Order.countDocuments({
-          deliveryPartnerId: deliveryId,
-          status: 'delivered',
-          deliveredAt: {
-            $gte: countFromDate, // Count from offer creation/start date
-            $lte: endDate
-          }
-        });
+        // Count delivered orders AFTER offer creation and within the offer end date.
+        // Use fallback timestamps if `deliveredAt` is missing.
+        const orderCount = await countDeliveredOrdersInRange(
+          deliveryId,
+          countFromDate,
+          endDate
+        );
         // Check if delivery boy has completed the required number of orders
         if (orderCount >= offer.requiredOrders) {
           // Check if bonus was already awarded (check wallet transactions)
