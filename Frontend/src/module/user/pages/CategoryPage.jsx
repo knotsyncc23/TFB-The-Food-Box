@@ -739,11 +739,11 @@ export default function CategoryPage() {
                     key={cat.id}
                     data-category-id={categorySlug}
                     onClick={() => handleCategorySelect(cat)}
-                    className={`flex flex-col items-center gap-1.5 flex-shrink-0 pb-2 transition-all ${isSelected ? 'border-b-2 border-red-600' : ''
+                    className={`flex flex-col items-center gap-1.5 flex-shrink-0 pb-2 transition-all ${isSelected ? 'border-b-2 border-green-600' : ''
                       }`}
                   >
                     {cat.image ? (
-                      <div className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden border-2 transition-all ${isSelected ? 'border-red-600 shadow-lg' : 'border-transparent'
+                      <div className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden border-2 transition-all ${isSelected ? 'border-green-600 shadow-lg' : 'border-transparent'
                         }`}>
                         <img
                           src={cat.image}
@@ -906,8 +906,8 @@ export default function CategoryPage() {
                             {/* Veg indicator + title */}
                             <div className="flex items-center gap-1.5">
                               {isVeg && (
-                                <div className="h-4 w-4 rounded-sm border-2 border-red-600 flex items-center justify-center">
-                                  <div className="h-2 w-2 rounded-full bg-red-600" />
+                                <div className="h-4 w-4 rounded-sm border-2 border-green-600 flex items-center justify-center">
+                                  <div className="h-2 w-2 rounded-full bg-green-600" />
                                 </div>
                               )}
                               <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white line-clamp-1">
@@ -1077,8 +1077,8 @@ export default function CategoryPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2">
                           {isVegDish && (
-                            <div className="h-5 w-5 rounded-sm border-2 border-red-600 flex items-center justify-center">
-                              <div className="h-2.5 w-2.5 rounded-full bg-red-600" />
+                            <div className="h-5 w-5 rounded-sm border-2 border-green-600 flex items-center justify-center">
+                              <div className="h-2.5 w-2.5 rounded-full bg-green-600" />
                             </div>
                           )}
                           <div>
@@ -1206,8 +1206,8 @@ export default function CategoryPage() {
                               key={option.id || 'relevance'}
                               onClick={() => setSortBy(option.id)}
                               className={`px-4 md:px-5 py-3 md:py-4 rounded-xl border text-left transition-colors ${sortBy === option.id
-                                ? 'border-red-600 bg-red-50 dark:bg-red-900/20'
-                                : 'border-gray-200 dark:border-gray-700 hover:border-red-600'
+                                ? 'border-green-600 bg-green-50 dark:bg-green-900/20'
+                                : 'border-gray-200 dark:border-gray-700 hover:border-green-600'
                                 }`}
                             >
                               <span className={`text-sm md:text-base font-medium ${sortBy === option.id ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300'}`}>
@@ -1372,8 +1372,8 @@ export default function CategoryPage() {
                               key={cuisine}
                               onClick={() => setSelectedCuisine(selectedCuisine === cuisine ? null : cuisine)}
                               className={`px-4 md:px-5 py-3 md:py-4 rounded-xl border text-center transition-colors ${selectedCuisine === cuisine
-                                ? 'border-red-600 bg-red-50 dark:bg-red-900/20'
-                                : 'border-gray-200 dark:border-gray-700 hover:border-red-600'
+                                ? 'border-green-600 bg-green-50 dark:bg-green-900/20'
+                                : 'border-gray-200 dark:border-gray-700 hover:border-green-600'
                                 }`}
                             >
                               <span className={`text-sm md:text-base font-medium ${selectedCuisine === cuisine ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300'}`}>
@@ -1450,7 +1450,7 @@ export default function CategoryPage() {
                         }, 500)
                       }}
                       className={`flex-1 py-3 md:py-4 font-semibold rounded-xl transition-colors text-sm md:text-base ${activeFilters.size > 0 || sortBy || selectedCuisine
-                        ? 'bg-red-600 text-white hover:bg-red-700'
+                        ? 'bg-green-600 text-white hover:bg-green-700'
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                         }`}
                     >

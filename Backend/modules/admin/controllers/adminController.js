@@ -1337,18 +1337,9 @@ export const getRestaurantJoinRequests = asyncHandler(async (req, res) => {
       // This handles both cases: restaurants with proper tracking AND restaurants that completed onboarding before tracking was added
       const completionCheck = {
         $or: [
-          { "onboarding.completedSteps": 4 },
-          // Fallback: If completedSteps is not 4 (or doesn't exist), check if restaurant has all main fields filled
-          // This matches restaurants that have completed onboarding even if completedSteps field wasn't set to 4
-          {
-            $and: [
-              { name: { $exists: true, $ne: null, $ne: "" } }, // Has restaurant name
-              { cuisines: { $exists: true, $ne: null, $not: { $size: 0 } } }, // Has cuisines (array with items)
-              { openDays: { $exists: true, $ne: null, $not: { $size: 0 } } }, // Has open days (array with items)
-              { estimatedDeliveryTime: { $exists: true, $ne: null, $ne: "" } }, // Has delivery time (from step 4)
-              { featuredDish: { $exists: true, $ne: null, $ne: "" } }, // Has featured dish (from step 4)
-            ],
-          },
+          { "onboarding.completedSteps": { $gte: 0 } },
+          // Check for at least a restaurant name - this catches almost all new registrations
+          { name: { $exists: true, $ne: null, $ne: "" } },
         ],
       };
 
@@ -1356,15 +1347,10 @@ export const getRestaurantJoinRequests = asyncHandler(async (req, res) => {
       query.$and = conditions;
     } else if (status === "rejected") {
       query["rejectionReason"] = { $exists: true, $ne: null };
-      // For rejected, also check if onboarding is complete
+      // For rejected, also check if onboarding has started (has name)
       query.$or = [
-        { "onboarding.completedSteps": 4 },
-        {
-          $and: [
-            { name: { $exists: true, $ne: null, $ne: "" } },
-            { estimatedDeliveryTime: { $exists: true, $ne: null, $ne: "" } },
-          ],
-        },
+        { "onboarding.completedSteps": { $gte: 0 } },
+        { name: { $exists: true, $ne: null, $ne: "" } },
       ];
     }
 

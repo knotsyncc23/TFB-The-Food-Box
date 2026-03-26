@@ -50,6 +50,10 @@ function itemMatchesActiveFilter(item, activeFilter) {
       return !item.description || item.description.trim() === ""
     case "without-serving-info":
       return !item.variations || item.variations.length === 0
+    case "veg":
+      return item.foodType === "Veg"
+    case "non-veg":
+      return item.foodType !== "Veg"
     default:
       return true
   }
@@ -201,10 +205,12 @@ export default function HubMenu() {
       "without-description": allItems.filter(item => !item.description || item.description.trim() === "").length,
       "without-serving-info": allItems.filter(item => !item.variations || item.variations.length === 0).length,
       "item-not-live": allItems.filter(item => !item.isAvailable).length,
-      "photos-rejected": 0, // This would need a status field in the item model
-      "under-review": 0, // This would need a status field in the item model
-      goods: 0, // This would need a category type field
-      services: 0, // This would need a category type field
+      "veg": allItems.filter(item => item.foodType === "Veg").length,
+      "non-veg": allItems.filter(item => item.foodType !== "Veg").length,
+      "photos-rejected": 0,
+      "under-review": 0,
+      goods: 0,
+      services: 0,
     }
 
     return counts
@@ -212,14 +218,12 @@ export default function HubMenu() {
 
   // Filter options with dynamic counts
   const filterOptions = useMemo(() => [
+    { id: "veg", label: "Veg", count: calculateFilterCounts.veg },
+    { id: "non-veg", label: "Non-Veg", count: calculateFilterCounts["non-veg"] },
     { id: "recommended", label: "Recommended", count: calculateFilterCounts.recommended },
     { id: "out-of-stock", label: "Out of stock", count: calculateFilterCounts["out-of-stock"] },
-    { id: "goods", label: "Goods", count: calculateFilterCounts.goods },
-    { id: "services", label: "Services", count: calculateFilterCounts.services },
     { id: "item-not-live", label: "Item not live", count: calculateFilterCounts["item-not-live"] },
-    { id: "photos-rejected", label: "Photos rejected", count: calculateFilterCounts["photos-rejected"] },
     { id: "no-photos", label: "No photos", count: calculateFilterCounts["no-photos"] },
-    { id: "under-review", label: "Under review", count: calculateFilterCounts["under-review"] },
     { id: "without-description", label: "Without description", count: calculateFilterCounts["without-description"] },
     { id: "without-serving-info", label: "Without serving info", count: calculateFilterCounts["without-serving-info"] },
   ], [calculateFilterCounts])
@@ -227,14 +231,14 @@ export default function HubMenu() {
   // Quick filter buttons (horizontally scrollable) - only show filters with count > 0
   const quickFilters = useMemo(() => {
     const filters = [
+      { id: "veg", label: "Veg", count: calculateFilterCounts.veg },
+      { id: "non-veg", label: "Non-Veg", count: calculateFilterCounts["non-veg"] },
       { id: "out-of-stock", label: "Out of stock", count: calculateFilterCounts["out-of-stock"] },
       { id: "no-photos", label: "No photos", count: calculateFilterCounts["no-photos"] },
-      { id: "recommended", label: "Recommended", count: calculateFilterCounts.recommended },
-      { id: "services", label: "Services", count: calculateFilterCounts.services },
-      { id: "photos-rejected", label: "Photos Rejected", count: calculateFilterCounts["photos-rejected"] },
     ]
-    // Only return filters with count > 0
-    return filters.filter(f => f.count > 0)
+    // Only return filters with count > 0, but keep Veg/Non-veg if we want them always?
+    // Bug 69 says non veg categories should be visible in pure veg mode.
+    return filters.filter(f => f.count > 0 || f.id === "veg" || f.id === "non-veg")
   }, [calculateFilterCounts])
 
   // Menu groups are now directly from menuData (fetched from backend)
@@ -710,7 +714,9 @@ export default function HubMenu() {
   const filteredMenuGroups = useMemo(() => {
     return menuData
       .map((group) => filterMenuGroup(group, activeFilter, searchQuery))
-      .filter(groupHasVisibleItems)
+      // Bug fix: Always show categories even if they are empty so user knows they exist
+      // especially in "Pure Veg" mode where empty non-veg categories should still show.
+      // .filter(groupHasVisibleItems) 
   }, [menuData, activeFilter, searchQuery])
 
   // Toggle group expansion
@@ -727,7 +733,7 @@ export default function HubMenu() {
   }
 
   // Toggle item stock status - opens popup
-  const toggleItemStock = (itemId, groupId) => {
+  const toggleItemStock = async (itemId, groupId) => {
     const group = menuData.find(g => g.id === groupId)
     const item =
       group?.items?.find((i) => String(i.id) === String(itemId)) ||
@@ -743,10 +749,26 @@ export default function HubMenu() {
       // Directly turn on (no popup needed)
       setMenuData(prev => prev.map(g => ({
         ...g,
-        items: g.items.map(i =>
+        items: (g.items || []).map(i =>
           i.id === itemId ? { ...i, isAvailable: true } : i
-        )
+        ),
+        subsections: (g.subsections || []).map(sub => ({
+          ...sub,
+          items: (sub.items || []).map(i =>
+            i.id === itemId ? { ...i, isAvailable: true } : i
+          )
+        }))
       })))
+      // Also notify backend
+      try {
+        await restaurantAPI.scheduleItemAvailability({
+          sectionId: groupId,
+          itemId: itemId,
+          scheduleType: 'manual_on'
+        });
+      } catch (err) {
+        console.error('Error turning on item:', err);
+      }
     }
   }
 
@@ -936,16 +958,7 @@ export default function HubMenu() {
           setMenuData(menuResponse.data.data.menu.sections || [])
         }
 
-        toast.success('Category added successfully!')
-
-        const sectionId = section.id || section._id
-        navigate('/restaurant/hub-menu/item/new', {
-          state: {
-            category: newCategoryName.trim(),
-            isNewCategory: true,
-            sectionId
-          }
-        })
+        toast.success(`Category "${newCategoryName.trim()}" added successfully!`)
       } else {
         toast.error(response?.data?.message || 'Failed to add category')
       }
@@ -1145,8 +1158,18 @@ export default function HubMenu() {
             {/* Add Add-on Button */}
             <div className="mb-6">
               <button
-                onClick={() => setIsAddAddonModalOpen(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                onClick={() => {
+                  if (restaurantData?.approvedAt) {
+                    setIsAddAddonModalOpen(true);
+                  } else {
+                    toast.error("You cannot add add-ons until your restaurant is verified by admin.");
+                  }
+                }}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                  restaurantData?.approvedAt
+                    ? "bg-red-600 hover:bg-red-700 text-white"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed border-gray-300"
+                }`}
               >
                 <Plus className="h-5 w-5" />
                 <span>Add Add-on</span>
@@ -1264,12 +1287,12 @@ export default function HubMenu() {
                       <div className="flex items-center gap-2 mb-2">
                         <div
                           className={`w-4 h-4 rounded-sm border-2 shrink-0 flex items-center justify-center ${item.foodType === "Veg"
-                            ? "bg-red-50 border-red-600"
+                            ? "bg-green-50 border-green-600"
                             : "bg-red-50 border-red-600"
                             }`}
                         >
                           <div className={`w-2 h-2 rounded-full ${item.foodType === "Veg"
-                            ? "bg-red-600"
+                            ? "bg-green-600"
                             : "bg-red-600"
                             }`} />
                         </div>
@@ -1639,12 +1662,23 @@ export default function HubMenu() {
 
         {activeTab !== "add-ons" && (
           <motion.button
-            whileTap={{ scale: 0.96 }}
-            onClick={() => setIsAddPopupOpen(true)}
-            className="px-4 py-2 border bg-black text-white border-gray-800 rounded-lg text-sm font-bold"
+            whileTap={{ scale: restaurantData?.approvedAt ? 0.96 : 1 }}
+            onClick={() => {
+              if (restaurantData?.approvedAt) {
+                setIsAddPopupOpen(true);
+              } else {
+                toast.error("You cannot add items until your restaurant is verified by admin.");
+              }
+            }}
+            className={`px-4 py-2 border rounded-lg text-sm font-bold ${
+              restaurantData?.approvedAt 
+                ? "bg-black text-white border-gray-800" 
+                : "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed"
+            }`}
           >
             + ADD
-          </motion.button>)}
+          </motion.button>
+        )}
 
         {/* Menu Button */}
         {activeTab !== "add-ons" && (
@@ -2001,7 +2035,7 @@ export default function HubMenu() {
                       : "bg-gray-300 text-gray-500 cursor-not-allowed"
                       }`}
                   >
-                    Continue
+                    Add Category
                   </button>
                 </div>
               </div>
@@ -2095,12 +2129,12 @@ export default function HubMenu() {
                                   <div className="flex items-center gap-2 mb-1">
                                     <div
                                       className={`w-4 h-4 rounded-sm border-2 shrink-0 flex items-center justify-center ${item.foodType === "Veg"
-                                        ? "bg-red-50 border-red-600"
+                                        ? "bg-green-50 border-green-600"
                                         : "bg-red-50 border-red-600"
                                         }`}
                                     >
                                       <div className={`w-2 h-2 rounded-full ${item.foodType === "Veg"
-                                        ? "bg-red-600"
+                                        ? "bg-green-600"
                                         : "bg-red-600"
                                         }`} />
                                     </div>
@@ -2138,12 +2172,12 @@ export default function HubMenu() {
                                       <div className="flex items-center gap-2 mb-1">
                                         <div
                                           className={`w-4 h-4 rounded-sm border-2 shrink-0 flex items-center justify-center ${item.foodType === "Veg"
-                                            ? "bg-red-50 border-red-600"
+                                            ? "bg-green-50 border-green-600"
                                             : "bg-red-50 border-red-600"
                                             }`}
                                         >
                                           <div className={`w-2 h-2 rounded-full ${item.foodType === "Veg"
-                                            ? "bg-red-600"
+                                            ? "bg-green-600"
                                             : "bg-red-600"
                                             }`} />
                                         </div>
@@ -2334,13 +2368,29 @@ export default function HubMenu() {
                     className="hidden"
                   />
                   <div className="flex gap-2">
-                    <label
-                      htmlFor="addon-gallery-upload"
+                    <button
+                      type="button"
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-red-500 hover:bg-red-50 transition-colors"
+                      onClick={async () => {
+                        if (hasFlutterCameraBridge()) {
+                          const { success, file } = await openCameraViaFlutter({
+                            source: "gallery",
+                          })
+                          if (success && file) {
+                            handleAddonImageAdd({ target: { files: [file] } })
+                          }
+                          return
+                        }
+
+                        // Browser fallback: open regular file picker (native UI).
+                        document
+                          .getElementById("addon-gallery-upload")
+                          ?.click()
+                      }}
                     >
                       <Upload className="h-5 w-5 text-gray-500" />
                       <span className="text-sm font-medium text-gray-700">Gallery</span>
-                    </label>
+                    </button>
                     <button
                       type="button"
                       onClick={async () => {

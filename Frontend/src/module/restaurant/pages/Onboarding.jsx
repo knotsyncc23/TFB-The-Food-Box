@@ -456,6 +456,13 @@ export default function RestaurantOnboarding() {
     }
   }, [loading])
 
+  // Onboarding scroll bug: when navigating between steps, ensure we start from the top.
+  useEffect(() => {
+    const el = mainContentRef.current
+    if (!el) return
+    el.scrollTo({ top: 0, left: 0, behavior: "auto" })
+  }, [step])
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -2030,10 +2037,18 @@ export default function RestaurantOnboarding() {
         <div>
           <Label className="text-xs text-gray-700">Estimated Delivery Time*</Label>
           <Input
+            type="number"
             value={step4.estimatedDeliveryTime || ""}
-            onChange={(e) => setStep4({ ...step4, estimatedDeliveryTime: e.target.value })}
+            onChange={(e) => {
+              const raw = e.target.value
+              // Only allow digits (min 0). Keep it as string because schema stores a string.
+              const sanitized =
+                raw === "" ? "" : String(Math.max(0, Math.floor(Number(raw) || 0)))
+              setStep4({ ...step4, estimatedDeliveryTime: sanitized })
+            }}
             className="mt-1 bg-white text-sm"
-            placeholder="e.g., 25-30 mins"
+            placeholder="e.g., 25"
+            min="0"
           />
         </div>
 
@@ -2184,13 +2199,37 @@ export default function RestaurantOnboarding() {
                 <button
                   type="button"
                   className="inline-flex items-center justify-center gap-2 px-3 py-3 border border-gray-200 rounded-md bg-white text-sm hover:bg-gray-50"
-                  onClick={() => {
-                    if (sourcePicker.target === "menuImages") {
-                      document.getElementById("menuImagesInput")?.click()
-                    } else if (sourcePicker.target === "profileImage") {
-                      document.getElementById("profileImageInput")?.click()
+                  onClick={async () => {
+                    // Directly open the selected source.
+                    // In Flutter WebView, pass `source: "gallery"` to avoid showing a camera prompt.
+                    try {
+                      if (hasFlutterCameraBridge()) {
+                        const { success, file } = await openCameraViaFlutter({
+                          source: "gallery",
+                        })
+                        if (success && file) {
+                          if (sourcePicker.target === "menuImages") {
+                            setStep2((prev) => ({
+                              ...prev,
+                              menuImages: [...(prev.menuImages || []), file],
+                            }))
+                          } else if (sourcePicker.target === "profileImage") {
+                            setStep2((prev) => ({
+                              ...prev,
+                              profileImage: file,
+                            }))
+                          }
+                        }
+                      } else {
+                        if (sourcePicker.target === "menuImages") {
+                          document.getElementById("menuImagesInput")?.click()
+                        } else if (sourcePicker.target === "profileImage") {
+                          document.getElementById("profileImageInput")?.click()
+                        }
+                      }
+                    } finally {
+                      setSourcePicker({ open: false, target: null })
                     }
-                    setSourcePicker({ open: false, target: null })
                   }}
                 >
                   <Upload className="w-4 h-4" />

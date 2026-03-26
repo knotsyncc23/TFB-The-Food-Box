@@ -191,8 +191,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
       restaurantData.ownerName = name;
 
       // Set isActive to false - restaurant needs admin approval before becoming active
-      // Auto-approve in development
-      restaurantData.isActive = process.env.NODE_ENV === "development";
+      restaurantData.isActive = false;
 
       try {
         // For phone signups, use $unset to ensure email field is not saved

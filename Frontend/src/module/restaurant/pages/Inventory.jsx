@@ -1671,9 +1671,9 @@ export default function Inventory() {
                             <div className="flex items-center justify-between py-2">
                               <div className="flex items-center gap-2 flex-1">
                                 {/* Veg/Non-veg Icon */}
-                                <div className={`w-4 h-4 rounded-sm border-2 flex items-center justify-center ${item.isVeg ? 'border-red-600' : 'border-red-500'
+                                <div className={`w-4 h-4 rounded-sm border-2 flex items-center justify-center ${item.isVeg ? "border-green-600" : "border-red-600"
                                   }`}>
-                                  <div className={`w-2 h-2 rounded-full ${item.isVeg ? 'bg-red-600' : 'bg-red-500'
+                                  <div className={`w-2 h-2 rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"
                                     }`} />
                                 </div>
                                 <div>

@@ -288,7 +288,6 @@ export default function PointOfSale() {
                     </option>
                   ))}
                 </select>
-                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400 text-xs">▼</span>
               </div>
               {selectedRestaurant && (
                 <p className="text-xs text-red-600 mt-2">✓ Selected: {getSelectedRestaurantName()}</p>

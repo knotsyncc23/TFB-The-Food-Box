@@ -234,7 +234,7 @@ export default function AddMoneyModal({ open, onOpenChange, onSuccess }) {
           <Button
             onClick={handleAddMoney}
             disabled={!amount || loading || processing || parseFloat(amount) < 1}
-            className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-semibold text-base"
+            className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-base"
           >
             {loading || processing ? (
               <>

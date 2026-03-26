@@ -382,8 +382,13 @@ export default function MyOrders() {
                     {order.items && order.items.map((item, idx) => (
                       <div key={item._id || item.itemId || idx} className="flex items-center gap-2 mt-1">
                         {/* Veg/Non-Veg Icon */}
-                        <div className={`w-4 h-4 border ${item.isVeg ? 'border-red-600' : 'border-red-600'} flex items-center justify-center p-[2px] shrink-0`}>
-                          <div className={`w-full h-full rounded-full ${item.isVeg ? 'bg-red-600' : 'bg-red-600'}`}></div>
+                        {/* Veg/Non-Veg indicator (Veg = green, Non-Veg = red) */}
+                        <div
+                          className={`w-4 h-4 border ${item.isVeg ? "border-green-600" : "border-red-600"} flex items-center justify-center p-[2px] shrink-0`}
+                        >
+                          <div
+                            className={`w-full h-full rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`}
+                          ></div>
               </div>
                         <span className="text-sm text-gray-700 font-medium">
                           {item.quantity || 1} x {item.name}

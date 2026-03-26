@@ -998,13 +998,27 @@ export default function ItemDetailsPage() {
                   }}
                   className="hidden"
                 />
-                <label
-                  htmlFor="image-gallery-upload"
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (hasFlutterCameraBridge()) {
+                      const { success, file } = await openCameraViaFlutter({
+                        source: "gallery",
+                      })
+                      if (success && file) {
+                        await handleImageAdd({ target: { files: [file] } })
+                      }
+                      return
+                    }
+
+                    // Browser fallback: open native file picker.
+                    fileInputRef.current?.click()
+                  }}
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-xl text-sm font-semibold cursor-pointer hover:from-gray-800 hover:to-gray-700 transition-all shadow-md hover:shadow-lg active:scale-95"
                 >
                   <Upload className="w-5 h-5" />
                   <span>Gallery</span>
-                </label>
+                </button>
                 <button
                   type="button"
                   onClick={async () => {
@@ -1383,18 +1397,9 @@ export default function ItemDetailsPage() {
                     <Loader2 className="w-6 h-6 animate-spin text-gray-600" />
                   </div>
                 ) : categories.length === 0 ? (
-                  <div className="text-center py-12 space-y-4">
-                    <p className="text-sm text-gray-500">No categories available</p>
-                    <button
-                      onClick={() => {
-                        setIsCategoryPopupOpen(false)
-                        navigate('/restaurant/menu-categories')
-                      }}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors"
-                    >
-                      <Plus className="w-5 h-5" />
-                      Add Category
-                    </button>
+                  <div className="text-center py-12 space-y-3">
+                    <p className="text-sm text-gray-500">No categories available yet.</p>
+                    <p className="text-xs text-gray-400">Tap the <strong>"+ Add"</strong> button above to create your first category from the admin panel.</p>
                   </div>
                 ) : (
                   <div className="space-y-2">

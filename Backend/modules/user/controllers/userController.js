@@ -168,6 +168,32 @@ export const uploadProfileImage = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Remove user profile image
+ * DELETE /api/user/profile/avatar
+ */
+export const removeProfileImage = asyncHandler(async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("profileImage");
+
+    if (!user) {
+      return errorResponse(res, 404, "User not found");
+    }
+
+    // Note: current schema stores only URL string, so we clear the URL.
+    // Cloudinary cleanup is skipped because publicId is not persisted.
+    user.profileImage = null;
+    await user.save();
+
+    return successResponse(res, 200, "Profile image removed successfully", {
+      profileImage: user.profileImage,
+    });
+  } catch (error) {
+    logger.error(`Error removing profile image: ${error.message}`, { error: error.stack });
+    return errorResponse(res, 500, "Failed to remove profile image");
+  }
+});
+
+/**
  * Update user current location (Live Location Tracking)
  * PUT /api/user/location
  * 

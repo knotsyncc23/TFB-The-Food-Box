@@ -129,13 +129,60 @@ export const getNearbyRestaurants = async (req, res) => {
       .skip(parseInt(offset))
       .lean();
 
+    // Visibility filter: only show restaurants that have at least one dish
+    // (approved + currently available). Otherwise empty restaurants appear
+    // in the user UI.
+    let filteredNearby = nearby;
+    if (nearby.length > 0) {
+      const restaurantIds = nearby.map((r) => r._id).filter(Boolean);
+
+      const restaurantsWithDishes = await Menu.find({
+        restaurant: { $in: restaurantIds },
+        isActive: true,
+        $or: [
+          {
+            sections: {
+              $elemMatch: {
+                items: {
+                  $elemMatch: { isAvailable: true, approvalStatus: "approved" },
+                },
+              },
+            },
+          },
+          {
+            sections: {
+              $elemMatch: {
+                subsections: {
+                  $elemMatch: {
+                    items: {
+                      $elemMatch: { isAvailable: true, approvalStatus: "approved" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      })
+        .select("restaurant")
+        .lean();
+
+      const hasDishesSet = new Set(
+        (restaurantsWithDishes || [])
+          .map((m) => m.restaurant?.toString())
+          .filter(Boolean),
+      );
+
+      filteredNearby = nearby.filter((r) => hasDishesSet.has(r._id?.toString()));
+    }
+
     return successResponse(
       res,
       200,
       "Nearby restaurants retrieved successfully",
       {
-        restaurants: nearby,
-        total: nearby.length,
+        restaurants: filteredNearby,
+        total: filteredNearby.length,
         center: { lat: latNum, lng: lngNum },
         radiusKm: radiusMeters / 1000,
       },
@@ -334,6 +381,53 @@ export const getRestaurants = async (req, res) => {
 
     // Note: We show all restaurants regardless of zone. Zone-based filtering is removed.
     // Users in any zone will see all restaurants.
+
+    // Visibility filter: only show restaurants that have at least one dish
+    // (approved + currently available).
+    if (restaurants.length > 0) {
+      const restaurantIds = restaurants.map((r) => r._id).filter(Boolean);
+
+      const restaurantsWithDishes = await Menu.find({
+        restaurant: { $in: restaurantIds },
+        isActive: true,
+        $or: [
+          {
+            sections: {
+              $elemMatch: {
+                items: {
+                  $elemMatch: { isAvailable: true, approvalStatus: "approved" },
+                },
+              },
+            },
+          },
+          {
+            sections: {
+              $elemMatch: {
+                subsections: {
+                  $elemMatch: {
+                    items: {
+                      $elemMatch: { isAvailable: true, approvalStatus: "approved" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      })
+        .select("restaurant")
+        .lean();
+
+      const hasDishesSet = new Set(
+        (restaurantsWithDishes || [])
+          .map((m) => m.restaurant?.toString())
+          .filter(Boolean),
+      );
+
+      restaurants = restaurants.filter((r) =>
+        hasDishesSet.has(r._id?.toString()),
+      );
+    }
 
     // Apply string-based filters that can't be done in MongoDB query
     if (maxDeliveryTime) {
@@ -913,6 +1007,25 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         400,
         "isAcceptingOrders must be a boolean value",
       );
+    }
+
+    // Verification guard: prevent unverified restaurants from turning
+    // "online/accepting orders" on.
+    if (isAcceptingOrders === true) {
+      const currentRestaurant = await Restaurant.findById(restaurantId).select(
+        "approvedAt phoneVerified",
+      );
+      if (!currentRestaurant) {
+        return errorResponse(res, 404, "Restaurant not found");
+      }
+
+      if (!currentRestaurant.approvedAt) {
+        return errorResponse(
+          res,
+          403,
+          "You cannot take orders until your restaurant is verified by admin.",
+        );
+      }
     }
 
     const restaurant = await Restaurant.findByIdAndUpdate(

@@ -20,7 +20,6 @@ import {
   Star,
   SlidersHorizontal,
   Utensils,
-  Flame,
   Bookmark,
   Share2,
   Plus,
@@ -1943,25 +1942,8 @@ export default function RestaurantDetails() {
                     </div>
 
                     {/* Dietary preference */}
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Dietary preference:</h3>
-                      <button
-                        onClick={() =>
-                          setFilters((prev) => ({
-                            ...prev,
-                            spicy: !prev.spicy,
-                          }))
-                        }
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 transition-all w-full ${filters.spicy
-                          ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400"
-                          : "border-gray-200 dark:border-gray-700 bg-white dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
-                          }`}
-                      >
-                        <Flame className="h-4 w-4" />
-                        <span className="font-medium">Spicy</span>
-                      </button>
+                    {/* Spicy filter removed (was causing UI confusion and extra filtering logic) */}
                     </div>
-                  </div>
 
                   {/* Bottom Action Bar */}
                   <div className="border-t border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between bg-white dark:bg-[#1a1a1a]">
@@ -1971,7 +1953,6 @@ export default function RestaurantDetails() {
                           sortBy: null,
                           vegNonVeg: null,
                           highlyReordered: false,
-                          spicy: false,
                         })
                       }}
                       className="text-red-600 dark:text-red-400 font-medium text-sm hover:text-red-700 dark:hover:text-red-500"

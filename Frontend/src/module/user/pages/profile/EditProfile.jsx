@@ -300,6 +300,38 @@ export default function EditProfile() {
     }
   }
 
+  const handleRemoveProfileImage = async () => {
+    if (isUploadingImage) return
+    if (!profileImage) return
+
+    try {
+      setIsUploadingImage(true)
+      await userAPI.removeProfileImage()
+
+      setProfileImage(null)
+      setImagePreview(null)
+
+      updateUserProfile({ profileImage: null })
+      saveProfileToStorage({
+        name: formData.name,
+        phone: formData.mobile,
+        email: formData.email,
+        profileImage: null,
+        dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth.format('YYYY-MM-DD') : undefined,
+        anniversary: formData.anniversary ? formData.anniversary.format('YYYY-MM-DD') : undefined,
+        gender: formData.gender,
+      })
+
+      toast.success("Profile photo removed")
+      window.dispatchEvent(new Event("userAuthChanged"))
+    } catch (error) {
+      console.error("Error removing profile image:", error)
+      toast.error(error?.response?.data?.message || "Failed to remove profile photo")
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
+
   const handleMobileChange = () => {
     // Navigate to mobile change page or show modal
     console.log('Change mobile clicked')
@@ -341,6 +373,18 @@ export default function EditProfile() {
                 {avatarInitial}
               </AvatarFallback>
             </Avatar>
+            {imagePreview && (
+              <button
+                type="button"
+                onClick={handleRemoveProfileImage}
+                disabled={isUploadingImage}
+                className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gray-900/90 hover:bg-gray-900 text-white flex items-center justify-center shadow-sm border-2 border-white disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Remove profile photo"
+                title="Remove photo"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
             {/* Edit: Camera and Gallery options */}
             <div className="absolute bottom-0 right-0 flex gap-1">
               <button
@@ -466,7 +510,7 @@ export default function EditProfile() {
                   onChange={(newValue) => handleChange('dateOfBirth', newValue)}
                   slotProps={{
                     textField: {
-                      className: "w-full",
+                      className: "w-full bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white",
                       sx: {
                         '& .MuiOutlinedInput-root': {
                           height: '48px',
@@ -504,7 +548,7 @@ export default function EditProfile() {
                   onChange={(newValue) => handleChange('anniversary', newValue)}
                   slotProps={{
                     textField: {
-                      className: "w-full",
+                      className: "w-full bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white",
                       sx: {
                         '& .MuiOutlinedInput-root': {
                           height: '48px',
@@ -543,7 +587,7 @@ export default function EditProfile() {
                 <SelectTrigger className="h-12 text-base border border-gray-300 dark:border-gray-700 focus:border-red-600 focus:ring-1 focus:ring-red-600 rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white">
                   <SelectValue placeholder="Gender" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700">
                   {genderOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}

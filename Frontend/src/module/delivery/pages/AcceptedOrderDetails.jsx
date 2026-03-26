@@ -281,7 +281,7 @@ export default function AcceptedOrderDetails() {
                   </div>
                   <div className="text-right flex flex-col items-end">
                     <p className="text-gray-900 text-sm font-medium mb-2">Qty: {item.quantity}</p>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${item.type === 'Veg' ? 'bg-red-100 text-red-700' : 'bg-red-100 text-red-700'}`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${item.type === 'Veg' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {item.type}
                     </span>
                   </div>

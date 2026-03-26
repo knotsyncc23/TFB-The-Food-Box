@@ -3,6 +3,7 @@ import {
   getUserProfile,
   updateUserProfile,
   uploadProfileImage,
+  removeProfileImage,
   updateUserLocation,
   getUserLocation,
   getUserAddresses,
@@ -30,6 +31,9 @@ router.post(
   uploadMiddleware.single('image'),
   uploadProfileImage
 );
+
+// Profile image removal
+router.delete('/profile/avatar', removeProfileImage);
 
 // Location routes
 router.get('/location', getUserLocation);

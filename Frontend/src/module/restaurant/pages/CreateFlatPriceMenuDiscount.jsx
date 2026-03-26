@@ -374,7 +374,7 @@ export default function CreateFlatPriceMenuDiscount() {
                                   <div
                                     className={`w-4 h-4 rounded border-2 shrink-0 ${
                                       food.foodType === "Veg"
-                                        ? "bg-red-50 border-red-600"
+                                        ? "bg-green-50 border-green-600"
                                         : "bg-red-50 border-red-600"
                                     }`}
                                   />

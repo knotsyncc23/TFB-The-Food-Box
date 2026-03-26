@@ -119,14 +119,16 @@ export default function ReportSafetyEmergency() {
                   placeholder="Please provide details about the safety issue..."
                   value={report}
                   onChange={(e) => setReport(e.target.value)}
-                  className="min-h-[150px] md:min-h-[200px] lg:min-h-[250px] w-full resize-y text-sm md:text-base leading-relaxed px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-lg"
+                  className="min-h-[150px] md:min-h-[200px] lg:min-h-[250px] w-full resize-y text-sm md:text-base leading-relaxed border border-gray-200 dark:border-gray-700 rounded-lg"
                   dir="ltr"
                   style={{
                     direction: 'ltr',
                     textAlign: 'left',
                     unicodeBidi: 'bidi-override',
                     width: '100%',
-                    maxWidth: '100%'
+                    maxWidth: '100%',
+                    padding: '12px 16px',
+                    boxSizing: 'border-box',
                   }}
                 />
                 <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-2">

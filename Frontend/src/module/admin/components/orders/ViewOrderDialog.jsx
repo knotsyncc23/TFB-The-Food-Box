@@ -267,8 +267,14 @@ export default function ViewOrderDialog({ isOpen, onOpenChange, order }) {
                           </span>
                         )}
                         {item.isVeg !== undefined && (
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${item.isVeg ? 'bg-red-100 text-red-700' : 'bg-red-100 text-red-700'}`}>
-                            {item.isVeg ? 'Veg' : 'Non-Veg'}
+                          <span
+                            className={`text-xs px-1.5 py-0.5 rounded ${
+                              item.isVeg
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {item.isVeg ? "Veg" : "Non-Veg"}
                           </span>
                         )}
                       </div>

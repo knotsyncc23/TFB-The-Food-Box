@@ -50,8 +50,17 @@ export async function openCameraViaFlutter(options = {}) {
   }
 
   try {
-    // Call with no args for maximum Flutter compatibility (handler opens camera, returns base64)
-    const result = await window.flutter_inappwebview.callHandler("openCamera");
+    // Forward options when provided (e.g. { source: "gallery" }).
+    // If options are empty, call without args for maximum compatibility.
+    let result;
+    if (options && Object.keys(options).length > 0) {
+      result = await window.flutter_inappwebview.callHandler(
+        "openCamera",
+        options,
+      );
+    } else {
+      result = await window.flutter_inappwebview.callHandler("openCamera");
+    }
 
     if (!result || !result.success) {
       return { success: false, raw: result };

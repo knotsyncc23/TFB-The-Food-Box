@@ -1401,7 +1401,7 @@ export default function Home() {
                   checked={vegMode}
                   onCheckedChange={handleVegModeChange}
                   aria-label="Toggle Veg Mode"
-                  className="data-[state=checked]:bg-red-600 data-[state=unchecked]:bg-gray-300 w-9 h-4 sm:w-10 sm:h-5 lg:w-12 lg:h-6 shadow-lg [&_[data-slot=switch-thumb]]:bg-white [&_[data-slot=switch-thumb]]:h-3 [&_[data-slot=switch-thumb]]:w-3 sm:[&_[data-slot=switch-thumb]]:h-4 sm:[&_[data-slot=switch-thumb]]:w-4 lg:[&_[data-slot=switch-thumb]]:h-5 lg:[&_[data-slot=switch-thumb]]:w-5 [&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-5 sm:[&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-5 lg:[&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-6 [&_[data-slot=switch-thumb]]:data-[state=unchecked]:translate-x-0"
+                  className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-gray-300 w-9 h-4 sm:w-10 sm:h-5 lg:w-12 lg:h-6 shadow-lg [&_[data-slot=switch-thumb]]:bg-white [&_[data-slot=switch-thumb]]:h-3 [&_[data-slot=switch-thumb]]:w-3 sm:[&_[data-slot=switch-thumb]]:h-4 sm:[&_[data-slot=switch-thumb]]:w-4 lg:[&_[data-slot=switch-thumb]]:h-5 lg:[&_[data-slot=switch-thumb]]:w-5 [&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-5 sm:[&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-5 lg:[&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-6 [&_[data-slot=switch-thumb]]:data-[state=unchecked]:translate-x-0"
                 />
               </motion.div>
             </motion.div>
@@ -1887,12 +1887,12 @@ export default function Home() {
                               {/* Restaurant Name & Rating */}
                               <div className="flex items-start justify-between gap-2 mb-2 lg:mb-3">
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="text-md sm:text-md lg:text-xl font-bold text-gray-900 dark:text-white line-clamp-1 lg:line-clamp-2 transition-colors duration-300 group-hover:text-red-600">
+                                  <h3 className="text-md sm:text-md lg:text-xl font-bold text-gray-900 dark:text-white line-clamp-1 lg:line-clamp-2 transition-colors duration-300 group-hover:text-green-600">
                                     {restaurant.name}
                                   </h3>
                                 </div>
                                 {typeof restaurant.rating === "number" && restaurant.rating > 0 ? (
-                                  <div className="flex-shrink-0 bg-red-600 text-white px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg flex items-center gap-1 transform transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6">
+                                  <div className="flex-shrink-0 bg-green-600 text-white px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg flex items-center gap-1 transform transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6">
                                     <span className="text-sm lg:text-base font-bold">
                                       {restaurant.rating.toFixed(1)}
                                     </span>
@@ -1981,7 +1981,7 @@ export default function Home() {
                     setSortBy(null)
                     setSelectedCuisine(null)
                   }}
-                  className="text-red-600 font-medium text-sm"
+                  className="text-green-600 font-medium text-sm"
                 >
                   Clear all
                 </button>
@@ -2390,7 +2390,7 @@ export default function Home() {
                       className="sr-only"
                     />
                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${vegModeOption === "all"
-                      ? "border-red-600 dark:border-red-500 bg-red-600 dark:bg-red-500"
+                      ? "border-green-600 dark:border-green-500 bg-green-600 dark:bg-green-500"
                       : "border-gray-300 dark:border-gray-600 bg-white dark:bg-[#2a2a2a]"
                       }`}>
                       {vegModeOption === "all" && (
@@ -2418,7 +2418,7 @@ export default function Home() {
                       className="sr-only"
                     />
                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${vegModeOption === "pure-veg"
-                      ? "border-red-600 dark:border-red-500 bg-red-600 dark:bg-red-500"
+                      ? "border-green-600 dark:border-green-500 bg-green-600 dark:bg-green-500"
                       : "border-gray-300 dark:border-gray-600 bg-white dark:bg-[#2a2a2a]"
                       }`}>
                       {vegModeOption === "pure-veg" && (
@@ -2445,7 +2445,7 @@ export default function Home() {
                     setIsApplyingVegMode(false)
                   }, 2000)
                 }}
-                className="w-full bg-[#671E1F] text-white font-semibold py-2.5 rounded-xl hover:bg-[#218a56] transition-colors text-sm shadow-sm"
+                className="w-full bg-green-600 text-white font-semibold py-2.5 rounded-xl hover:bg-green-700 transition-colors text-sm shadow-sm"
               >
                 Apply
               </button>

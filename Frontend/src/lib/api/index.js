@@ -181,6 +181,11 @@ export const userAPI = {
     });
   },
 
+  // Remove profile image (clears profileImage url)
+  removeProfileImage: () => {
+    return apiClient.delete("/user/profile/avatar");
+  },
+
   // Get user addresses
   getAddresses: () => {
     return apiClient.get(API_ENDPOINTS.USER.ADDRESSES);
