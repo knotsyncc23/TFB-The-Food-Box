@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, ChevronDown, Loader2 } from "lucide-react"
 import { deliveryAPI } from "@/lib/api"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
@@ -204,33 +204,39 @@ export default function CreateSupportTicket() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Category
               </label>
-              <select
-                value={formData.category}
-                onChange={(e) => handleInputChange("category", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none cursor-pointer"
-              >
-                <option value="other">Other</option>
-                <option value="payment">Payment</option>
-                <option value="account">Account</option>
-                <option value="technical">Technical</option>
-                <option value="order">Order</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={formData.category}
+                  onChange={(e) => handleInputChange("category", e.target.value)}
+                  className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none cursor-pointer"
+                >
+                  <option value="other">Other</option>
+                  <option value="payment">Payment</option>
+                  <option value="account">Account</option>
+                  <option value="technical">Technical</option>
+                  <option value="order">Order</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+              </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Priority
               </label>
-              <select
-                value={formData.priority}
-                onChange={(e) => handleInputChange("priority", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none cursor-pointer"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={formData.priority}
+                  onChange={(e) => handleInputChange("priority", e.target.value)}
+                  className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none cursor-pointer"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+              </div>
             </div>
           </div>
 

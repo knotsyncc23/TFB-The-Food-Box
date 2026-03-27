@@ -37,7 +37,7 @@ const Orders = lazy(() => import("../pages/orders/Orders"))
 const OrderTracking = lazy(() => import("../pages/orders/OrderTracking"))
 const OrderInvoice = lazy(() => import("../pages/orders/OrderInvoice"))
 const UserOrderDetails = lazy(() => import("../pages/orders/UserOrderDetails"))
-const OrderChatScreen = lazy(() => import("../pages/orders/OrderTracking"))
+const OrderChatScreen = lazy(() => import("../pages/orders/OrderChatScreen"))
 
 // Offers
 const Offers = lazy(() => import("../pages/Offers"))

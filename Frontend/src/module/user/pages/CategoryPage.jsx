@@ -527,8 +527,11 @@ export default function CategoryPage() {
       price: dish.price,
       image: dish.image || restaurant.image,
       restaurant: restaurant.name,
+      restaurantId: rest.restaurantId,
       description: dish.description || `${dish.name} from ${restaurant.name}`,
       originalPrice: dish.originalPrice || dish.price,
+      foodType: dish.foodType || null,
+      isVeg: dish.foodType === "Veg" ? true : dish.foodType === "Non-Veg" ? false : dish.isVeg,
     }
 
     // Update local quantities

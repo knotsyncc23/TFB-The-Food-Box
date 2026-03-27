@@ -388,15 +388,39 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     // Completed orders (delivered orders)
     const completedOrders = orderStatusMap.delivered || 0;
 
-    // Get recent activity (last 24 hours)
+    // Filter for recent activity (last 24 hours) - used for "Live signals"
     const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const recentOrders = await Order.countDocuments({
-      createdAt: { $gte: last24Hours },
-    });
-    const recentRestaurants = await Restaurant.countDocuments({
-      createdAt: { $gte: last24Hours },
-      isActive: true,
-    });
+
+    const recentOrdersMatch = { createdAt: { $gte: last24Hours } };
+    if (Object.keys(zoneMatch).length > 0) {
+      Object.assign(recentOrdersMatch, zoneMatch);
+    }
+    const recentOrders = await Order.countDocuments(recentOrdersMatch);
+
+    // For service readiness, count restaurants that were modified in the last 24h
+    const recentRestaurantsMatch = { updatedAt: { $gte: last24Hours } };
+    if (zoneIdFilter) {
+      // Assuming restaurants have a zoneId or location based zone filtering
+      // Adding it if restaurant model has zoneId or area/city mapping
+      // For now, if zone filter is active, only count those in the selected zone if field exists
+      // Check if zoneId exists in model first, or fallback to name/area filtering if needed
+      // (Using zoneId as it's the most common mapping)
+      recentRestaurantsMatch.$or = [
+        { zoneId: zoneIdFilter },
+        { "location.zoneId": zoneIdFilter }, // Alternative mapping
+        { "location.area": new RegExp(`^${zoneIdFilter}$`, "i") } // Fallback
+      ];
+    }
+    const recentRestaurantsUpdated = await Restaurant.countDocuments(
+      recentRestaurantsMatch,
+    );
+
+    // Also get pending orders for the signals
+    const pendingOrdersMatch = { status: "pending" };
+    if (Object.keys(zoneMatch).length > 0) {
+      Object.assign(pendingOrdersMatch, zoneMatch);
+    }
+    const pendingOrdersCount = await Order.countDocuments(pendingOrdersMatch);
 
     // Get monthly data for last 12 months
     // Use aggregation to match orders with settlements by orderId and use order's deliveredAt
@@ -536,7 +560,8 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       },
       recentActivity: {
         orders: recentOrders,
-        restaurants: recentRestaurants,
+        restaurants: recentRestaurantsUpdated,
+        pendingOrders: pendingOrdersCount,
         period: "last24Hours",
       },
       monthlyData: monthlyData, // Add monthly data for graphs

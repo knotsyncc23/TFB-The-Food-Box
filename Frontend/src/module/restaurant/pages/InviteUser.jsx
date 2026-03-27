@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import Lenis from "lenis"
 import {
   ArrowLeft,
+  Camera,
   ChevronDown,
   Mail,
   CheckCircle2,
@@ -74,6 +75,8 @@ export default function InviteUser() {
   const [addMethod, setAddMethod] = useState("phone") // "phone" or "email"
   const [photo, setPhoto] = useState(null)
   const [photoPreview, setPhotoPreview] = useState(null)
+  const galleryInputRef = useRef(null)
+  const cameraInputRef = useRef(null)
 
   // Lenis smooth scrolling
   useEffect(() => {
@@ -95,6 +98,33 @@ export default function InviteUser() {
     }
   }, [])
 
+  // Country-specific phone number length limits
+  const getPhoneLengthLimits = (code) => {
+    const limits = {
+      "+91": { min: 10, max: 10 },   // India: exactly 10 digits
+      "+1": { min: 10, max: 10 },     // US/CA: exactly 10 digits
+      "+44": { min: 10, max: 10 },    // UK: 10 digits
+      "+86": { min: 11, max: 11 },    // China: 11 digits
+      "+81": { min: 10, max: 11 },    // Japan: 10-11 digits
+      "+49": { min: 10, max: 11 },    // Germany: 10-11 digits
+      "+33": { min: 9, max: 9 },      // France: 9 digits
+      "+39": { min: 9, max: 10 },     // Italy: 9-10 digits
+      "+34": { min: 9, max: 9 },      // Spain: 9 digits
+      "+61": { min: 9, max: 9 },      // Australia: 9 digits
+      "+7": { min: 10, max: 10 },     // Russia: 10 digits
+      "+55": { min: 10, max: 11 },    // Brazil: 10-11 digits
+      "+52": { min: 10, max: 10 },    // Mexico: 10 digits
+      "+82": { min: 9, max: 10 },     // South Korea: 9-10 digits
+      "+65": { min: 8, max: 8 },      // Singapore: 8 digits
+      "+971": { min: 9, max: 9 },     // UAE: 9 digits
+      "+966": { min: 9, max: 9 },     // Saudi Arabia: 9 digits
+      "+27": { min: 9, max: 9 },      // South Africa: 9 digits
+      "+31": { min: 9, max: 9 },      // Netherlands: 9 digits
+      "+46": { min: 9, max: 9 },      // Sweden: 9 digits
+    }
+    return limits[code] || { min: 7, max: 15 }
+  }
+
   // Phone number validation
   const validatePhone = (phone) => {
     if (!phone.trim()) {
@@ -103,12 +133,17 @@ export default function InviteUser() {
     }
     // Remove any non-digit characters for validation
     const digitsOnly = phone.replace(/\D/g, "")
-    if (digitsOnly.length < 10) {
-      setPhoneError("Phone number must be at least 10 digits")
+    const limits = getPhoneLengthLimits(countryCode)
+    if (digitsOnly.length < limits.min) {
+      setPhoneError(`Phone number must be ${limits.min === limits.max ? `exactly ${limits.min}` : `at least ${limits.min}`} digits for ${countryCode}`)
       return false
     }
-    if (digitsOnly.length > 15) {
-      setPhoneError("Phone number is too long")
+    if (digitsOnly.length > limits.max) {
+      setPhoneError(`Phone number must be ${limits.min === limits.max ? `exactly ${limits.max}` : `at most ${limits.max}`} digits for ${countryCode}`)
+      return false
+    }
+    if (countryCode === "+91" && digitsOnly.length === 10 && !/^[6-9]/.test(digitsOnly)) {
+      setPhoneError("Indian phone number must start with 6, 7, 8, or 9")
       return false
     }
     setPhoneError("")
@@ -132,9 +167,12 @@ export default function InviteUser() {
 
   const handlePhoneChange = (e) => {
     const value = e.target.value.replace(/\D/g, "") // Only allow digits
-    setPhoneNumber(value)
-    if (value) {
-      validatePhone(value)
+    const limits = getPhoneLengthLimits(countryCode)
+    // Prevent typing beyond max length
+    const truncated = value.slice(0, limits.max)
+    setPhoneNumber(truncated)
+    if (truncated) {
+      validatePhone(truncated)
     } else {
       setPhoneError("")
     }
@@ -185,6 +223,27 @@ export default function InviteUser() {
       }
       reader.readAsDataURL(file)
     }
+  }
+
+  const handleOpenCamera = async () => {
+    if (hasFlutterCameraBridge()) {
+      try {
+        const { success, file } = await openCameraViaFlutter()
+        if (success && file) {
+          handlePhotoChange({ target: { files: [file] } })
+        }
+      } catch (error) {
+        console.error("Error opening camera for staff photo:", error)
+        alert("Failed to open camera. Please try again.")
+      }
+      return
+    }
+
+    cameraInputRef.current?.click()
+  }
+
+  const handleOpenGallery = () => {
+    galleryInputRef.current?.click()
   }
 
   const handleRemovePhoto = () => {
@@ -256,9 +315,16 @@ export default function InviteUser() {
 
   const selectedCountry = countryCodes.find(c => c.code === countryCode) || countryCodes[2]
 
+  useEffect(() => {
+    setPhoneNumber((prev) => {
+      const limits = getPhoneLengthLimits(countryCode)
+      return prev.replace(/\D/g, "").slice(0, limits.max)
+    })
+  }, [countryCode])
+
   const isFormValid = name.trim().length >= 2 && !nameError && (
     addMethod === "phone" 
-      ? phoneNumber.trim().length >= 10 && !phoneError
+      ? phoneNumber.trim().length >= getPhoneLengthLimits(countryCode).min && !phoneError
       : email.trim() && !emailError
   )
 
@@ -283,6 +349,7 @@ export default function InviteUser() {
       {/* Content */}
       <div className="px-4 py-6 space-y-6">
         {/* Name Input Section */}
+        {addMethod === "phone" && (
         <div>
           <label className="text-sm font-medium text-gray-700 mb-2 block">Name *</label>
           <Input
@@ -296,6 +363,7 @@ export default function InviteUser() {
             <p className="text-sm text-red-600 mt-1">{nameError}</p>
           )}
         </div>
+        )}
 
         {/* Phone Number Input Section */}
         <div>
@@ -327,7 +395,7 @@ export default function InviteUser() {
               onChange={handlePhoneChange}
               placeholder="Enter phone number"
               className={`flex-1 h-12 border-gray-200 rounded-lg ${phoneError ? "border-red-500" : ""}`}
-              maxLength={15}
+              maxLength={getPhoneLengthLimits(countryCode).max}
             />
           </div>
           {phoneError && (
@@ -400,25 +468,37 @@ export default function InviteUser() {
                   </button>
                 </div>
               ) : (
-                <label
-                  htmlFor="photoInput"
-                  onClick={async (e) => {
-                    if (hasFlutterCameraBridge()) {
-                      e.preventDefault()
-                      const { success, file } = await openCameraViaFlutter()
-                      if (success && file) handlePhotoChange({ target: { files: [file] } })
-                    }
-                  }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-300 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50 transition-colors"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Upload Photo</span>
-                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleOpenGallery}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Gallery</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleOpenCamera}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>Camera</span>
+                  </button>
+                </div>
               )}
               <input
-                id="photoInput"
+                ref={galleryInputRef}
                 type="file"
                 accept="image/*"
+                className="hidden"
+                onChange={handlePhotoChange}
+              />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
                 className="hidden"
                 onChange={handlePhotoChange}
               />

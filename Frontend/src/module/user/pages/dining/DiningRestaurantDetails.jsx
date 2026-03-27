@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { shareContent } from "@/lib/utils/share"
 
 export default function DiningRestaurantDetails() {
     const { diningType, slug } = useParams() // Get params from URL
@@ -34,28 +35,6 @@ export default function DiningRestaurantDetails() {
     const [diningOffers, setDiningOffers] = useState([])
     const [diningMenu, setDiningMenu] = useState(null)
 
-    // Share handler (Web Share API + clipboard fallback)
-    const copyToClipboard = async (text) => {
-        try {
-            await navigator.clipboard.writeText(text)
-            toast.success("Link copied to clipboard!")
-        } catch (error) {
-            const textArea = document.createElement("textarea")
-            textArea.value = text
-            textArea.style.position = "fixed"
-            textArea.style.opacity = "0"
-            document.body.appendChild(textArea)
-            textArea.select()
-            try {
-                document.execCommand("copy")
-                toast.success("Link copied to clipboard!")
-            } catch (err) {
-                toast.error("Failed to copy link")
-            }
-            document.body.removeChild(textArea)
-        }
-    }
-
     const handleShareClick = async () => {
         if (!restaurant) return
 
@@ -63,23 +42,17 @@ export default function DiningRestaurantDetails() {
         const shareTitle = `${restaurant.name || "Dining"} - Tifunbox`
         const shareText = `Book your table at ${restaurant.name || "this restaurant"} on Tifunbox.`
 
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: shareTitle,
-                    text: shareText,
-                    url: shareUrl,
-                })
-                return
-            } catch (error) {
-                if (error.name === "AbortError") {
-                    return
-                }
-                // fall through to clipboard fallback
-            }
-        }
+        const result = await shareContent({
+            title: shareTitle,
+            text: shareText,
+            url: shareUrl,
+        })
 
-        await copyToClipboard(shareUrl)
+        if (result.method === "whatsapp") {
+            toast.success("Opening share options")
+        } else if (result.method === "clipboard") {
+            toast.success("Share link copied")
+        }
     }
 
     // Fetch data

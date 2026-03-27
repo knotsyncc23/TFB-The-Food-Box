@@ -3,6 +3,8 @@ import { locationAPI, userAPI } from "@/lib/api"
 
 /** Only reverse-geocode + user location DB API after moving at least this far (meters). */
 const MIN_MOVE_METERS_FOR_LOCATION_API = 80
+const USER_LOCATION_KEY = "userLocation"
+const USER_LOCATION_MODE_KEY = "userLocationMode"
 
 function haversineDistanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000
@@ -27,6 +29,22 @@ export function useLocation() {
   const prevLocationCoordsRef = useRef({ latitude: null, longitude: null })
   /** Last coords used for reverse geocode / updateLocation API; skip watch churn under MIN_MOVE_METERS. */
   const lastGeocodeApiCoordsRef = useRef(null)
+
+  const getStoredLocationMode = () => {
+    try {
+      return localStorage.getItem(USER_LOCATION_MODE_KEY) || "current"
+    } catch {
+      return "current"
+    }
+  }
+
+  const setStoredLocationMode = (mode) => {
+    try {
+      localStorage.setItem(USER_LOCATION_MODE_KEY, mode)
+    } catch {
+      // ignore storage errors
+    }
+  }
 
   // Broadcast location so other useLocation instances (e.g. top nav) update instantly
   const dispatchLocationUpdated = (locationData) => {
@@ -858,7 +876,8 @@ export function useLocation() {
               }
 
               console.log("ðŸ’¾ Saving location:", finalLoc)
-              localStorage.setItem("userLocation", JSON.stringify(finalLoc))
+              localStorage.setItem(USER_LOCATION_KEY, JSON.stringify(finalLoc))
+              setStoredLocationMode("current")
               setLocation(finalLoc)
               setPermissionGranted(true)
               if (showLoading) setLoading(false)
@@ -894,7 +913,8 @@ export function useLocation() {
                     accuracy: pos.coords.accuracy || null
                   }
                   console.log("âœ… Last resort geocoding succeeded:", lastResortLoc)
-                  localStorage.setItem("userLocation", JSON.stringify(lastResortLoc))
+                  localStorage.setItem(USER_LOCATION_KEY, JSON.stringify(lastResortLoc))
+                  setStoredLocationMode("current")
                   setLocation(lastResortLoc)
                   setPermissionGranted(true)
                   if (showLoading) setLoading(false)
@@ -1021,6 +1041,11 @@ export function useLocation() {
 
   /* ===================== WATCH LOCATION ===================== */
   const startWatchingLocation = () => {
+    if (getStoredLocationMode() === "manual") {
+      console.log("📍 Manual location selected - skipping live geolocation watcher")
+      return
+    }
+
     if (!navigator.geolocation) {
       console.warn("âš ï¸ Geolocation not supported")
       return
@@ -1041,6 +1066,11 @@ export function useLocation() {
       watchIdRef.current = navigator.geolocation.watchPosition(
         async (pos) => {
           try {
+            if (getStoredLocationMode() === "manual") {
+              stopWatchingLocation()
+              return
+            }
+
             const { latitude, longitude, accuracy } = pos.coords
 
             // Reset retry count on success
@@ -1206,7 +1236,8 @@ export function useLocation() {
             prevLocationCoordsRef.current = { latitude: loc.latitude, longitude: loc.longitude }
             lastGeocodeApiCoordsRef.current = { latitude: loc.latitude, longitude: loc.longitude }
             console.log("ðŸ’¾ Updating live location:", loc)
-            localStorage.setItem("userLocation", JSON.stringify(loc))
+            localStorage.setItem(USER_LOCATION_KEY, JSON.stringify(loc))
+            setStoredLocationMode("current")
             setLocation(loc)
             setPermissionGranted(true)
             setError(null)
@@ -1312,7 +1343,8 @@ export function useLocation() {
   /* ===================== INIT ===================== */
   useEffect(() => {
     // Load stored location first for IMMEDIATE display (no loading state)
-    const stored = localStorage.getItem("userLocation")
+    const stored = localStorage.getItem(USER_LOCATION_KEY)
+    const storedLocationMode = getStoredLocationMode()
     let shouldForceRefresh = false
     let hasInitialLocation = false
 
@@ -1532,8 +1564,11 @@ export function useLocation() {
     // Only check permissions/start watching if we already have a saved location
     // This avoids "Requests geolocation permission on page load" warnings on fresh visits
     // New users must explicitly click "Use Current Location" first
-    const hasStoredLocation = localStorage.getItem("userLocation");
-    if (hasStoredLocation) {
+    const hasStoredLocation = localStorage.getItem(USER_LOCATION_KEY);
+    if (hasStoredLocation && storedLocationMode === "manual") {
+      console.log("📍 Using manually selected location - skipping auto geolocation refresh")
+      setLoading(false);
+    } else if (hasStoredLocation) {
       checkPermissionAndStart();
     } else {
       console.log("ðŸ“ Fresh visit - skipping auto-geolocation check (waiting for user action)");
@@ -1558,11 +1593,17 @@ export function useLocation() {
     const onUserLocationUpdated = (e) => {
       const payload = e?.detail
       if (!payload || (payload.formattedAddress === "Select location" && payload.latitude == null)) return
+      if (payload.selectionMode === "manual") {
+        setStoredLocationMode("manual")
+        stopWatchingLocation()
+      } else if (payload.selectionMode === "current") {
+        setStoredLocationMode("current")
+      }
       setLocation((prev) => {
         const next = { ...(prev || {}), ...payload }
         try {
           if (next.latitude != null && next.longitude != null) {
-            localStorage.setItem("userLocation", JSON.stringify(next))
+            localStorage.setItem(USER_LOCATION_KEY, JSON.stringify(next))
             lastGeocodeApiCoordsRef.current = {
               latitude: next.latitude,
               longitude: next.longitude,
@@ -1586,7 +1627,8 @@ export function useLocation() {
 
     try {
       // Clear cached location to force fresh fetch
-      localStorage.removeItem("userLocation")
+      localStorage.removeItem(USER_LOCATION_KEY)
+      setStoredLocationMode("current")
       console.log("ðŸ—‘ï¸ Cleared cached location from localStorage")
 
       // Show loading, so pass showLoading = true

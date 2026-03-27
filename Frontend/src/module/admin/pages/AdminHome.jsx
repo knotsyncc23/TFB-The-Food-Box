@@ -171,9 +171,10 @@ export default function AdminHome() {
       typeof recent.restaurants === "number" ? recent.restaurants : 0
 
     const pendingOrders =
+      data?.recentActivity?.pendingOrders ??
       data?.orderStats?.pending ??
       data?.orders?.byStatus?.pending ??
-      0
+      0;
 
     const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
@@ -253,7 +254,7 @@ export default function AdminHome() {
               helper="Rolling 12 months"
               icon={<ShoppingBag className="h-5 w-5 text-red-600" />}
               accent="bg-red-200/40"
-              to="/admin/orders/all"
+              to="/admin/transaction-report"
             />
             <MetricCard
               title="Commission earned"
@@ -277,7 +278,7 @@ export default function AdminHome() {
               helper="Total platform fees"
               icon={<CreditCard className="h-5 w-5 text-purple-600" />}
               accent="bg-purple-200/40"
-              to="/admin/orders/all"
+              to="/admin/fee-settings"
             />
             <MetricCard
               title="Delivery fee"
@@ -293,7 +294,7 @@ export default function AdminHome() {
               helper="Total GST collected"
               icon={<Receipt className="h-5 w-5 text-orange-600" />}
               accent="bg-orange-200/40"
-              to="/admin/orders/all"
+              to="/admin/tax-report"
             />
             <MetricCard
               title="Total revenue"
@@ -301,7 +302,7 @@ export default function AdminHome() {
               helper={`Commission ₹${commissionTotal.toFixed(2)} + Platform ₹${platformFeeTotal.toFixed(2)} + Delivery ₹${deliveryFeeTotal.toFixed(2)} + GST ₹${gstTotal.toFixed(2)}`}
               icon={<DollarSign className="h-5 w-5 text-red-600" />}
               accent="bg-red-200/40"
-              to="/admin/orders/all"
+              to="/admin/transaction-report"
             />
             <MetricCard
               title="Total restaurants"
@@ -333,7 +334,7 @@ export default function AdminHome() {
               helper="Awaiting verification"
               icon={<Clock className="h-5 w-5 text-yellow-600" />}
               accent="bg-yellow-200/40"
-              to="/admin/delivery-partners/requests"
+              to="/admin/delivery-partners/join-request"
             />
             <MetricCard
               title="Total foods"

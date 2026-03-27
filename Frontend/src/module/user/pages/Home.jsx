@@ -1798,6 +1798,7 @@ export default function Home() {
                 const restaurantSlug = restaurant.slug || restaurant.name.toLowerCase().replace(/\s+/g, "-")
                 // Direct favorite check - isFavorite is already memoized in context
                 const favorite = isFavorite(restaurantSlug)
+                const isRestaurantClosed = !(restaurant.isActive && restaurant.isAcceptingOrders)
 
                 const handleToggleFavorite = (e) => {
                   e.preventDefault()
@@ -1846,8 +1847,19 @@ export default function Home() {
                               priority={index < 3}
                             />
 
+                            {isRestaurantClosed && (
+                              <>
+                                <div className="absolute inset-0 z-[1] rounded-t-2xl sm:rounded-t-3xl bg-black/35 pointer-events-none" />
+                                <div className="absolute top-3 left-3 md:top-4 md:left-4 z-10">
+                                  <div className="rounded-md bg-red-600/95 px-3 py-1.5 text-xs md:text-sm font-bold text-white shadow-lg">
+                                    Closed
+                                  </div>
+                                </div>
+                              </>
+                            )}
+
                             {/* Featured Dish Badge - Top Left */}
-                            <div className="absolute top-3 left-3 md:top-4 md:left-4 flex items-center z-10 transform transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5">
+                            <div className={`absolute md:top-4 md:left-4 flex items-center z-10 transform transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5 ${isRestaurantClosed ? 'top-14 left-3' : 'top-3 left-3'}`}>
                               <div className="bg-gray-800/90 backdrop-blur-sm text-white px-2 py-1 md:px-4 md:py-1.5 rounded-md text-xs font-medium flex items-center shadow-lg">
                                 {restaurant.featuredDish} · ₹{restaurant.featuredPrice}
                               </div>
@@ -1914,6 +1926,14 @@ export default function Home() {
                                 <span className="mx-1">|</span>
                                 <span className="font-medium dark:text-gray-300 text-gray-700">{restaurant.distance}</span>
                               </div>
+
+                              {isRestaurantClosed && (
+                                <div className="mb-2 lg:mb-3">
+                                  <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 dark:bg-red-950/40 dark:text-red-300">
+                                    Closed
+                                  </span>
+                                </div>
+                              )}
 
                               {/* Offer Badge */}
                               {restaurant.offer && (

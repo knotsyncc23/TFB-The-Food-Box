@@ -5,6 +5,7 @@ import { formatCurrency } from "../../restaurant/utils/currency"
 import { useProgressStore } from "../store/progressStore"
 import { deliveryAPI } from "@/lib/api"
 import { toast } from "sonner"
+import { shareContent } from "@/lib/utils/share"
 
 export default function Earnings() {
   const navigate = useNavigate()
@@ -514,16 +515,22 @@ export default function Earnings() {
     : 1
 
   // Handle share
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: 'My Earnings',
-        text: `My earnings for ${formatDateDisplay(selectedDate)}: ${formatCurrency(earningsData.totalEarnings)}`
+  const handleShare = async () => {
+    try {
+      const result = await shareContent({
+        title: "My Earnings",
+        text: `My earnings for ${formatDateDisplay(selectedDate)}: ${formatCurrency(earningsData.totalEarnings)}`,
       })
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(`My earnings: ${formatCurrency(earningsData.totalEarnings)}`)
-      alert('Earnings copied to clipboard!')
+
+      if (result.method === "whatsapp") {
+        toast.success("Opening share options")
+      } else if (result.method === "clipboard") {
+        toast.success("Earnings copied to clipboard")
+      }
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        toast.error("Failed to share earnings")
+      }
     }
   }
 

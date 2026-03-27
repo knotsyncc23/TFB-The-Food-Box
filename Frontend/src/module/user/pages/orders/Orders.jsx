@@ -4,6 +4,7 @@ import { ArrowLeft, Search, MoreVertical, ChevronRight, Star, RotateCcw, AlertCi
 import { orderAPI, api, API_ENDPOINTS } from "@/lib/api"
 import { toast } from "sonner"
 import { getCompanyNameAsync } from "@/lib/utils/businessSettings"
+import { shareContent } from "@/lib/utils/share"
 
 export default function Orders() {
   const navigate = useNavigate()
@@ -391,16 +392,14 @@ Location: ${location || "Location not available"}
 Order again from this restaurant in the ${companyName} app.`
 
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: order.restaurant,
-          text: shareText,
-        })
-      } else if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(shareText)
+      const result = await shareContent({
+        title: order.restaurant,
+        text: shareText,
+      })
+      if (result.method === "whatsapp") {
+        toast.success("Opening share options")
+      } else if (result.method === "clipboard") {
         toast.success("Restaurant details copied to clipboard")
-      } else {
-        toast.info("Sharing is not supported on this device")
       }
     } catch (error) {
       if (error?.name !== "AbortError") {

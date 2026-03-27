@@ -19,6 +19,7 @@ export const useDeliveryNotifications = () => {
   const [orderReady, setOrderReady] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [deliveryPartnerId, setDeliveryPartnerId] = useState(null);
+  const [deliveryStatus, setDeliveryStatus] = useState(null);
 
   // Step 3: All callbacks before effects (unconditional)
   // Track user interaction for autoplay policy
@@ -136,6 +137,7 @@ export const useDeliveryNotifications = () => {
                       deliveryPartner.deliveryId;
             if (id) {
               setDeliveryPartnerId(id);
+              setDeliveryStatus(deliveryPartner.status?.toLowerCase?.() || null);
               console.log('✅ Delivery Partner ID fetched:', id);
             } else {
               console.warn('⚠️ Could not extract delivery partner ID from response');
@@ -314,6 +316,10 @@ export const useDeliveryNotifications = () => {
     });
 
     socketRef.current.on('new_order', (orderData) => {
+      if (!['active', 'approved'].includes(deliveryStatus || '')) {
+        console.log('Ignoring new order notification for unverified delivery partner:', deliveryStatus);
+        return;
+      }
       console.log('📦 New order received via socket:', orderData);
       setNewOrder(orderData);
       playNotificationSound();
@@ -321,6 +327,10 @@ export const useDeliveryNotifications = () => {
 
     // New order available for ALL delivery boys - show in UI so it appears in available orders list in real time
     socketRef.current.on('new_order_available', (orderData) => {
+      if (!['active', 'approved'].includes(deliveryStatus || '')) {
+        console.log('Ignoring available-order notification for unverified delivery partner:', deliveryStatus);
+        return;
+      }
       console.log('📦 New order available (showing in UI):', orderData?.orderId || orderData?.orderMongoId, 'phase:', orderData?.phase);
       setNewOrder(orderData);
       playNotificationSound();
@@ -355,7 +365,7 @@ export const useDeliveryNotifications = () => {
         socketRef.current = null;
       }
     };
-  }, [deliveryPartnerId, playNotificationSound]);
+  }, [deliveryPartnerId, deliveryStatus, playNotificationSound]);
 
   // Keep ref in sync so order_accepted listener can see current newOrder
   useEffect(() => {

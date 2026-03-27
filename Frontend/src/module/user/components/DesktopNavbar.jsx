@@ -16,17 +16,14 @@ export default function DesktopNavbar() {
   const [isVisible, setIsVisible] = useState(true)
   const lastScrollY = useRef(0)
 
-  // Show area if available, otherwise show city
-  // Priority: area > city > "Select"
-  const areaName = userLocation?.area && userLocation?.area.trim() ? userLocation.area.trim() : null
-  const cityName = userLocation?.city || null
-  const stateName = userLocation?.state || null
-  // Main location name: Show area if available, otherwise show city, otherwise "Select"
-  const mainLocationName = areaName || cityName || "Select"
-  // Secondary location: Show only city when area is available (as per design image)
-  const secondaryLocation = areaName
-    ? (cityName || "")  // Show only city when area is available
-    : (cityName && stateName ? `${cityName}, ${stateName}` : cityName || stateName || "")
+  const fullLocationText =
+    userLocation?.formattedAddress ||
+    userLocation?.address ||
+    [userLocation?.area, userLocation?.city, userLocation?.state].filter(Boolean).join(", ") ||
+    "Select location"
+  const locationParts = fullLocationText.split(",").map((part) => part.trim()).filter(Boolean)
+  const mainLocationName = locationParts.slice(0, 2).join(", ") || "Select location"
+  const secondaryLocation = locationParts.slice(2).join(", ")
 
   const handleLocationClick = () => {
     // Open location selector overlay

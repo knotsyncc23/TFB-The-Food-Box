@@ -49,13 +49,24 @@ export default function DiningReservations() {
     }, [])
 
     const handleStatusUpdate = async (bookingId, newStatus) => {
+        // Bug #108: Add confirmation popup before status update
+        const statusLabels = {
+            'checked-in': 'Check-in',
+            'completed': 'Check-out',
+            'dining_completed': 'Dining Completed',
+            'cancelled': 'Cancel'
+        }
+        const label = statusLabels[newStatus] || newStatus
+        const confirmed = window.confirm(`Are you sure you want to mark this booking as "${label}"?`)
+        if (!confirmed) return
+
         try {
             const response = await diningAPI.updateBookingStatusRestaurant(bookingId, newStatus)
             if (response.data.success) {
                 setBookings(prev => prev.map(b =>
                     b._id === bookingId ? { ...b, status: newStatus } : b
                 ))
-                toast.success("Status updated")
+                toast.success(`Status updated to "${label}"`)
             }
         } catch (error) {
             console.error("Error updating status:", error)
@@ -275,8 +286,23 @@ export default function DiningReservations() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {filteredBookings.map((booking) => (
-                                        <tr key={booking._id} className="hover:bg-slate-50/50 transition-colors">
+                                    {filteredBookings.map((booking) => {
+                                        // Bug #109: Determine next status action for row click
+                                        const getNextStatus = (status) => {
+                                            switch(status) {
+                                                case 'confirmed': return 'checked-in'
+                                                case 'checked-in': return 'completed'
+                                                case 'completed': return 'dining_completed'
+                                                default: return null
+                                            }
+                                        }
+                                        const nextStatus = getNextStatus(booking.status)
+                                        return (
+                                        <tr
+                                            key={booking._id}
+                                            className={`hover:bg-slate-50/50 transition-colors ${nextStatus ? 'cursor-pointer' : ''}`}
+                                            onClick={() => nextStatus && handleStatusUpdate(booking._id, nextStatus)}
+                                        >
                                             <td className="px-6 py-4 font-bold text-slate-700">#{booking.bookingId}</td>
                                             <td className="px-6 py-4">
                                                 <div>
@@ -328,7 +354,7 @@ export default function DiningReservations() {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     {booking.status === 'confirmed' && (
                                                         <button
@@ -366,7 +392,7 @@ export default function DiningReservations() {
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                    )})}
                                 </tbody>
                             </table>
                         </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { diningAPI } from "@/lib/api"
 import { getCompanyNameAsync } from "@/lib/utils/businessSettings"
+import { shareContent } from "@/lib/utils/share"
 import { useProfile } from "../../context/ProfileContext"
 import { toast } from "sonner"
 import {
@@ -244,21 +245,17 @@ export default function RestaurantInfoPage() {
                 const url = window.location.href
                 const title = restaurant?.name ? `${restaurant.name} - ${companyName}` : companyName
                 try {
-                  if (navigator.share) {
-                    await navigator.share({ title, url })
+                  const result = await shareContent({ title, url })
+                  if (result.method === "native") {
                     toast.success("Shared")
-                  } else {
-                    await navigator.clipboard.writeText(url)
-                    toast.success("Link copied to clipboard")
+                  } else if (result.method === "whatsapp") {
+                    toast.success("Opening share options")
+                  } else if (result.method === "clipboard") {
+                    toast.success("Share link copied")
                   }
                 } catch (err) {
                   if (err?.name !== "AbortError") {
-                    try {
-                      await navigator.clipboard.writeText(url)
-                      toast.success("Link copied to clipboard")
-                    } catch {
-                      toast.error("Could not share")
-                    }
+                    toast.error("Could not share")
                   }
                 }
               }}

@@ -60,6 +60,10 @@ export default function ProfileDetails() {
 
   const handleRemovePhoto = async () => {
     if (!window.confirm("Remove profile photo?")) return
+    if (!profile?.profileImage?.url) {
+      toast.error("There is no uploaded profile photo to remove")
+      return
+    }
     try {
       setIsUpdatingPhoto(true)
       await deliveryAPI.updateProfile({
@@ -159,6 +163,9 @@ export default function ProfileDetails() {
     fetchProfile()
   }, [navigate])
 
+  const hasUploadedProfilePhoto = !!profile?.profileImage?.url
+  const hasAnyVisiblePhoto = hasUploadedProfilePhoto || !!profile?.documents?.photo
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
@@ -200,7 +207,7 @@ export default function ProfileDetails() {
               <Camera className="w-3 h-3" />
               <span>Change photo</span>
             </button>
-            {(profile?.profileImage?.url || profile?.documents?.photo) && (
+            {hasUploadedProfilePhoto && (
               <button
                 type="button"
                 disabled={isUpdatingPhoto}
@@ -236,9 +243,9 @@ export default function ProfileDetails() {
           onClick={() => setShowPhotoSourcePopup(true)}
           className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-60"
         >
-          Change photo
+          {hasAnyVisiblePhoto ? "Change photo" : "Upload photo"}
         </button>
-        {(profile?.profileImage?.url || profile?.documents?.photo) && (
+        {hasUploadedProfilePhoto && (
           <button
             type="button"
             disabled={isUpdatingPhoto}
@@ -481,14 +488,6 @@ export default function ProfileDetails() {
                 <p className="text-sm text-gray-900 mb-1">Aadhar Card Number</p>
                 <p className="text-base text-gray-900">
                   {profile?.documents?.aadhar?.number || "-"}
-                </p>
-              </div>
-            </div>
-            <div className="p-2 px-3 flex items-center justify-between">
-              <div className="w-full align-center flex content-center justify-between">
-                <p className="text-sm text-gray-900 mb-1">Rating</p>
-                <p className="text-base text-gray-900">
-                  {profile?.metrics?.rating ? `${profile.metrics.rating.toFixed(1)} (${profile.metrics.ratingCount || 0})` : "-"}
                 </p>
               </div>
             </div>

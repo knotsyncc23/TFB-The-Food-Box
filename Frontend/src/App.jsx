@@ -18,7 +18,7 @@ const CheckoutPage = lazy(() => import("@/module/user/pages/cart/Checkout"))
 const PaymentPage = lazy(() => import("@/module/user/pages/cart/Checkout"))
 const OrdersPage = lazy(() => import("@/module/user/pages/orders/Orders"))
 const OrderDetailsPage = lazy(() => import("@/module/user/pages/orders/UserOrderDetails"))
-const OrderChatScreen = lazy(() => import("@/module/user/pages/orders/OrderTracking"))
+const OrderChatScreen = lazy(() => import("@/module/user/pages/orders/OrderChatScreen"))
 const WishlistPage = lazy(() => import("@/module/user/pages/profile/Favorites"))
 
 // Restaurant Module

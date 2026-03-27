@@ -2245,23 +2245,25 @@ function OrderCard({
 }) {
   const isReady = status === "Ready"
   const showCancel = status === 'preparing' && onCancel
+  const orderPayload = {
+    orderId,
+    mongoId,
+    status,
+    customerName,
+    type,
+    tableOrToken,
+    timePlaced,
+    eta,
+    itemsSummary,
+    items,
+  }
 
   return (
     <div className="w-full bg-white rounded-2xl p-4 mb-3 border border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
       {/* Cancel button - only show for preparing orders */}
       <div
         onClick={() =>
-          onSelect?.({
-            orderId,
-            status,
-            customerName,
-            type,
-            tableOrToken,
-            timePlaced,
-            eta,
-            itemsSummary,
-            items,
-          })
+          onSelect?.(orderPayload)
         }
         className="w-full text-left flex gap-3 items-start cursor-pointer"
       >
@@ -2334,15 +2336,29 @@ function OrderCard({
                 </div>
               )}
             </div>
-            {/* Hide ETA for ready orders */}
-            {status !== 'ready' && eta && (
-              <div className="flex items-baseline gap-1 shrink-0 pr-2">
-                <span className="text-[11px] text-gray-500 whitespace-nowrap">ETA</span>
-                <span className="text-xs font-medium text-black whitespace-nowrap">
-                  {eta}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {showCancel && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onCancel(orderPayload)
+                  }}
+                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[11px] font-semibold text-red-600 transition-colors hover:border-red-300 hover:bg-red-100"
+                >
+                  Cancel Order
+                </button>
+              )}
+              {/* Hide ETA for ready orders */}
+              {status !== 'ready' && eta && (
+                <div className="flex items-baseline gap-1 shrink-0 pr-2">
+                  <span className="text-[11px] text-gray-500 whitespace-nowrap">ETA</span>
+                  <span className="text-xs font-medium text-black whitespace-nowrap">
+                    {eta}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

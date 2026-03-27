@@ -256,40 +256,46 @@ export default function Feedback() {
         let fromDate = null
         let toDate = null
 
+        // Helper to get end of day for a date
+        const endOfDay = (date) => {
+          const d = new Date(date)
+          d.setHours(23, 59, 59, 999)
+          return d
+        }
+
         switch (selectedDateRange) {
           case 'today':
             fromDate = dateRanges.today
-            toDate = new Date()
+            toDate = endOfDay(new Date())
             break
           case 'yesterday':
             fromDate = dateRanges.yesterday
-            toDate = new Date(dateRanges.yesterday)
-            toDate.setHours(23, 59, 59, 999)
+            toDate = endOfDay(dateRanges.yesterday)
             break
           case 'thisWeek':
             fromDate = dateRanges.thisWeekStart
-            toDate = dateRanges.thisWeekEnd
+            toDate = endOfDay(new Date())
             break
           case 'lastWeek':
             fromDate = dateRanges.lastWeekStart
-            toDate = dateRanges.lastWeekEnd
+            toDate = endOfDay(dateRanges.lastWeekEnd)
             break
           case 'thisMonth':
             fromDate = dateRanges.thisMonthStart
-            toDate = dateRanges.thisMonthEnd
+            toDate = endOfDay(new Date())
             break
           case 'lastMonth':
             fromDate = dateRanges.lastMonthStart
-            toDate = dateRanges.lastMonthEnd
+            toDate = endOfDay(dateRanges.lastMonthEnd)
             break
           case 'last5days':
             fromDate = dateRanges.last5DaysStart
-            toDate = dateRanges.last5DaysEnd
+            toDate = endOfDay(new Date())
             break
           case 'custom':
             if (customDateRange.start && customDateRange.end) {
               fromDate = customDateRange.start
-              toDate = customDateRange.end
+              toDate = endOfDay(customDateRange.end)
             }
             break
         }

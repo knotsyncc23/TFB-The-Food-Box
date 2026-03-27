@@ -785,8 +785,25 @@ export default function PageNavbar({
     }
   })()
 
-  const mainLocationName = locationDisplay.main
-  const subLocationName = locationDisplay.sub
+  const activeLocationText = (
+    location?.formattedAddress ||
+    location?.address ||
+    [location?.area, location?.city, location?.state].filter(Boolean).join(", ") ||
+    "Select location"
+  )
+    .replace(/,\s*India\s*$/i, "")
+    .trim()
+
+  const activeLocationParts = activeLocationText
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  const mainLocationName =
+    activeLocationParts.slice(0, 2).join(", ") ||
+    locationDisplay.main ||
+    "Select location"
+  const subLocationName = activeLocationParts.slice(2).join(", ")
 
   const handleLocationClick = () => {
     // Open location selector overlay

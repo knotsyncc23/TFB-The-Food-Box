@@ -44,6 +44,7 @@ import AddToCartAnimation from "../../components/AddToCartAnimation"
 import { getCompanyNameAsync } from "@/lib/utils/businessSettings"
 import { isModuleAuthenticated } from "@/lib/utils/auth"
 import { buildRecommendedMenuItems } from "../../utils/buildRecommendedMenuItems"
+import { shareContent } from "@/lib/utils/share"
 
 export default function RestaurantDetails() {
   const { slug } = useParams()
@@ -227,7 +228,7 @@ export default function RestaurantDetails() {
                     id: String(it.id || Math.random()),
                     name: it.name || "Unnamed Item",
                     inStock: it.inStock !== undefined ? it.inStock : true,
-                    isVeg: it.isVeg !== undefined ? it.isVeg : true,
+                    isVeg: it.isVeg,
                     stockQuantity: it.stockQuantity || "Unlimited",
                   })) : [],
                 }))
@@ -442,6 +443,19 @@ export default function RestaurantDetails() {
     });
 
     // Prepare cart item with all required properties
+    const normalizedFoodType =
+      typeof item.foodType === "string" ? item.foodType.trim().toLowerCase() : null
+    const derivedIsVeg =
+      normalizedFoodType === "veg"
+        ? true
+        : normalizedFoodType === "non-veg" || normalizedFoodType === "non veg" || normalizedFoodType === "nonveg" || normalizedFoodType === "egg"
+          ? false
+          : item.isVeg === true
+            ? true
+            : item.isVeg === false
+              ? false
+              : false
+
     const cartItem = {
       id: item.id,
       name: item.name,
@@ -451,7 +465,8 @@ export default function RestaurantDetails() {
       restaurantId: validRestaurantId, // Use validated restaurantId
       description: item.description,
       originalPrice: item.originalPrice,
-      isVeg: item.isVeg !== false, // Add isVeg property
+      isVeg: derivedIsVeg,
+      foodType: item.foodType || null,
       subCategory: item.subCategory || ""
     }
 
@@ -694,26 +709,21 @@ export default function RestaurantDetails() {
     const shareUrl = `${window.location.origin}/user/restaurants/${restaurantSlug}`
     const shareText = `Check out ${restaurantName} on ${companyName}! ${shareUrl}`
 
-    // Try Web Share API first (mobile)
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: restaurantName,
-          text: shareText,
-          url: shareUrl,
-        })
-        toast.success("Restaurant shared successfully")
-        setShowMenuOptionsSheet(false)
-      } catch (error) {
-        // User cancelled or error occurred
-        if (error.name !== "AbortError") {
-          // Fallback to copy to clipboard
-          await copyToClipboard(shareUrl)
-        }
-      }
-    } else {
-      // Fallback to copy to clipboard
-      await copyToClipboard(shareUrl)
+    const result = await shareContent({
+      title: restaurantName,
+      text: shareText,
+      url: shareUrl,
+    })
+
+    if (result.method !== "cancelled") {
+      toast.success(
+        result.method === "native"
+          ? "Restaurant shared successfully"
+          : result.method === "whatsapp"
+            ? "Opening share options"
+            : "Share text copied to clipboard",
+      )
+      setShowMenuOptionsSheet(false)
     }
   }
 
@@ -729,48 +739,20 @@ export default function RestaurantDetails() {
     const shareUrl = `${window.location.origin}/user/restaurants/${restaurantSlug}?dish=${dishId}`
     const shareText = `Check out ${item.name} from ${restaurant?.name || "this restaurant"}! ${shareUrl}`
 
-    // Try Web Share API first (mobile)
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `${item.name} - ${restaurant?.name || ""}`,
-          text: shareText,
-          url: shareUrl,
-        })
-        toast.success("Dish shared successfully")
-      } catch (error) {
-        // User cancelled or error occurred
-        if (error.name !== "AbortError") {
-          // Fallback to copy to clipboard
-          await copyToClipboard(shareUrl)
-        }
-      }
-    } else {
-      // Fallback to copy to clipboard
-      await copyToClipboard(shareUrl)
-    }
-  }
+    const result = await shareContent({
+      title: `${item.name} - ${restaurant?.name || ""}`,
+      text: shareText,
+      url: shareUrl,
+    })
 
-  // Copy to clipboard helper
-  const copyToClipboard = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      toast.success("Link copied to clipboard!")
-    } catch (error) {
-      // Fallback for older browsers
-      const textArea = document.createElement("textarea")
-      textArea.value = text
-      textArea.style.position = "fixed"
-      textArea.style.opacity = "0"
-      document.body.appendChild(textArea)
-      textArea.select()
-      try {
-        document.execCommand("copy")
-        toast.success("Link copied to clipboard!")
-      } catch (err) {
-        toast.error("Failed to copy link")
-      }
-      document.body.removeChild(textArea)
+    if (result.method !== "cancelled") {
+      toast.success(
+        result.method === "native"
+          ? "Dish shared successfully"
+          : result.method === "whatsapp"
+            ? "Opening share options"
+            : "Share text copied to clipboard",
+      )
     }
   }
 
@@ -2883,4 +2865,3 @@ export default function RestaurantDetails() {
     </AnimatedPage>
   )
 }
-

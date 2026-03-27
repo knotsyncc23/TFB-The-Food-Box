@@ -76,6 +76,21 @@ export function DateRangeCalendar({ startDate, endDate, onDateRangeChange, onClo
       // Start new selection
       setTempStartDate(date)
       setTempEndDate(null)
+      
+      // Bug #116: Auto-apply single-day range after a short delay if user doesn't pick end date
+      setTimeout(() => {
+        setTempStartDate((currentStart) => {
+          setTempEndDate((currentEnd) => {
+            // Only auto-apply if end date hasn't been set yet (user didn't click second date)
+            if (currentStart && !currentEnd && currentStart.toDateString() === date.toDateString()) {
+              // Set both start and end to same date (single-day selection)
+              onDateRangeChange(date, date)
+            }
+            return currentEnd
+          })
+          return currentStart
+        })
+      }, 1500)
     } else if (tempStartDate && !tempEndDate) {
       // Select end date
       let finalStart = tempStartDate

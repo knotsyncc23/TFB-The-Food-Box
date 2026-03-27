@@ -13,6 +13,8 @@ import BottomNavbar from "../components/BottomNavbar"
 import MenuOverlay from "../components/MenuOverlay"
 import { formatCurrency, usdToInr } from "../utils/currency"
 import { getAllFoods } from "../utils/foodManagement"
+import { restaurantAPI } from "@/lib/api"
+import { toast } from "sonner"
 
 export default function AllFoodPage() {
   const navigate = useNavigate()
@@ -24,6 +26,29 @@ export default function AllFoodPage() {
   const [foodTypeFilter, setFoodTypeFilter] = useState("all")
   const [stockFilter, setStockFilter] = useState("all")
   const [allFoods, setAllFoods] = useState(() => getAllFoods())
+  const [restaurantVerified, setRestaurantVerified] = useState(true)
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadRestaurantStatus = async () => {
+      try {
+        const res = await restaurantAPI.getCurrentRestaurant()
+        const restaurant =
+          res.data?.data?.restaurant || res.data?.restaurant || res.data?.data
+        if (!isMounted) return
+        setRestaurantVerified(!!restaurant?.approvedAt)
+      } catch (error) {
+        if (!isMounted) return
+        setRestaurantVerified(false)
+      }
+    }
+
+    loadRestaurantStatus()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   // Lenis smooth scrolling
   useEffect(() => {
@@ -294,10 +319,20 @@ export default function AllFoodPage() {
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 15 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={() => navigate("/restaurant/food/new")}
-        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 w-14 h-14 bg-[#ff8100] hover:bg-[#e67300] text-white rounded-full shadow-lg flex items-center justify-center z-50 transition-colors"
+        whileHover={{ scale: restaurantVerified ? 1.1 : 1 }}
+        whileTap={{ scale: restaurantVerified ? 0.9 : 1 }}
+        onClick={() => {
+          if (!restaurantVerified) {
+            toast.error("You cannot add items until your restaurant is verified by admin.")
+            return
+          }
+          navigate("/restaurant/food/new")
+        }}
+        className={`fixed bottom-20 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-50 transition-colors ${
+          restaurantVerified
+            ? "bg-[#ff8100] hover:bg-[#e67300] text-white"
+            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+        }`}
       >
         <Plus className="w-6 h-6" />
       </motion.button>

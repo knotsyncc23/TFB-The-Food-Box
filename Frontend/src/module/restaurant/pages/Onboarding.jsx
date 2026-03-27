@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useLayoutEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -197,6 +197,8 @@ export default function RestaurantOnboarding() {
   const panCameraInputRef = useRef(null)
   const fssaiCameraInputRef = useRef(null)
   const gstCameraInputRef = useRef(null)
+  const menuCameraInputRef = useRef(null)
+  const profileCameraInputRef = useRef(null)
 
   const [step1, setStep1] = useState({
     restaurantName: "",
@@ -249,7 +251,7 @@ export default function RestaurantOnboarding() {
   })
 
   const [step3Errors, setStep3Errors] = useState({})
-  const [sourcePicker, setSourcePicker] = useState({ open: false, target: null })
+
 
   const validateStep3Field = (field, value, allStep3 = step3) => {
     const s = { ...allStep3, [field]: value }
@@ -331,7 +333,7 @@ export default function RestaurantOnboarding() {
     const stepParam = searchParams.get("step")
     if (stepParam) {
       const stepNum = parseInt(stepParam, 10)
-      if (stepNum >= 1 && stepNum <= 3) {
+      if (stepNum >= 1 && stepNum <= 4) {
         setStep(stepNum)
       }
     }
@@ -457,10 +459,15 @@ export default function RestaurantOnboarding() {
   }, [loading])
 
   // Onboarding scroll bug: when navigating between steps, ensure we start from the top.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = mainContentRef.current
-    if (!el) return
-    el.scrollTo({ top: 0, left: 0, behavior: "auto" })
+    if (el) el.scrollTo({ top: 0, left: 0, behavior: "auto" })
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+    const timer = setTimeout(() => {
+      if (el) el.scrollTo({ top: 0, left: 0, behavior: "auto" })
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+    }, 10)
+    return () => clearTimeout(timer)
   }, [step])
 
   useEffect(() => {
@@ -1366,35 +1373,68 @@ export default function RestaurantOnboarding() {
                 </span>
               </div>
             </div>
-            <label
-              htmlFor="menuImagesInput"
-              onClick={async (e) => {
-                e.preventDefault()
-                setSourcePicker({ open: true, target: "menuImages" })
-              }}
-              className="inline-flex justify-center items-center gap-1.5 px-3 py-1.5 rounded-sm bg-white text-black  border-black text-xs font-medium cursor-pointer     w-full items-center"
-            >
-              <Upload className="w-4.5 h-4.5" />
-              <span>Choose files</span>
-            </label>
-            <input
-              id="menuImagesInput"
-              type="file"
-              multiple
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const files = Array.from(e.target.files || [])
-                if (!files.length) return
-                console.log('📸 Menu images selected:', files.length, 'files')
-                setStep2((prev) => ({
-                  ...prev,
-                  menuImages: [...(prev.menuImages || []), ...files], // Append new files to existing ones
-                }))
-                // Reset input to allow selecting same file again
-                e.target.value = ''
-              }}
-            />
+            <div className="flex w-full gap-2 mt-2">
+              <label className="inline-flex flex-1 justify-center items-center gap-1.5 px-3 py-2 border border-black rounded-sm bg-white text-black hover:bg-gray-50 text-xs font-medium cursor-pointer">
+                <Upload className="w-4 h-4" />
+                <span>Gallery</span>
+                <input
+                  id="menuImagesInput"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || [])
+                    if (!files.length) return
+                    console.log('📸 Menu images selected:', files.length, 'files')
+                    setStep2((prev) => ({
+                      ...prev,
+                      menuImages: [...(prev.menuImages || []), ...files],
+                    }))
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+              <div className="flex-1">
+                <input
+                  ref={menuCameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null
+                    if (file) {
+                      setStep2((prev) => ({
+                        ...prev,
+                        menuImages: [...(prev.menuImages || []), file],
+                      }))
+                      e.target.value = ''
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="inline-flex w-full justify-center items-center gap-1.5 px-3 py-2 border border-black rounded-sm bg-white text-black hover:bg-gray-50 text-xs font-medium cursor-pointer"
+                  onClick={async () => {
+                    if (hasFlutterCameraBridge()) {
+                      const { success, file } = await openCameraViaFlutter()
+                      if (success && file) {
+                        setStep2((prev) => ({
+                          ...prev,
+                          menuImages: [...(prev.menuImages || []), file],
+                        }))
+                      }
+                    } else {
+                      menuCameraInputRef.current?.click()
+                    }
+                  }}
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>Camera</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Menu image previews */}
@@ -1489,35 +1529,68 @@ export default function RestaurantOnboarding() {
             </div>
 
           </div>
-          <label
-            htmlFor="profileImageInput"
-            onClick={async (e) => {
-              e.preventDefault()
-              setSourcePicker({ open: true, target: "profileImage" })
-            }}
-            className="inline-flex justify-center items-center gap-1.5 px-3 py-1.5 rounded-sm bg-white text-black  border-black text-xs font-medium cursor-pointer     w-full items-center"
-          >
-            <Upload className="w-4.5 h-4.5" />
-            <span>Upload</span>
-          </label>
-          <input
-            id="profileImageInput"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0] || null
-              if (file) {
-                console.log('📸 Profile image selected:', file.name)
-                setStep2((prev) => ({
-                  ...prev,
-                  profileImage: file,
-                }))
-              }
-              // Reset input to allow selecting same file again
-              e.target.value = ''
-            }}
-          />
+          <div className="flex w-full gap-2 mt-2">
+            <label className="inline-flex flex-1 justify-center items-center gap-1.5 px-3 py-2 border border-black rounded-sm bg-white text-black hover:bg-gray-50 text-xs font-medium cursor-pointer">
+              <Upload className="w-4 h-4" />
+              <span>Gallery</span>
+              <input
+                id="profileImageInput"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null
+                  if (file) {
+                    console.log('📸 Profile image selected:', file.name)
+                    setStep2((prev) => ({
+                      ...prev,
+                      profileImage: file,
+                    }))
+                  }
+                  e.target.value = ''
+                }}
+              />
+            </label>
+            <div className="flex-1">
+              <input
+                ref={profileCameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null
+                  if (file) {
+                    setStep2((prev) => ({
+                      ...prev,
+                      profileImage: file,
+                    }))
+                  }
+                  e.target.value = ''
+                }}
+              />
+              <button
+                type="button"
+                className="inline-flex w-full justify-center items-center gap-1.5 px-3 py-2 border border-black rounded-sm bg-white text-black hover:bg-gray-50 text-xs font-medium cursor-pointer"
+                onClick={async () => {
+                  if (hasFlutterCameraBridge()) {
+                    const { success, file } = await openCameraViaFlutter()
+                    if (success && file) {
+                      setStep2((prev) => ({
+                        ...prev,
+                        profileImage: file,
+                      }))
+                    }
+                  } else {
+                    profileCameraInputRef.current?.click()
+                  }
+                }}
+              >
+                <Camera className="w-4 h-4" />
+                <span>Camera</span>
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -2037,18 +2110,16 @@ export default function RestaurantOnboarding() {
         <div>
           <Label className="text-xs text-gray-700">Estimated Delivery Time*</Label>
           <Input
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={step4.estimatedDeliveryTime || ""}
             onChange={(e) => {
-              const raw = e.target.value
-              // Only allow digits (min 0). Keep it as string because schema stores a string.
-              const sanitized =
-                raw === "" ? "" : String(Math.max(0, Math.floor(Number(raw) || 0)))
+              const sanitized = e.target.value.replace(/\D/g, "").slice(0, 3)
               setStep4({ ...step4, estimatedDeliveryTime: sanitized })
             }}
             className="mt-1 bg-white text-sm"
             placeholder="e.g., 25"
-            min="0"
           />
         </div>
 
@@ -2187,85 +2258,7 @@ export default function RestaurantOnboarding() {
           </div>
         </footer>
 
-        {sourcePicker.open && (
-          <>
-            <div
-              className="fixed inset-0 z-[60] bg-black/40"
-              onClick={() => setSourcePicker({ open: false, target: null })}
-            />
-            <div className="fixed z-[61] left-0 right-0 bottom-0 bg-white rounded-t-2xl p-4 sm:p-6 space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900">Choose image source</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center gap-2 px-3 py-3 border border-gray-200 rounded-md bg-white text-sm hover:bg-gray-50"
-                  onClick={async () => {
-                    // Directly open the selected source.
-                    // In Flutter WebView, pass `source: "gallery"` to avoid showing a camera prompt.
-                    try {
-                      if (hasFlutterCameraBridge()) {
-                        const { success, file } = await openCameraViaFlutter({
-                          source: "gallery",
-                        })
-                        if (success && file) {
-                          if (sourcePicker.target === "menuImages") {
-                            setStep2((prev) => ({
-                              ...prev,
-                              menuImages: [...(prev.menuImages || []), file],
-                            }))
-                          } else if (sourcePicker.target === "profileImage") {
-                            setStep2((prev) => ({
-                              ...prev,
-                              profileImage: file,
-                            }))
-                          }
-                        }
-                      } else {
-                        if (sourcePicker.target === "menuImages") {
-                          document.getElementById("menuImagesInput")?.click()
-                        } else if (sourcePicker.target === "profileImage") {
-                          document.getElementById("profileImageInput")?.click()
-                        }
-                      }
-                    } finally {
-                      setSourcePicker({ open: false, target: null })
-                    }
-                  }}
-                >
-                  <Upload className="w-4 h-4" />
-                  Gallery
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center gap-2 px-3 py-3 border border-gray-200 rounded-md bg-white text-sm hover:bg-gray-50"
-                  onClick={async () => {
-                    if (hasFlutterCameraBridge()) {
-                      const { success, file } = await openCameraViaFlutter()
-                      if (success && file) {
-                        if (sourcePicker.target === "menuImages") {
-                          setStep2((prev) => ({
-                            ...prev,
-                            menuImages: [...(prev.menuImages || []), file],
-                          }))
-                        } else if (sourcePicker.target === "profileImage") {
-                          setStep2((prev) => ({ ...prev, profileImage: file }))
-                        }
-                      }
-                    } else if (sourcePicker.target === "menuImages") {
-                      document.getElementById("menuImagesInput")?.click()
-                    } else if (sourcePicker.target === "profileImage") {
-                      document.getElementById("profileImageInput")?.click()
-                    }
-                    setSourcePicker({ open: false, target: null })
-                  }}
-                >
-                  <Camera className="w-4 h-4" />
-                  Camera
-                </button>
-              </div>
-            </div>
-          </>
-        )}
+
       </div>
     </LocalizationProvider>
   )

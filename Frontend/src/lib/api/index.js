@@ -658,12 +658,59 @@ export const restaurantAPI = {
 
   // Get all restaurants (for user module)
   getRestaurants: (params = {}) => {
-    return apiClient.get(API_ENDPOINTS.RESTAURANT.LIST, { params });
+    let enrichedParams = { ...params };
+
+    try {
+      const rawStoredLocation = localStorage.getItem("userLocation");
+      if (rawStoredLocation) {
+        const storedLocation = JSON.parse(rawStoredLocation);
+        const latitude = Number(
+          enrichedParams.latitude ?? enrichedParams.lat ?? storedLocation?.latitude,
+        );
+        const longitude = Number(
+          enrichedParams.longitude ?? enrichedParams.lng ?? storedLocation?.longitude,
+        );
+
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          enrichedParams = {
+            ...enrichedParams,
+            latitude,
+            longitude,
+          };
+        }
+      }
+    } catch {
+      // Ignore malformed cached location and fall back to explicit params only.
+    }
+
+    return apiClient.get(API_ENDPOINTS.RESTAURANT.LIST, {
+      params: enrichedParams,
+    });
   },
 
   // Get restaurants with dishes under ₹250
   getRestaurantsUnder250: (zoneId) => {
-    const params = zoneId ? { zoneId } : {};
+    let params = zoneId ? { zoneId } : {};
+
+    try {
+      const rawStoredLocation = localStorage.getItem("userLocation");
+      if (rawStoredLocation) {
+        const storedLocation = JSON.parse(rawStoredLocation);
+        const latitude = Number(storedLocation?.latitude);
+        const longitude = Number(storedLocation?.longitude);
+
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          params = {
+            ...params,
+            latitude,
+            longitude,
+          };
+        }
+      }
+    } catch {
+      // Ignore malformed cached location and fall back to explicit params only.
+    }
+
     return apiClient.get(API_ENDPOINTS.RESTAURANT.UNDER_250, { params });
   },
 

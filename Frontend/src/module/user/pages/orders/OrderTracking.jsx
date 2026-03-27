@@ -35,6 +35,7 @@ import { useProfile } from "../../context/ProfileContext"
 import { useLocation as useUserLocation } from "../../hooks/useLocation"
 import DeliveryTrackingMap from "../../components/DeliveryTrackingMap"
 import { orderAPI, restaurantAPI } from "@/lib/api"
+import { shareContent } from "@/lib/utils/share"
 import circleIcon from "@/assets/circleicon.png"
 
 // Animated checkmark component
@@ -235,6 +236,14 @@ export default function OrderTracking() {
   const [reviewComment, setReviewComment] = useState("")
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [reviewSubmitted, setReviewSubmitted] = useState(false)
+  const nonCancellableStatuses = new Set([
+    "preparing",
+    "ready",
+    "out_for_delivery",
+    "delivered",
+    "completed",
+    "cancelled",
+  ])
 
   const applyOrderStatus = useCallback((apiOrder) => {
     if (!apiOrder) return
@@ -552,7 +561,6 @@ export default function OrderTracking() {
   }, [])
 
   const handleCancelOrder = () => {
-    // Check if order can be cancelled (only Razorpay orders that aren't delivered/cancelled)
     if (!order) return;
 
     if (order.status === 'cancelled') {
@@ -565,8 +573,10 @@ export default function OrderTracking() {
       return;
     }
 
-    // Allow cancellation for all payment methods (Razorpay, COD, Wallet)
-    // Only restrict if order is already cancelled or delivered (checked above)
+    if (nonCancellableStatuses.has(order.status)) {
+      toast.error("This order can no longer be cancelled");
+      return;
+    }
 
     setShowCancelDialog(true);
   };
@@ -650,12 +660,13 @@ export default function OrderTracking() {
     };
 
     try {
-      if (navigator.share) {
-        await navigator.share(shareData);
+      const result = await shareContent(shareData);
+      if (result.method === "native") {
         toast.success("Shared successfully");
-      } else {
-        await navigator.clipboard.writeText(window.location.href);
-        toast.success("Link copied to clipboard");
+      } else if (result.method === "whatsapp") {
+        toast.success("Opening share options");
+      } else if (result.method === "clipboard") {
+        toast.success("Share link copied");
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -663,6 +674,25 @@ export default function OrderTracking() {
         toast.error("Failed to share");
       }
     }
+  };
+
+  const handleCallCustomerPhone = () => {
+    const phoneNumber = String(
+      order?.userPhone ||
+      order?.userId?.phone ||
+      profile?.phone ||
+      defaultAddress?.phone ||
+      "",
+    )
+      .replace(/[^\d+]/g, "")
+      .trim();
+
+    if (!phoneNumber) {
+      toast.error("Phone number not available");
+      return;
+    }
+
+    window.location.href = `tel:${phoneNumber}`;
   };
 
   const handleCallRestaurant = async () => {
@@ -696,6 +726,18 @@ export default function OrderTracking() {
   const handleOpenDeliveryInstructions = () => {
     setDeliveryInstructionsText(order?.deliveryInstructions ?? "");
     setShowDeliveryInstructionsDialog(true);
+  };
+
+  const handleOpenDeliveryAddress = () => {
+    navigate("/profile/addresses");
+  };
+
+  const handleOpenSafety = () => {
+    navigate("/profile/report-safety-emergency");
+  };
+
+  const handleOpenOrderDetails = () => {
+    navigate(`/orders/${orderId}/details`);
   };
 
   const handleSaveDeliveryInstructions = async () => {
@@ -1170,6 +1212,7 @@ export default function OrderTracking() {
 
         {/* Delivery Partner Safety */}
         <motion.button
+          onClick={handleOpenSafety}
           className="w-full bg-white rounded-xl p-4 shadow-sm flex items-center gap-3"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1219,7 +1262,7 @@ export default function OrderTracking() {
               defaultAddress?.phone ||
               'Phone number not available'
             }
-            showArrow={false}
+            onClick={handleCallCustomerPhone}
           />
           <SectionItem
             icon={HomeIcon}
@@ -1263,7 +1306,7 @@ export default function OrderTracking() {
 
               return 'Add delivery address'
             })()}
-            showArrow={false}
+            onClick={handleOpenDeliveryAddress}
           />
           <SectionItem
             icon={MessageSquare}
@@ -1318,7 +1361,11 @@ export default function OrderTracking() {
           </div>
 
           {/* Order Items */}
-          <div className="p-4 border-b border-dashed border-gray-200">
+          <button
+            type="button"
+            onClick={handleOpenOrderDetails}
+            className="w-full p-4 border-b border-dashed border-gray-200 text-left hover:bg-gray-50 transition-colors"
+          >
             <div className="flex items-start gap-3">
               <Receipt className="w-5 h-5 text-gray-500 mt-0.5" />
               <div className="flex-1">
@@ -1336,23 +1383,25 @@ export default function OrderTracking() {
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400" />
             </div>
-          </div>
+          </button>
         </motion.div>
 
         {/* Help Section */}
-        <motion.div
-          className="bg-white rounded-xl shadow-sm overflow-hidden"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-        >
-          <SectionItem
-            icon={CircleSlash}
-            title="Cancel order"
-            subtitle=""
-            onClick={handleCancelOrder}
-          />
-        </motion.div>
+        {!nonCancellableStatuses.has(order?.status) && (
+          <motion.div
+            className="bg-white rounded-xl shadow-sm overflow-hidden"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+          >
+            <SectionItem
+              icon={CircleSlash}
+              title="Cancel order"
+              subtitle=""
+              onClick={handleCancelOrder}
+            />
+          </motion.div>
+        )}
 
       </div>
 

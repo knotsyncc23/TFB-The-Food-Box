@@ -192,7 +192,7 @@ export default function AddMoneyModal({ open, onOpenChange, onSuccess }) {
             </label>
             <div className="relative">
               <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                <IndianRupee className="h-5 w-5 text-gray-400" />
+                <IndianRupee className="h-5 w-5 text-gray-400 dark:text-gray-300" />
               </div>
               <Input
                 type="text"

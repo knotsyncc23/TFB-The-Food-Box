@@ -4,6 +4,14 @@ import { getModuleToken } from "@/lib/utils/auth"
 
 const ProfileContext = createContext(null)
 
+const normalizeAddress = (address) => {
+  if (!address) return address
+  return {
+    ...address,
+    id: address.id || address._id || address.addressId || null,
+  }
+}
+
 export function ProfileProvider({ children }) {
   const [userProfile, setUserProfile] = useState(() => {
     // user_user may be in localStorage (Remember me) or sessionStorage (session only)
@@ -157,8 +165,9 @@ export function ProfileProvider({ children }) {
         try {
           const addressesResponse = await userAPI.getAddresses()
           const addressesData = addressesResponse?.data?.data?.addresses || addressesResponse?.data?.addresses || []
-          setAddresses(addressesData)
-          localStorage.setItem("userAddresses", JSON.stringify(addressesData))
+          const normalizedAddresses = addressesData.map(normalizeAddress)
+          setAddresses(normalizedAddresses)
+          localStorage.setItem("userAddresses", JSON.stringify(normalizedAddresses))
         } catch (addressError) {
           console.error("Error fetching addresses:", addressError)
           // Try to load from localStorage as fallback
@@ -206,7 +215,7 @@ export function ProfileProvider({ children }) {
   const addAddress = useCallback(async (address) => {
     try {
       const response = await userAPI.addAddress(address)
-      const newAddress = response?.data?.data?.address || response?.data?.address
+      const newAddress = normalizeAddress(response?.data?.data?.address || response?.data?.address)
 
       if (newAddress) {
         setAddresses((prev) => {
@@ -225,11 +234,11 @@ export function ProfileProvider({ children }) {
   const updateAddress = useCallback(async (id, updatedAddress) => {
     try {
       const response = await userAPI.updateAddress(id, updatedAddress)
-      const updatedAddr = response?.data?.data?.address || response?.data?.address
+      const updatedAddr = normalizeAddress(response?.data?.data?.address || response?.data?.address)
 
       if (updatedAddr) {
         setAddresses((prev) => {
-          const updated = prev.map((addr) => (addr.id === id ? { ...updatedAddr, id } : addr))
+          const updated = prev.map((addr) => (String(addr.id) === String(id) ? updatedAddr : addr))
           localStorage.setItem("userAddresses", JSON.stringify(updated))
           return updated
         })
@@ -245,7 +254,7 @@ export function ProfileProvider({ children }) {
     try {
       await userAPI.deleteAddress(id)
       setAddresses((prev) => {
-        const newAddresses = prev.filter((addr) => addr.id !== id)
+        const newAddresses = prev.filter((addr) => String(addr.id) !== String(id))
         localStorage.setItem("userAddresses", JSON.stringify(newAddresses))
         return newAddresses
       })
@@ -259,7 +268,7 @@ export function ProfileProvider({ children }) {
     setAddresses((prev) =>
       prev.map((addr) => ({
         ...addr,
-        isDefault: addr.id === id,
+        isDefault: String(addr.id) === String(id),
       }))
     )
   }, [])
@@ -314,7 +323,7 @@ export function ProfileProvider({ children }) {
   }, [paymentMethods])
 
   const getAddressById = useCallback((id) => {
-    return addresses.find((addr) => addr.id === id)
+    return addresses.find((addr) => String(addr.id) === String(id))
   }, [addresses])
 
   const getPaymentMethodById = useCallback((id) => {

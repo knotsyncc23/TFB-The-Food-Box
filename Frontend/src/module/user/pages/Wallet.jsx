@@ -124,7 +124,7 @@ export default function Wallet() {
       {/* Header */}
       <div className="bg-white dark:bg-[#1a1a1a] sticky top-0 z-10 border-b border-gray-100 dark:border-gray-800">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-3 px-4 sm:px-6 md:px-8 lg:px-10 py-4 md:py-5">
+          <div className="flex items-center gap-3 px-5 sm:px-8 md:px-10 lg:px-12 py-4 md:py-5">
             <button
               onClick={() => navigate(-1)}
               className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors flex-shrink-0"
@@ -137,7 +137,7 @@ export default function Wallet() {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 py-6 md:py-8 lg:py-10 space-y-6 md:space-y-8">
+      <div className="max-w-7xl mx-auto px-5 sm:px-8 md:px-10 lg:px-12 xl:px-16 py-8 md:py-10 lg:py-12 xl:py-16 space-y-8 md:space-y-10 lg:space-y-12">
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-12 md:py-16 lg:py-20">
@@ -203,7 +203,7 @@ export default function Wallet() {
         <div className="space-y-4 md:space-y-6 lg:space-y-8">
           {/* Header with Title and Filters */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
-            <h2 className="text-xs sm:text-sm md:text-base lg:text-lg font-semibold text-gray-400 dark:text-gray-500 tracking-widest uppercase">
+            <h2 className="text-xs sm:text-sm md:text-base lg:text-lg font-semibold text-gray-500 dark:text-gray-400 tracking-widest uppercase">
               TRANSACTION HISTORY
             </h2>
 

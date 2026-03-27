@@ -48,7 +48,7 @@ function DocumentUpload({
 
     if (hasFlutterCameraBridge()) {
       try {
-        const result = await openCameraViaFlutter()
+        const result = await openCameraViaFlutter({ source: "camera" })
         if (result?.success && result.file) {
           await onFileSelect(docType, result.file)
         } else if (result && !result.success) {
@@ -237,10 +237,6 @@ export default function SignupStep2() {
   }, [])
 
   const handleRemove = useCallback((docType) => {
-    setDocuments((prev) => ({
-      ...prev,
-      [docType]: null,
-    }))
     setUploadedDocs((prev) => ({
       ...prev,
       [docType]: null,

@@ -1,22 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import io from 'socket.io-client';
-import { deliveryAPI } from '@/lib/api';
-import { API_BASE_URL } from '@/lib/api/config.js';
+import { useState, useEffect, useRef, useCallback } from "react";
+import io from "socket.io-client";
+import { orderAPI } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/api/config.js";
 
-const backendUrl = API_BASE_URL?.replace('/api', '') || 'http://localhost:5000';
+const backendUrl = API_BASE_URL?.replace("/api", "") || "http://localhost:5000";
 
-export const QUICK_MESSAGES = [
-  'I am near your location',
-  'Please come outside',
-  'Order picked up',
-  'Reached restaurant',
-  'Delivered successfully'
-];
-
-/**
- * Hook for delivery partner order chat.
- */
-export function useDeliveryOrderChat(orderId, options = {}) {
+export function useUserOrderChat(orderId, options = {}) {
   const { enabled = true } = options;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,7 +21,7 @@ export function useDeliveryOrderChat(orderId, options = {}) {
       message: payload.message,
       timestamp: payload.timestamp,
     }),
-    []
+    [],
   );
 
   const isMatchingMessage = useCallback((left, right) => {
@@ -56,25 +45,29 @@ export function useDeliveryOrderChat(orderId, options = {}) {
 
   const fetchChat = useCallback(async () => {
     if (!orderId || !enabled) return;
+
     setLoading(true);
     setError(null);
+
     try {
-      const res = await deliveryAPI.getOrderChat(orderId);
+      const res = await orderAPI.getOrderChat(orderId);
       const data = res?.data?.data;
+
       if (!data) {
+        setOrder(null);
         setChatAllowed(false);
         setMessages([]);
-        setOrder(null);
         return;
       }
+
       setOrder(data.order);
       setChatAllowed(!!data.chatAllowed);
       setMessages(Array.isArray(data.chat?.messages) ? data.chat.messages : []);
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to load chat');
-      setMessages([]);
-      setChatAllowed(false);
+      setError(err?.response?.data?.message || err?.message || "Failed to load chat");
       setOrder(null);
+      setChatAllowed(false);
+      setMessages([]);
     } finally {
       setLoading(false);
     }
@@ -86,15 +79,21 @@ export function useDeliveryOrderChat(orderId, options = {}) {
 
   useEffect(() => {
     if (!orderId || !enabled) return;
-    const socket = io(backendUrl, { transports: ['websocket', 'polling'], path: '/socket.io/' });
-    socketRef.current = socket;
 
-    socket.on('connect', () => {
-      socket.emit('join-order-chat', orderId);
+    const socket = io(backendUrl, {
+      transports: ["websocket", "polling"],
+      path: "/socket.io/",
     });
 
-    socket.on('chat_message', (payload) => {
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      socket.emit("join-order-chat", orderId);
+    });
+
+    socket.on("chat_message", (payload) => {
       if (!payload || (payload.orderMongoId !== orderId && payload.orderId !== orderId)) return;
+
       setMessages((prev) => {
         const incomingMessage = buildIncomingMessage(payload);
         const exactIndex = payload._id
@@ -104,12 +103,12 @@ export function useDeliveryOrderChat(orderId, options = {}) {
         if (exactIndex !== -1) return prev;
 
         const optimisticIndex = prev.findIndex(
-          (m) => m._optimistic && isMatchingMessage(m, incomingMessage)
+          (m) => m._optimistic && isMatchingMessage(m, incomingMessage),
         );
 
         if (optimisticIndex !== -1) {
           return prev.map((message, index) =>
-            index === optimisticIndex ? incomingMessage : message
+            index === optimisticIndex ? incomingMessage : message,
           );
         }
 
@@ -122,7 +121,7 @@ export function useDeliveryOrderChat(orderId, options = {}) {
     });
 
     return () => {
-      socket.emit('leave-order-chat', orderId);
+      socket.emit("leave-order-chat", orderId);
       socket.disconnect();
       socketRef.current = null;
     };
@@ -133,11 +132,10 @@ export function useDeliveryOrderChat(orderId, options = {}) {
       const trimmed = text?.trim();
       if (!trimmed || !orderId || !chatAllowed) return { success: false };
 
-      // Optimistic UI update: show message instantly for delivery partner
       const tempId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const optimisticMessage = {
         _id: tempId,
-        sender: "delivery",
+        sender: "user",
         message: trimmed,
         timestamp: new Date().toISOString(),
         _optimistic: true,
@@ -146,11 +144,9 @@ export function useDeliveryOrderChat(orderId, options = {}) {
       setMessages((prev) => [...prev, optimisticMessage]);
 
       try {
-        await deliveryAPI.sendOrderChatMessage(orderId, trimmed);
-        // Real message will arrive via socket; duplicate guard will keep only one copy
+        await orderAPI.sendOrderChatMessage(orderId, trimmed);
         return { success: true };
       } catch (err) {
-        // Roll back optimistic message on failure
         setMessages((prev) => prev.filter((m) => m._id !== tempId));
         return {
           success: false,
@@ -158,7 +154,7 @@ export function useDeliveryOrderChat(orderId, options = {}) {
         };
       }
     },
-    [orderId, chatAllowed]
+    [orderId, chatAllowed],
   );
 
   return { loading, error, order, chatAllowed, messages, sendMessage, refetch: fetchChat };

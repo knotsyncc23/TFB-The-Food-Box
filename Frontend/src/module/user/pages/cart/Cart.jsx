@@ -17,6 +17,7 @@ import { API_BASE_URL } from "@/lib/api/config"
 import { initRazorpayPayment } from "@/lib/utils/razorpay"
 import { toast } from "sonner"
 import { getCompanyNameAsync } from "@/lib/utils/businessSettings"
+import { shareContent } from "@/lib/utils/share"
 
 
 // Removed hardcoded suggested items - now fetching approved addons from backend
@@ -53,6 +54,59 @@ const formatFullAddress = (address) => {
   }
 
   return ""
+}
+
+const normalizeFoodTypeValue = (value) => {
+  if (typeof value !== "string") return null
+
+  const normalized = value.trim().toLowerCase().replace(/[_\s]+/g, "-")
+  if (!normalized) return null
+
+  if (normalized === "veg") return "veg"
+  if (normalized.includes("non-veg") || normalized.includes("nonveg") || normalized === "egg") {
+    return "non-veg"
+  }
+
+  return null
+}
+
+const isCartItemVeg = (item) => {
+  const explicitFoodTypes = [
+    normalizeFoodTypeValue(item?.variationFoodType),
+    normalizeFoodTypeValue(item?.foodType),
+  ].filter(Boolean)
+
+  if (explicitFoodTypes.includes("non-veg")) {
+    return false
+  }
+
+  if (explicitFoodTypes.includes("veg")) {
+    return true
+  }
+
+  if (item?.isVeg === false) return false
+  if (item?.isVeg === true) return true
+
+  // Default to non-veg when type is unknown so we don't incorrectly show a green badge.
+  return false
+}
+
+const getAddonApprovalStatus = (addon) => {
+  const status = String(addon?.approvalStatus || "").trim().toLowerCase()
+  if (status === "approved" || status === "pending" || status === "rejected") return status
+  if (addon?.isApproved === true) return "approved"
+  if (addon?.approvedAt && !addon?.rejectedAt) return "approved"
+  if (addon?.rejectedAt) return "rejected"
+  return "pending"
+}
+
+const isAddonVeg = (addon) => {
+  const explicitFoodType = normalizeFoodTypeValue(addon?.foodType)
+  if (explicitFoodType === "veg") return true
+  if (explicitFoodType === "non-veg") return false
+  if (addon?.isVeg === true) return true
+  if (addon?.isVeg === false) return false
+  return true
 }
 
 export default function Cart() {
@@ -420,14 +474,15 @@ export default function Cart() {
         const data = response?.data?.data?.addons || response?.data?.addons || []
         console.log("📊 Fetched addons count:", data.length)
         console.log("📋 Fetched addons data:", JSON.stringify(data, null, 2))
+        const approvedAddons = data.filter((addon) => getAddonApprovalStatus(addon) === "approved")
 
-        if (data.length === 0) {
+        if (approvedAddons.length === 0) {
           console.warn("⚠️ No addons returned from API. Response:", response?.data)
         } else {
-          console.log("✅ Successfully fetched", data.length, "addons:", data.map(a => a.name))
+          console.log("✅ Successfully fetched", approvedAddons.length, "approved addons:", approvedAddons.map(a => a.name))
         }
 
-        setAddons(data)
+        setAddons(approvedAddons)
       } catch (error) {
         // Log error for debugging
         console.error("❌ Addons fetch error:", {
@@ -557,10 +612,7 @@ export default function Cart() {
         setLoadingPricing(true)
         const items = cart.map(item => {
           const foodType = item.foodType || item.variationFoodType
-          const isVeg =
-            typeof foodType === "string"
-              ? foodType.toLowerCase() === "veg"
-              : item.isVeg !== false
+          const isVeg = isCartItemVeg(item)
 
           return {
             itemId: item.id,
@@ -648,15 +700,18 @@ export default function Cart() {
     fetchFeeSettings()
   }, [])
 
-  // Use backend pricing if available, otherwise fallback to database settings
-  const subtotal = pricing?.subtotal || cart.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0)
+  // Use backend pricing if available, otherwise fallback to local settings.
+  // Keep GST aligned with backend logic: tax applies on subtotal after discount.
+  const computedSubtotal = cart.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0)
+  const subtotal = pricing?.subtotal ?? computedSubtotal
+  const discount = pricing?.discount ?? (appliedCoupon ? Math.min(appliedCoupon.discount, subtotal * 0.5) : 0)
+  const taxableSubtotal = Math.max(subtotal - discount, 0)
   const deliveryFee = pricing?.deliveryFee ?? (subtotal >= feeSettings.freeDeliveryThreshold || appliedCoupon?.freeDelivery ? 0 : feeSettings.deliveryFee)
-  const platformFee = pricing?.platformFee || feeSettings.platformFee
-  const gstCharges = pricing?.tax || Math.round(subtotal * (feeSettings.gstRate / 100))
-  const discount = pricing?.discount || (appliedCoupon ? Math.min(appliedCoupon.discount, subtotal * 0.5) : 0)
-  const totalBeforeDiscount = subtotal + deliveryFee + platformFee + gstCharges
-  const total = pricing?.total || (totalBeforeDiscount - discount)
-  const savings = pricing?.savings || (discount + (subtotal > 500 ? 32 : 0))
+  const platformFee = pricing?.platformFee ?? feeSettings.platformFee
+  const gstCharges = pricing?.tax ?? pricing?.breakdown?.gst ?? Math.round(taxableSubtotal * (feeSettings.gstRate / 100))
+  const totalBeforeDiscount = taxableSubtotal + deliveryFee + platformFee + gstCharges
+  const total = pricing?.total ?? totalBeforeDiscount
+  const savings = pricing?.savings ?? (discount + (subtotal > 500 ? 32 : 0))
 
   // Restaurant name from data or cart
   const restaurantName = restaurantData?.name || cart[0]?.restaurant || "Restaurant"
@@ -700,6 +755,8 @@ export default function Cart() {
         ? `${address.additionalDetails}, ${address.street}, ${address.city}, ${address.state}${address.zipCode ? ` ${address.zipCode}` : ''}`
         : `${address.street}, ${address.city}, ${address.state}${address.zipCode ? ` ${address.zipCode}` : ''}`
       const locationData = {
+        selectionMode: "manual",
+        addressId: address.id || address._id || null,
         city: address.city,
         state: address.state,
         street: address.street,
@@ -712,6 +769,7 @@ export default function Cart() {
         location: { type: "Point", coordinates: [longitude, latitude] },
       }
       localStorage.setItem("userLocation", JSON.stringify(locationData))
+      localStorage.setItem("userLocationMode", "manual")
 
       // Notify useLocation so cart UI updates without full reload
       window.dispatchEvent(new CustomEvent("userLocationUpdated", { detail: locationData }))
@@ -777,7 +835,7 @@ export default function Cart() {
             quantity: item.quantity || 1,
             image: item.image,
             description: item.description,
-            isVeg: item.isVeg !== false
+            isVeg: isCartItemVeg(item)
           }))
 
           const response = await orderAPI.calculateOrder({
@@ -805,16 +863,16 @@ export default function Cart() {
 
     // Recalculate pricing without coupon
     if (cart.length > 0 && defaultAddress) {
-      try {
-        const items = cart.map(item => ({
-          itemId: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity || 1,
-          image: item.image,
-          description: item.description,
-          isVeg: item.isVeg !== false
-        }))
+        try {
+          const items = cart.map(item => ({
+            itemId: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity || 1,
+            image: item.image,
+            description: item.description,
+            isVeg: isCartItemVeg(item)
+          }))
 
         const response = await orderAPI.calculateOrder({
           items,
@@ -835,6 +893,8 @@ export default function Cart() {
 
 
   const handlePlaceOrder = async () => {
+    if (isPlacingOrder) return
+
     if (!defaultAddress) {
       alert("Please add a delivery address")
       return
@@ -880,7 +940,7 @@ export default function Cart() {
         quantity: item.quantity || 1,
         image: item.image || "",
         description: item.description || "",
-        isVeg: item.isVeg !== false,
+        isVeg: isCartItemVeg(item),
         subCategory: item.subCategory || "",
         ...(item.selectedVariation && {
           selectedVariation: {
@@ -1345,13 +1405,20 @@ export default function Cart() {
                 try {
                   const companyName = await getCompanyNameAsync()
                   const text = `${restaurantName} on ${companyName} – ${cart.length} item(s). Order from the app.`
-                  const url = window.location.href
-                  if (navigator.share) {
-                    await navigator.share({ title: restaurantName, text, url })
+                  const restaurantSlug =
+                    restaurantData?.slug ||
+                    restaurantData?.name?.toLowerCase().replace(/\s+/g, "-") ||
+                    restaurantId
+                  const url = restaurantSlug
+                    ? `${window.location.origin}/user/restaurants/${restaurantSlug}`
+                    : window.location.href
+                  const result = await shareContent({ title: restaurantName, text, url })
+                  if (result.method === "native") {
                     toast.success("Shared")
-                  } else {
-                    await navigator.clipboard?.writeText(`${text}\n${url}`)
-                    toast.success("Link copied to clipboard")
+                  } else if (result.method === "whatsapp") {
+                    toast.success("Opening share options")
+                  } else if (result.method === "clipboard") {
+                    toast.success("Share text copied")
                   }
                 } catch (e) {
                   if (e?.name !== "AbortError") toast.error("Share failed")
@@ -1386,17 +1453,18 @@ export default function Cart() {
                 <div className="space-y-3 md:space-y-4">
                   {cart.map((item) => {
                     const lineKey = item.selectedVariation?.variationId ? `${item.id}_${item.selectedVariation.variationId}` : item.id
+                    const isVegItem = isCartItemVeg(item)
                     return (
                       <div key={lineKey} className="flex items-start gap-3 md:gap-4">
                         {/* Veg/Non-veg indicator (Veg = green, Non-Veg = red) */}
                         <div
                           className={`w-4 h-4 md:w-5 md:h-5 border-2 ${
-                            item.isVeg !== false ? "border-green-600" : "border-red-600"
+                            isVegItem ? "border-green-600" : "border-red-600"
                           } flex items-center justify-center mt-1 flex-shrink-0`}
                         >
                           <div
                             className={`w-2 h-2 md:w-2.5 md:h-2.5 rounded-full ${
-                              item.isVeg !== false ? "bg-green-600" : "bg-red-600"
+                              isVegItem ? "bg-green-600" : "bg-red-600"
                             }`}
                           />
                         </div>
@@ -1510,7 +1578,9 @@ export default function Cart() {
                     </div>
                   ) : (
                     <div className="flex gap-3 md:gap-4 overflow-x-auto pb-2 -mx-4 md:-mx-6 px-4 md:px-6 scrollbar-hide">
-                      {addons.map((addon) => (
+                      {addons.map((addon) => {
+                        const addonIsVeg = isAddonVeg(addon)
+                        return (
                         <div key={addon.id} className="flex-shrink-0 w-28 md:w-36">
                           <div className="relative bg-gray-100 dark:bg-gray-800 rounded-lg md:rounded-xl overflow-hidden">
                             <img
@@ -1523,8 +1593,12 @@ export default function Cart() {
                               }}
                             />
                             <div className="absolute top-1 md:top-2 left-1 md:left-2">
-                              <div className="w-3.5 h-3.5 md:w-4 md:h-4 bg-white border border-red-600 flex items-center justify-center rounded">
-                                <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-red-600" />
+                              <div className={`w-3.5 h-3.5 md:w-4 md:h-4 bg-white border flex items-center justify-center rounded ${
+                                addonIsVeg ? "border-green-600" : "border-red-600"
+                              }`}>
+                                <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${
+                                  addonIsVeg ? "bg-green-600" : "bg-red-600"
+                                }`} />
                               </div>
                             </div>
                             <button
@@ -1551,7 +1625,8 @@ export default function Cart() {
                                   price: addon.price,
                                   image: addon.image || (addon.images && addon.images[0]) || "",
                                   description: addon.description || "",
-                                  isVeg: true,
+                                  isVeg: addonIsVeg,
+                                  foodType: addon?.foodType || (addonIsVeg ? "Veg" : "Non-Veg"),
                                   restaurant: cartRestaurantName,
                                   restaurantId: cartRestaurantId
                                 });
@@ -1567,7 +1642,7 @@ export default function Cart() {
                           )}
                           <p className="text-xs md:text-sm text-gray-800 dark:text-gray-200 font-semibold mt-0.5">₹{addon.price}</p>
                         </div>
-                      ))}
+                      )})}
                     </div>
                   )}
                 </div>
@@ -1898,7 +1973,7 @@ export default function Cart() {
                           <span className="text-xs md:text-sm bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1.5 md:px-2 py-0.5 rounded font-medium">You saved ₹{savings}</span>
                         )}
                       </div>
-                      <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Incl. taxes and charges</p>
+                      <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Incl. taxes</p>
                     </div>
                   </div>
                   <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
@@ -1921,7 +1996,7 @@ export default function Cart() {
                       <span className="text-gray-800 dark:text-gray-200">₹{platformFee}</span>
                     </div>
                     <div className="flex justify-between text-sm md:text-base">
-                      <span className="text-gray-600 dark:text-gray-400">GST and Restaurant Charges</span>
+                      <span className="text-gray-600 dark:text-gray-400">GST</span>
                       <span className="text-gray-800 dark:text-gray-200">₹{gstCharges}</span>
                     </div>
                     {discount > 0 && (
