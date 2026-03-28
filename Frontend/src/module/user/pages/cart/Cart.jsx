@@ -770,6 +770,8 @@ export default function Cart() {
       }
       localStorage.setItem("userLocation", JSON.stringify(locationData))
       localStorage.setItem("userLocationMode", "manual")
+      localStorage.removeItem("userZoneId")
+      localStorage.removeItem("userZone")
 
       // Notify useLocation so cart UI updates without full reload
       window.dispatchEvent(new CustomEvent("userLocationUpdated", { detail: locationData }))

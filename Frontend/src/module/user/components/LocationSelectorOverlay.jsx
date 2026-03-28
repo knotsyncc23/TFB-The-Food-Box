@@ -40,6 +40,32 @@ const getAddressIcon = (address) => {
   return Home
 }
 
+const buildSelectedLocationPayload = (address, fallbackCoordinates = {}) => {
+  const coordinates = address?.location?.coordinates || []
+  const longitude = Number(
+    fallbackCoordinates.longitude ?? address?.longitude ?? coordinates[0],
+  )
+  const latitude = Number(
+    fallbackCoordinates.latitude ?? address?.latitude ?? coordinates[1],
+  )
+
+  return {
+    selectionMode: "manual",
+    addressId: address?.id || address?._id || null,
+    city: address?.city || "",
+    state: address?.state || "",
+    street: address?.street || "",
+    address: [address?.street, address?.city].filter(Boolean).join(", "),
+    area: address?.additionalDetails || "",
+    zipCode: address?.zipCode || "",
+    latitude: Number.isFinite(latitude) ? latitude : null,
+    longitude: Number.isFinite(longitude) ? longitude : null,
+    formattedAddress: address?.additionalDetails
+      ? `${address.additionalDetails}, ${address.street}, ${address.city}, ${address.state}${address.zipCode ? ` ${address.zipCode}` : ""}`
+      : `${address?.street || ""}${address?.city ? `, ${address.city}` : ""}${address?.state ? `, ${address.state}` : ""}${address?.zipCode ? ` ${address.zipCode}` : ""}`,
+  }
+}
+
 export default function LocationSelectorOverlay({ isOpen, onClose }) {
   const navigate = useNavigate()
   const routerLocation = useRouterLocation()
@@ -2251,26 +2277,14 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
       console.log("💾 Saving new address:", addressToSave)
       const savedAddress = await addAddress(addressToSave)
       const activeAddress = savedAddress || addressToSave
-      const activeLatitude = activeAddress?.latitude || mapPosition[0]
-      const activeLongitude = activeAddress?.longitude || mapPosition[1]
-      const activeFormattedAddress = activeAddress?.additionalDetails
-        ? `${activeAddress.additionalDetails}, ${activeAddress.street}, ${activeAddress.city}, ${activeAddress.state}${activeAddress.zipCode ? ` ${activeAddress.zipCode}` : ""}`
-        : `${activeAddress.street}, ${activeAddress.city}, ${activeAddress.state}${activeAddress.zipCode ? ` ${activeAddress.zipCode}` : ""}`
-      const activeLocation = {
-        selectionMode: "manual",
-        addressId: activeAddress?.id || activeAddress?._id || null,
-        city: activeAddress.city,
-        state: activeAddress.state,
-        street: activeAddress.street,
-        address: `${activeAddress.street}, ${activeAddress.city}`,
-        area: activeAddress.additionalDetails || "",
-        zipCode: activeAddress.zipCode || "",
-        latitude: activeLatitude,
-        longitude: activeLongitude,
-        formattedAddress: activeFormattedAddress,
-      }
+      const activeLocation = buildSelectedLocationPayload(activeAddress, {
+        latitude: mapPosition[0],
+        longitude: mapPosition[1],
+      })
       localStorage.setItem("userLocation", JSON.stringify(activeLocation))
       localStorage.setItem("userLocationMode", "manual")
+      localStorage.removeItem("userZoneId")
+      localStorage.removeItem("userZone")
       await userAPI.updateLocation(activeLocation)
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("userLocationUpdated", { detail: activeLocation }))
@@ -2344,27 +2358,10 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
 
   const handleSelectSavedAddress = async (address) => {
     try {
-      // Get coordinates from address location
-      const coordinates = address.location?.coordinates || []
-      const longitude = coordinates[0]
-      const latitude = coordinates[1]
+      const locationData = buildSelectedLocationPayload(address)
+      const { latitude, longitude } = locationData
 
-      const locationData = {
-        selectionMode: "manual",
-        addressId: address.id || address._id || null,
-        city: address.city,
-        state: address.state,
-        address: `${address.street}, ${address.city}`,
-        area: address.additionalDetails || "",
-        zipCode: address.zipCode,
-        latitude,
-        longitude,
-        formattedAddress: address.additionalDetails
-          ? `${address.additionalDetails}, ${address.street}, ${address.city}, ${address.state}${address.zipCode ? ` ${address.zipCode}` : ""}`
-          : `${address.street}, ${address.city}, ${address.state}${address.zipCode ? ` ${address.zipCode}` : ""}`
-      }
-
-      if (latitude && longitude) {
+      if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
         await userAPI.updateLocation({
           latitude,
           longitude,
@@ -2381,6 +2378,8 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
       // Update the location in localStorage with this address
       localStorage.setItem("userLocation", JSON.stringify(locationData))
       localStorage.setItem("userLocationMode", "manual")
+      localStorage.removeItem("userZoneId")
+      localStorage.removeItem("userZone")
 
       // Broadcast updated location so Navbar and other components update immediately
       try {
@@ -2434,9 +2433,8 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
         }, 300)
       }
 
-      // Don't close overlay - keep user on select location page
-      // onClose()
-      // window.location.reload()
+      onClose()
+      navigateAfterClose()
     } catch (error) {
       console.error("Error selecting saved address:", error)
       toast.error("Failed to update location. Please try again.")

@@ -69,15 +69,8 @@ export function useZone(location) {
       setZoneStatus('OUT_OF_SERVICE')
       setZoneId(null)
       setZone(null)
-      
-      // Try to use cached zone if available
-      const cachedZoneId = localStorage.getItem('userZoneId')
-      if (cachedZoneId) {
-        const cachedZone = localStorage.getItem('userZone')
-        setZoneId(cachedZoneId)
-        setZone(cachedZone ? JSON.parse(cachedZone) : null)
-        setZoneStatus('IN_SERVICE')
-      }
+      localStorage.removeItem('userZoneId')
+      localStorage.removeItem('userZone')
     } finally {
       setLoading(false)
     }
@@ -96,6 +89,7 @@ export function useZone(location) {
         MIN_MOVE_METERS_FOR_ZONE_API
 
     if (lat && lng) {
+      setZoneStatus('loading')
       // Only detect zone if coordinates changed significantly
       if (coordsChanged) {
         prevCoordsRef.current = { latitude: lat, longitude: lng }

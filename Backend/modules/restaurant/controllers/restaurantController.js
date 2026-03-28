@@ -234,6 +234,22 @@ function isRestaurantInUserZone(restaurant, userZone) {
 }
 
 async function resolveUserZone({ zoneId, latitude, longitude }) {
+  const parsedLatitude = Number(latitude);
+  const parsedLongitude = Number(longitude);
+
+  if (Number.isFinite(parsedLatitude) && Number.isFinite(parsedLongitude)) {
+    const activeZones = await Zone.find({ isActive: true }).lean();
+    const matchedZone =
+      activeZones.find((zone) =>
+        isPointInZone(parsedLatitude, parsedLongitude, zone.coordinates),
+      ) || null;
+
+    return {
+      zone: matchedZone,
+      source: "coordinates",
+    };
+  }
+
   if (zoneId) {
     const zone = await Zone.findById(zoneId).lean();
     if (!zone || !zone.isActive) {
@@ -249,25 +265,9 @@ async function resolveUserZone({ zoneId, latitude, longitude }) {
     };
   }
 
-  const parsedLatitude = Number(latitude);
-  const parsedLongitude = Number(longitude);
-
-  if (!Number.isFinite(parsedLatitude) || !Number.isFinite(parsedLongitude)) {
-    return {
-      zone: null,
-      source: null,
-    };
-  }
-
-  const activeZones = await Zone.find({ isActive: true }).lean();
-  const matchedZone =
-    activeZones.find((zone) =>
-      isPointInZone(parsedLatitude, parsedLongitude, zone.coordinates),
-    ) || null;
-
   return {
-    zone: matchedZone,
-    source: "coordinates",
+    zone: null,
+    source: null,
   };
 }
 

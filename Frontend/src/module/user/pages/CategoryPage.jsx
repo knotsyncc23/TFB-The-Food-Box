@@ -231,6 +231,10 @@ export default function CategoryPage() {
         setLoadingRestaurants(true)
         // Optional: Add zoneId if available (for sorting/filtering, but show all restaurants)
         const params = {}
+        if (location?.latitude != null && location?.longitude != null) {
+          params.latitude = location.latitude
+          params.longitude = location.longitude
+        }
         if (zoneId) {
           params.zoneId = zoneId
         }
@@ -402,7 +406,7 @@ export default function CategoryPage() {
     }
 
     fetchRestaurants()
-  }, [zoneId, isOutOfService])
+  }, [zoneId, isOutOfService, location?.latitude, location?.longitude])
 
   // Update selected category when URL changes
   useEffect(() => {

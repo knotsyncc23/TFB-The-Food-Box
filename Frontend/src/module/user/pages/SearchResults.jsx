@@ -174,9 +174,14 @@ export default function SearchResults() {
     const fetchRestaurants = async () => {
       try {
         setLoadingRestaurants(true)
+        setRestaurantsData([])
         console.log('🔄 Fetching restaurants from API...')
         // Optional: Add zoneId if available (for sorting/filtering, but show all restaurants)
         const params = {}
+        if (location?.latitude != null && location?.longitude != null) {
+          params.latitude = location.latitude
+          params.longitude = location.longitude
+        }
         if (zoneId) {
           params.zoneId = zoneId
         }
@@ -397,7 +402,7 @@ export default function SearchResults() {
     }
 
     fetchRestaurants()
-  }, [zoneId, isOutOfService])
+  }, [zoneId, isOutOfService, location?.latitude, location?.longitude])
 
   // Update search query when URL changes
   useEffect(() => {

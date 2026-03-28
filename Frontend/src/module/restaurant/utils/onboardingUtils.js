@@ -1,6 +1,7 @@
 import { api } from "@/lib/api"
 
 const ONBOARDING_STORAGE_KEY = "restaurant_onboarding_data"
+const TOTAL_VISIBLE_ONBOARDING_STEPS = 3
 
 // Helper function to check if a step is complete
 const isStepComplete = (stepData, stepNumber) => {
@@ -82,11 +83,11 @@ export const determineStepToShow = (data) => {
 
   // Check step 3
   if (!isStepComplete(data.step3, 3)) {
-    return 3
+    return TOTAL_VISIBLE_ONBOARDING_STEPS
   }
 
-  // All steps complete
-  return null
+  // Step 4 is now merged into the final visible step.
+  return TOTAL_VISIBLE_ONBOARDING_STEPS
 }
 
 // Check onboarding status from API and return the step to navigate to
@@ -106,7 +107,8 @@ export const checkOnboardingStatus = async () => {
       const localData = localStorage.getItem(ONBOARDING_STORAGE_KEY)
       if (localData) {
         const parsed = JSON.parse(localData)
-        return parsed.currentStep || 1
+        const rawStep = parsed.currentStep || 1
+        return Math.min(rawStep, TOTAL_VISIBLE_ONBOARDING_STEPS)
       }
     } catch (localErr) {
       console.error("Failed to check localStorage:", localErr)

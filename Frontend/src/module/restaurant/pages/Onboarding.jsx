@@ -51,6 +51,7 @@ const step3ImageDisplayName = (value) => {
 }
 
 const ONBOARDING_STORAGE_KEY = "restaurant_onboarding_data"
+const TOTAL_VISIBLE_STEPS = 3
 
 // Helper functions for localStorage
 const saveOnboardingToLocalStorage = (step1, step2, step3, step4, currentStep) => {
@@ -334,7 +335,7 @@ export default function RestaurantOnboarding() {
     if (stepParam) {
       const stepNum = parseInt(stepParam, 10)
       if (stepNum >= 1 && stepNum <= 4) {
-        setStep(stepNum)
+        setStep(Math.min(stepNum, TOTAL_VISIBLE_STEPS))
       }
     }
 
@@ -396,7 +397,7 @@ export default function RestaurantOnboarding() {
       }
       // Only set step from localStorage if URL doesn't have a step parameter
       if (localData.currentStep && !stepParam) {
-        setStep(localData.currentStep)
+        setStep(Math.min(localData.currentStep, TOTAL_VISIBLE_STEPS))
       }
     }
   }, [searchParams])
@@ -662,7 +663,7 @@ export default function RestaurantOnboarding() {
       }
     }
 
-    return errors
+    return [...errors, ...validateStep4()]
   }
 
   const validateStep4 = () => {
@@ -823,7 +824,13 @@ export default function RestaurantOnboarding() {
         closingTime: "23:00",
         openDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
       })
-      toast.success("Step 2 (Operational) auto-filled")
+      setStep4({
+        estimatedDeliveryTime: "20-25 mins",
+        featuredDish: "Signature Truffle Cake",
+        featuredPrice: "499",
+        offer: "Flat ₹100 OFF on First Order",
+      })
+      toast.success("Step 2 (Setup & Launch) auto-filled")
     } else if (step === 3) {
       const expiryDate = new Date()
       expiryDate.setFullYear(expiryDate.getFullYear() + 2)
@@ -859,7 +866,7 @@ export default function RestaurantOnboarding() {
 
   const StepIndicator = () => (
     <div className="flex items-center justify-between mb-8 px-4 sm:px-0">
-      {[1, 2, 3, 4].map((i) => (
+      {[1, 2, 3].map((i) => (
         <div key={i} className="flex flex-col items-center flex-1 relative">
           <div
             className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 z-10 ${step >= i ? "bg-black text-white" : "bg-gray-200 text-gray-500"
@@ -869,9 +876,9 @@ export default function RestaurantOnboarding() {
           </div>
           <span className={`text-[10px] mt-1 font-medium hidden sm:block ${step >= i ? "text-black" : "text-gray-400"
             }`}>
-            {i === 1 ? "Verify Kitchen" : i === 2 ? "First Menu Setup" : i === 3 ? "Documents" : "Launch"}
+            {i === 1 ? "Verify Kitchen" : i === 2 ? "Setup & Launch" : "Documents"}
           </span>
-          {i < 4 && (
+          {i < TOTAL_VISIBLE_STEPS && (
             <div className={`absolute left-[50%] top-4 w-full h-[2px] -z-0 ${step > i ? "bg-black" : "bg-gray-200"
               }`} />
           )}
@@ -983,6 +990,12 @@ export default function RestaurantOnboarding() {
               closingTime: step2.closingTime || "",
             },
             openDays: step2.openDays || [],
+          },
+          step4: {
+            estimatedDeliveryTime: step4.estimatedDeliveryTime,
+            featuredDish: step4.featuredDish,
+            featuredPrice: parseFloat(step4.featuredPrice) || 249,
+            offer: step4.offer,
           },
           completedSteps: 2,
         }
@@ -1122,7 +1135,13 @@ export default function RestaurantOnboarding() {
               accountType: step3.accountType || "",
             },
           },
-          completedSteps: 3,
+          step4: {
+            estimatedDeliveryTime: step4.estimatedDeliveryTime,
+            featuredDish: step4.featuredDish,
+            featuredPrice: parseFloat(step4.featuredPrice) || 249,
+            offer: step4.offer,
+          },
+          completedSteps: 4,
         }
         console.log('📤 Step3 payload:', {
           hasPan: !!payload.step3.pan.panNumber,
@@ -1134,8 +1153,15 @@ export default function RestaurantOnboarding() {
         const response = await api.put("/restaurant/onboarding", payload)
         console.log('✅ Step3 response:', response?.data)
 
-        setStep(4)
+        // Onboarding now completes in 3 visible steps.
         setStep3Errors({})
+        if (!response || !response.data) {
+          throw new Error('Invalid response from server')
+        }
+        clearOnboardingFromLocalStorage()
+        setTimeout(() => {
+          navigate("/restaurant?showZoneSetup=1", { replace: true })
+        }, 800)
       } else if (step === 4) {
         console.log('📤 Submitting Step 4:', step4)
         const payload = {
@@ -1659,6 +1685,61 @@ export default function RestaurantOnboarding() {
               )
             })}
           </div>
+        </div>
+      </section>
+
+      <section className="bg-white p-4 sm:p-6 rounded-md space-y-4">
+        <h2 className="text-lg font-semibold text-black">Customer-facing listing details</h2>
+        <p className="text-sm text-gray-600">
+          Finish the public details customers will see before they open your menu.
+        </p>
+
+        <div>
+          <Label className="text-xs text-gray-700">Estimated Delivery Time*</Label>
+          <Input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={step4.estimatedDeliveryTime || ""}
+            onChange={(e) => {
+              const sanitized = e.target.value.replace(/\D/g, "").slice(0, 3)
+              setStep4({ ...step4, estimatedDeliveryTime: sanitized })
+            }}
+            className="mt-1 bg-white text-sm"
+            placeholder="e.g., 25"
+          />
+        </div>
+
+        <div>
+          <Label className="text-xs text-gray-700">Featured Dish Name*</Label>
+          <Input
+            value={step4.featuredDish || ""}
+            onChange={(e) => setStep4({ ...step4, featuredDish: e.target.value })}
+            className="mt-1 bg-white text-sm"
+            placeholder="e.g., Butter Chicken Special"
+          />
+        </div>
+
+        <div>
+          <Label className="text-xs text-gray-700">Featured Dish Price (₹)*</Label>
+          <Input
+            type="number"
+            value={step4.featuredPrice || ""}
+            onChange={(e) => setStep4({ ...step4, featuredPrice: e.target.value })}
+            className="mt-1 bg-white text-sm"
+            placeholder="e.g., 249"
+            min="0"
+          />
+        </div>
+
+        <div>
+          <Label className="text-xs text-gray-700">Special Offer/Promotion*</Label>
+          <Input
+            value={step4.offer || ""}
+            onChange={(e) => setStep4({ ...step4, offer: e.target.value })}
+            className="mt-1 bg-white text-sm"
+            placeholder="e.g., Flat ₹50 OFF above ₹199"
+          />
         </div>
       </section>
     </div>
@@ -2226,7 +2307,10 @@ export default function RestaurantOnboarding() {
                   size="sm"
                   onClick={() => {
                     if (step === 1) setStep1({ restaurantName: "", ownerName: "", ownerEmail: "", ownerPhone: "", primaryContactNumber: "", location: { addressLine1: "", addressLine2: "", area: "", city: "", landmark: "" } });
-                    if (step === 2) setStep2({ menuImages: [], profileImage: null, cuisines: [], openingTime: "", closingTime: "", openDays: [] });
+                    if (step === 2) {
+                      setStep2({ menuImages: [], profileImage: null, cuisines: [], openingTime: "", closingTime: "", openDays: [] });
+                      setStep4({ estimatedDeliveryTime: "", featuredDish: "", featuredPrice: "", offer: "" });
+                    }
                     if (step === 3) setStep3({ panNumber: "", nameOnPan: "", panImage: null, gstRegistered: false, gstNumber: "", gstLegalName: "", gstAddress: "", gstImage: null, fssaiNumber: "", fssaiExpiry: "", fssaiImage: null, accountNumber: "", confirmAccountNumber: "", ifscCode: "", accountHolderName: "", accountType: "" });
                     if (step === 4) setStep4({ estimatedDeliveryTime: "", featuredDish: "", featuredPrice: "", offer: "" });
                     toast("Step reset cleared");
@@ -2240,7 +2324,7 @@ export default function RestaurantOnboarding() {
               <Button
                 onClick={handleNext}
                 disabled={saving}
-                className={`text-sm px-8 py-5 rounded-lg font-bold transition-all shadow-md active:scale-95 ${step === 4 ? "bg-black hover:bg-gray-800" : "bg-black hover:bg-gray-800"
+                className={`text-sm px-8 py-5 rounded-lg font-bold transition-all shadow-md active:scale-95 ${step === TOTAL_VISIBLE_STEPS ? "bg-black hover:bg-gray-800" : "bg-black hover:bg-gray-800"
                   } text-white`}
               >
                 {saving ? (
@@ -2248,8 +2332,8 @@ export default function RestaurantOnboarding() {
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     <span>Processing...</span>
                   </div>
-                ) : step === 4 ? (
-                  "Complete Launch"
+                ) : step === TOTAL_VISIBLE_STEPS ? (
+                  "Complete Onboarding"
                 ) : (
                   "Continue"
                 )}

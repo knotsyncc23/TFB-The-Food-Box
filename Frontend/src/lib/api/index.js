@@ -689,15 +689,24 @@ export const restaurantAPI = {
   },
 
   // Get restaurants with dishes under ₹250
-  getRestaurantsUnder250: (zoneId) => {
-    let params = zoneId ? { zoneId } : {};
+  getRestaurantsUnder250: (zoneIdOrParams) => {
+    let params =
+      zoneIdOrParams && typeof zoneIdOrParams === "object"
+        ? { ...zoneIdOrParams }
+        : zoneIdOrParams
+          ? { zoneId: zoneIdOrParams }
+          : {};
 
     try {
       const rawStoredLocation = localStorage.getItem("userLocation");
       if (rawStoredLocation) {
         const storedLocation = JSON.parse(rawStoredLocation);
-        const latitude = Number(storedLocation?.latitude);
-        const longitude = Number(storedLocation?.longitude);
+        const latitude = Number(
+          params.latitude ?? params.lat ?? storedLocation?.latitude,
+        );
+        const longitude = Number(
+          params.longitude ?? params.lng ?? storedLocation?.longitude,
+        );
 
         if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
           params = {

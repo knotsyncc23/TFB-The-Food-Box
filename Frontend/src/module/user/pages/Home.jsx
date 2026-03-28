@@ -701,7 +701,11 @@ export default function Home() {
         params.trusted = 'true'
       }
 
-      // Optional: Add zoneId if available (for sorting/filtering, but show all restaurants)
+      if (location?.latitude != null && location?.longitude != null) {
+        params.latitude = location.latitude
+        params.longitude = location.longitude
+      }
+
       if (zoneId) {
         params.zoneId = zoneId
       }
@@ -893,10 +897,11 @@ export default function Home() {
       setLoadingRestaurants(false)
       console.log('Restaurant loading completed. restaurantsData length:', restaurantsData.length)
     }
-  }, [zoneId])
+  }, [zoneId, location?.latitude, location?.longitude])
 
   // Fetch restaurants when appliedFilters change
   useEffect(() => {
+    setRestaurantsData([])
     fetchRestaurants(appliedFilters)
   }, [appliedFilters, fetchRestaurants])
 
