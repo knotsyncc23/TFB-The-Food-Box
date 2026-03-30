@@ -225,12 +225,10 @@ export async function notifyDeliveryBoyNewOrder(order, deliveryPartnerId) {
       typeof estimatedEarnings === "object"
         ? (estimatedEarnings.totalEarning ?? 0)
         : Number(estimatedEarnings) || 0;
-    if (earnedValue <= 0 && deliveryFeeFromOrder > 0) {
-      estimatedEarnings =
-        typeof estimatedEarnings === "object"
-          ? { ...estimatedEarnings, totalEarning: deliveryFeeFromOrder }
-          : deliveryFeeFromOrder;
-    }
+    estimatedEarnings = normalizeEstimatedEarningsForOrder(
+      earnedValue <= 0 ? estimatedEarnings : estimatedEarnings,
+      deliveryFeeFromOrder,
+    );
 
     // Prepare order notification data
     const orderNotification = {
@@ -492,12 +490,10 @@ export async function notifyMultipleDeliveryBoys(
           ? (estimatedEarnings.totalEarning ?? 0)
           : Number(estimatedEarnings) || 0;
       // Use deliveryFee as fallback if earnings is 0 or invalid
-      if (earnedValue <= 0 && deliveryFeeFromOrder > 0) {
-        estimatedEarnings =
-          typeof estimatedEarnings === "object"
-            ? { ...estimatedEarnings, totalEarning: deliveryFeeFromOrder }
-            : deliveryFeeFromOrder;
-      }
+      estimatedEarnings = normalizeEstimatedEarningsForOrder(
+        estimatedEarnings,
+        deliveryFeeFromOrder,
+      );
     } catch (earningsError) {
       console.error(
         "❌ Error calculating estimated earnings in notification:",
@@ -505,17 +501,17 @@ export async function notifyMultipleDeliveryBoys(
       );
       console.error("❌ Error stack:", earningsError.stack);
       // Fallback to deliveryFee or default
-      estimatedEarnings =
-        deliveryFeeFromOrder > 0
-          ? deliveryFeeFromOrder
-          : {
-              basePayout: 10,
-              distance: deliveryDistance,
-              commissionPerKm: 5,
-              distanceCommission: 0,
-              totalEarning: 10,
-              breakdown: "Default calculation",
-            };
+      estimatedEarnings = normalizeEstimatedEarningsForOrder(
+        {
+          basePayout: 10,
+          distance: deliveryDistance,
+          commissionPerKm: 5,
+          distanceCommission: 0,
+          totalEarning: 10,
+          breakdown: "Default calculation",
+        },
+        deliveryFeeFromOrder,
+      );
     }
 
     // Prepare notification payload
@@ -721,17 +717,15 @@ export async function broadcastNewOrderToAllDeliveryBoys(order, phase = "priorit
         typeof estimatedEarnings === "object"
           ? (estimatedEarnings.totalEarning ?? 0)
           : Number(estimatedEarnings) || 0;
-      if (earnedValue <= 0 && deliveryFeeFromOrder > 0) {
-        estimatedEarnings =
-          typeof estimatedEarnings === "object"
-            ? { ...estimatedEarnings, totalEarning: deliveryFeeFromOrder }
-            : deliveryFeeFromOrder;
-      }
+      estimatedEarnings = normalizeEstimatedEarningsForOrder(
+        estimatedEarnings,
+        deliveryFeeFromOrder,
+      );
     } catch (e) {
-      estimatedEarnings =
-        deliveryFeeFromOrder > 0
-          ? deliveryFeeFromOrder
-          : { totalEarning: 10, breakdown: "Default" };
+      estimatedEarnings = normalizeEstimatedEarningsForOrder(
+        { totalEarning: 10, breakdown: "Default" },
+        deliveryFeeFromOrder,
+      );
     }
 
     const orderNotificationRaw = {
@@ -911,6 +905,40 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
       Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; // Distance in kilometers
+}
+
+function normalizeEstimatedEarningsForOrder(estimatedEarnings, deliveryFee = 0) {
+  const normalizedDeliveryFee = Number(deliveryFee) || 0;
+
+  if (normalizedDeliveryFee > 0) {
+    return {
+      basePayout: normalizedDeliveryFee,
+      distance:
+        typeof estimatedEarnings === "object" && estimatedEarnings?.distance != null
+          ? Number(estimatedEarnings.distance) || 0
+          : 0,
+      commissionPerKm: 0,
+      distanceCommission: 0,
+      totalEarning: normalizedDeliveryFee,
+      breakdown: {
+        basePayout: normalizedDeliveryFee,
+        distance:
+          typeof estimatedEarnings === "object" && estimatedEarnings?.distance != null
+            ? Number(estimatedEarnings.distance) || 0
+            : 0,
+        commissionPerKm: 0,
+        distanceCommission: 0,
+        minDistance:
+          typeof estimatedEarnings === "object" &&
+          estimatedEarnings?.minDistance != null
+            ? estimatedEarnings.minDistance
+            : 0,
+      },
+      source: "delivery_fee",
+    };
+  }
+
+  return estimatedEarnings;
 }
 
 /**

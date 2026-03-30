@@ -2061,6 +2061,19 @@ export const orderAPI = {
     return apiClient.get(API_ENDPOINTS.ORDER.LIST, { params });
   },
 
+  // Order chat (Track Order live chat with delivery partner)
+  getOrderChat: (orderId) => {
+    return apiClient.get(
+      API_ENDPOINTS.USER.ORDER_CHAT.replace(":orderId", orderId),
+    );
+  },
+  sendOrderChatMessage: (orderId, message) => {
+    return apiClient.post(
+      API_ENDPOINTS.USER.ORDER_CHAT_MESSAGES.replace(":orderId", orderId),
+      { message },
+    );
+  },
+
   // Complaint operations
   submitComplaint: (data) => {
     return apiClient.post(API_ENDPOINTS.USER.COMPLAINTS, data);

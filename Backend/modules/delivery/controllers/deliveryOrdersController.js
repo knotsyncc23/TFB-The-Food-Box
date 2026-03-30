@@ -809,6 +809,25 @@ export const acceptOrder = asyncHandler(async (req, res) => {
       };
     }
 
+    const deliveryFeeFromOrder = Number(updatedOrder.pricing?.deliveryFee) || 0;
+    if (deliveryFeeFromOrder > 0) {
+      estimatedEarnings = {
+        basePayout: deliveryFeeFromOrder,
+        distance: Math.round(deliveryDistance * 100) / 100,
+        commissionPerKm: 0,
+        distanceCommission: 0,
+        totalEarning: deliveryFeeFromOrder,
+        breakdown: {
+          basePayout: deliveryFeeFromOrder,
+          distance: deliveryDistance,
+          commissionPerKm: 0,
+          distanceCommission: 0,
+          minDistance: 0,
+        },
+        source: "delivery_fee",
+      };
+    }
+
     // Resolve payment method for delivery boy (COD vs Online) - use Payment collection if order.payment is wrong
     let paymentMethod = updatedOrder.payment?.method || "razorpay";
     if (paymentMethod !== "cash") {
@@ -1875,6 +1894,18 @@ export const completeDelivery = asyncHandler(async (req, res) => {
             );
           }
 
+          const deliveryFeeAmount = Number(order.pricing?.deliveryFee) || 0;
+          if (deliveryFeeAmount > 0) {
+            totalEarning = deliveryFeeAmount;
+            commissionBreakdown = {
+              basePayout: deliveryFeeAmount,
+              distance: deliveryDistance,
+              commissionPerKm: 0,
+              distanceCommission: 0,
+              source: "delivery_fee",
+            };
+          }
+
           const walletTransaction = wallet.addTransaction({
             amount: totalEarning,
             type: "payment",
@@ -2092,6 +2123,18 @@ export const completeDelivery = asyncHandler(async (req, res) => {
       console.warn(
         `⚠️ Using fallback earnings (delivery fee): ₹${totalEarning.toFixed(2)}`,
       );
+    }
+
+    const deliveryFeeAmount = Number(order.pricing?.deliveryFee) || 0;
+    if (deliveryFeeAmount > 0) {
+      totalEarning = deliveryFeeAmount;
+      commissionBreakdown = {
+        basePayout: deliveryFeeAmount,
+        distance: deliveryDistance,
+        commissionPerKm: 0,
+        distanceCommission: 0,
+        source: "delivery_fee",
+      };
     }
 
     // Automatically update delivery boy's wallet: add delivery earning and save transaction for earnings history
