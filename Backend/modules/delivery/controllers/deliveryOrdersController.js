@@ -45,39 +45,51 @@ export const getOrders = asyncHandler(async (req, res) => {
 
     const currentDeliveryId = delivery._id;
 
-    // Base query filters (status / delivery phase)
-    const baseFilters = {};
+    // Build query parts separately so multiple $or clauses don't overwrite each other.
+    const queryParts = [];
 
     if (status) {
-      baseFilters.status = status;
+      queryParts.push({ status });
     } else {
       // By default, exclude delivered and cancelled orders unless explicitly requested
       if (includeDelivered !== "true" && includeDelivered !== true) {
-        baseFilters.status = { $nin: ["delivered", "cancelled"] };
-        // Also exclude orders with completed delivery phase
-        baseFilters.$or = [
-          { "deliveryState.currentPhase": { $ne: "completed" } },
-          { "deliveryState.currentPhase": { $exists: false } },
-        ];
+        queryParts.push({ status: { $nin: ["delivered", "cancelled"] } });
+        queryParts.push({
+          $or: [
+            { "deliveryState.currentPhase": { $ne: "completed" } },
+            { "deliveryState.currentPhase": { $exists: false } },
+          ],
+        });
       }
     }
 
     // Orders visible to this delivery partner:
     // 1) Explicitly assigned (deliveryPartnerId)
     // 2) Or they were notified via assignmentInfo priority/expanded lists
+    // 3) Or they are still unassigned and open for pickup (ready/preparing),
+    //    which matches the broadcast-to-all delivery flow used by the app.
     const visibilityFilter = {
       $or: [
         { deliveryPartnerId: currentDeliveryId },
         { "assignmentInfo.priorityDeliveryPartnerIds": currentDeliveryId },
         { "assignmentInfo.expandedDeliveryPartnerIds": currentDeliveryId },
+        {
+          $and: [
+            { status: { $in: ["preparing", "ready"] } },
+            {
+              $or: [
+                { deliveryPartnerId: null },
+                { deliveryPartnerId: { $exists: false } },
+              ],
+            },
+          ],
+        },
       ],
     };
 
-    // Combine filters
-    const query = {
-      ...baseFilters,
-      ...visibilityFilter,
-    };
+    queryParts.push(visibilityFilter);
+
+    const query = queryParts.length === 1 ? queryParts[0] : { $and: queryParts };
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
