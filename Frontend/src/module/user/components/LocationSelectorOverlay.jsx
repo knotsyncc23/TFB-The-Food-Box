@@ -488,13 +488,27 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
 
     const initializeGoogleMap = async () => {
       try {
-        const loader = new Loader({
-          apiKey: GOOGLE_MAPS_API_KEY,
-          version: "weekly",
-          libraries: ["places", "geocoding"]
-        })
+        // Reuse already-loaded Google Maps if present to avoid duplicate script loads
+        let google = window.google
+        if (!google || !google.maps) {
+          if (window.__googleMapsPromise) {
+            try {
+              await window.__googleMapsPromise
+              google = window.google
+            } catch {
+              // ignore and fall back to loader
+            }
+          }
+        }
 
-        const google = await loader.load()
+        if (!google || !google.maps) {
+          const loader = new Loader({
+            apiKey: GOOGLE_MAPS_API_KEY,
+            version: "weekly",
+            libraries: ["places", "geometry", "drawing"]
+          })
+          google = await loader.load()
+        }
         googleMapsApiRef.current = google
 
         if (!isMounted || !mapContainerRef.current) return

@@ -93,6 +93,7 @@ setTimeout(() => {
 }, 0)
 
 // Global flag to track Google Maps loading state
+<<<<<<< Updated upstream
 window.__googleMapsLoading = window.__googleMapsLoading || false
 window.__googleMapsLoaded = window.__googleMapsLoaded || false
 
@@ -103,11 +104,31 @@ setTimeout(async () => {
   if (window.google && window.google.maps) {
     window.__googleMapsLoaded = true
     return
+=======
+window.__googleMapsLoading = window.__googleMapsLoading || false;
+window.__googleMapsLoaded = window.__googleMapsLoaded || false;
+window.__googleMapsPromise = window.__googleMapsPromise || null;
+
+// Load Google Maps API dynamically from backend database
+// Only load if not already loaded to prevent multiple loads
+(async () => {
+  if (window.__googleMapsPromise) {
+    return;
+  }
+
+  // Check if Google Maps is already loaded
+  if (window.google && window.google.maps) {
+    console.log('✅ Google Maps already loaded');
+    window.__googleMapsLoaded = true;
+    window.__googleMapsPromise = Promise.resolve(window.google);
+    return;
+>>>>>>> Stashed changes
   }
 
   // Check if script is already being loaded
   const existingScript = document.querySelector('script[src*="maps.googleapis.com"]')
   if (existingScript) {
+<<<<<<< Updated upstream
     window.__googleMapsLoading = true
 
     // Wait for script to load
@@ -116,6 +137,23 @@ setTimeout(async () => {
       window.__googleMapsLoading = false
     })
     return
+=======
+    console.log('✅ Google Maps script already exists, waiting for it to load...');
+    window.__googleMapsLoading = true;
+
+    window.__googleMapsPromise = new Promise((resolve, reject) => {
+      existingScript.addEventListener('load', () => {
+        window.__googleMapsLoaded = true;
+        window.__googleMapsLoading = false;
+        resolve(window.google);
+      });
+      existingScript.addEventListener('error', () => {
+        window.__googleMapsLoading = false;
+        reject(new Error('Failed to load Google Maps script'));
+      });
+    });
+    return;
+>>>>>>> Stashed changes
   }
 
   // Check if Loader is already loading
@@ -132,6 +170,7 @@ setTimeout(async () => {
       script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places,geometry,drawing`
       script.async = true
       script.defer = true
+<<<<<<< Updated upstream
       script.onload = () => {
         window.__googleMapsLoaded = true
         window.__googleMapsLoading = false
@@ -139,6 +178,21 @@ setTimeout(async () => {
       script.onerror = () => {
         window.__googleMapsLoading = false
       }
+=======
+      window.__googleMapsPromise = new Promise((resolve, reject) => {
+        script.onload = () => {
+          console.log('✅ Google Maps API loaded via script tag');
+          window.__googleMapsLoaded = true;
+          window.__googleMapsLoading = false;
+          resolve(window.google);
+        }
+        script.onerror = () => {
+          console.error('❌ Failed to load Google Maps API script');
+          window.__googleMapsLoading = false;
+          reject(new Error('Failed to load Google Maps API script'));
+        }
+      });
+>>>>>>> Stashed changes
       document.head.appendChild(script)
     } else {
       window.__googleMapsLoading = false

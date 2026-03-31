@@ -4,7 +4,6 @@ import { MapPin, Search, Save, Loader2, ArrowLeft } from "lucide-react"
 import RestaurantNavbar from "../components/RestaurantNavbar"
 import { restaurantAPI, zoneAPI } from "@/lib/api"
 import { getGoogleMapsApiKey } from "@/lib/utils/googleMapsApiKey"
-import { Loader } from "@googlemaps/js-api-loader"
 import { toast } from "sonner"
 
 export default function ZoneSetup() {
@@ -15,6 +14,8 @@ export default function ZoneSetup() {
   const autocompleteInputRef = useRef(null)
   const autocompleteRef = useRef(null)
   const existingZonesPolygonsRef = useRef([])
+  const hasInitializedRef = useRef(false)
+  const pendingSelectionRef = useRef(null)
   
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState("")
   const [mapLoading, setMapLoading] = useState(true)
@@ -26,6 +27,8 @@ export default function ZoneSetup() {
   const [existingZones, setExistingZones] = useState([])
 
   useEffect(() => {
+    if (hasInitializedRef.current) return
+    hasInitializedRef.current = true
     fetchRestaurantData()
     fetchExistingZones()
     loadGoogleMaps()
@@ -52,16 +55,25 @@ export default function ZoneSetup() {
     }, 300)
   }
 
+  const applySelectionToMap = (lat, lng, address) => {
+    setLocationSearch(address)
+    setSelectedAddress(address)
+    setSelectedLocation({ lat, lng, address })
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setCenter({ lat, lng })
+      mapInstanceRef.current.setZoom(17)
+      updateMarker(lat, lng, address)
+    } else {
+      pendingSelectionRef.current = { lat, lng, address }
+    }
+  }
+
   const handleSelectSuggestion = (suggestion) => {
     setSearchSuggestions([])
-    setLocationSearch(suggestion.name)
-    setSelectedAddress(suggestion.name)
-    setSelectedLocation({ lat: suggestion.lat, lng: suggestion.lng, address: suggestion.name })
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.setCenter({ lat: suggestion.lat, lng: suggestion.lng })
-      mapInstanceRef.current.setZoom(17)
-    }
-    updateMarker(suggestion.lat, suggestion.lng, suggestion.name)
+    const lat = parseFloat(suggestion.lat)
+    const lng = parseFloat(suggestion.lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+    applySelectionToMap(lat, lng, suggestion.name)
   }
 
   // Load existing restaurant location when data is fetched
@@ -121,9 +133,22 @@ export default function ZoneSetup() {
     }
   }
 
+  const waitForGoogleMaps = async (timeoutMs = 10000) => {
+    const start = Date.now()
+    while (Date.now() - start < timeoutMs) {
+      if (window.google && window.google.maps && window.google.maps.Map) return true
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+    return false
+  }
+
   const loadGoogleMaps = async () => {
     try {
       console.log("📍 Starting Google Maps load...")
+      if (mapInstanceRef.current) {
+        console.log("✅ Map already initialized, skipping load")
+        return
+      }
       
       // Fetch API key from database
       let apiKey = null
@@ -146,14 +171,11 @@ export default function ZoneSetup() {
       
       setGoogleMapsApiKey(apiKey)
       
-      // Wait for Google Maps to be loaded from main.jsx if it's loading
-      let retries = 0
-      const maxRetries = 100 // Wait up to 10 seconds
-      
-      console.log("📍 Waiting for Google Maps to load from main.jsx...")
-      while (!window.google && retries < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-        retries++
+      // If Google Maps is already loaded, use it directly
+      if (window.google && window.google.maps && window.google.maps.Map) {
+        console.log("✅ Google Maps already loaded, initializing map...")
+        initializeMap(window.google)
+        return
       }
 
       // Wait for mapRef to be available (retry mechanism)
@@ -171,26 +193,23 @@ export default function ZoneSetup() {
         return
       }
 
-      // If Google Maps is already loaded, use it directly
-      if (window.google && window.google.maps) {
-        console.log("✅ Google Maps already loaded from main.jsx, initializing map...")
-        initializeMap(window.google)
-        return
+      if (window.__googleMapsPromise) {
+        try {
+          await window.__googleMapsPromise
+        } catch {
+          // fall through to manual wait
+        }
       }
 
-      // If Google Maps is not loaded yet and we have an API key, use Loader as fallback
-      if (apiKey) {
-        console.log("📍 Google Maps not loaded from main.jsx, loading with Loader...")
-        const loader = new Loader({
-          apiKey: apiKey,
-          version: "weekly",
-          libraries: ["places"]
-        })
-
-        const google = await loader.load()
-        console.log("✅ Google Maps loaded via Loader, initializing map...")
-        initializeMap(google)
+      // Wait for Google Maps from global loader (main.jsx)
+      const loaded = await waitForGoogleMaps(15000)
+      if (loaded && window.google && window.google.maps) {
+        console.log("✅ Google Maps loaded globally, initializing map...")
+        initializeMap(window.google)
       } else {
+        throw new Error("Google Maps failed to load")
+      }
+    } else {
         console.error("❌ No API key available")
         setMapLoading(false)
         toast.error("Google Maps API key not found. Please contact administrator.")
@@ -215,25 +234,38 @@ export default function ZoneSetup() {
       const initialLocation = { lat: 20.5937, lng: 78.9629 }
 
       // Create map
-      const map = new google.maps.Map(mapRef.current, {
+      const mapOptions = {
         center: initialLocation,
         zoom: 5,
         mapTypeControl: true,
-        mapTypeControlOptions: {
-          style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
-          position: google.maps.ControlPosition.TOP_RIGHT,
-          mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.SATELLITE]
-        },
         zoomControl: true,
         streetViewControl: false,
         fullscreenControl: true,
         scrollwheel: true,
         gestureHandling: 'greedy',
         disableDoubleClickZoom: false,
-      })
+      }
+
+      if (google.maps?.MapTypeControlStyle && google.maps?.ControlPosition && google.maps?.MapTypeId) {
+        mapOptions.mapTypeControlOptions = {
+          style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+          position: google.maps.ControlPosition.TOP_RIGHT,
+          mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.SATELLITE]
+        }
+      }
+
+      const map = new google.maps.Map(mapRef.current, mapOptions)
 
       mapInstanceRef.current = map
       console.log("✅ Map initialized successfully")
+      if (pendingSelectionRef.current) {
+        const { lat, lng, address } = pendingSelectionRef.current
+        pendingSelectionRef.current = null
+        applySelectionToMap(lat, lng, address)
+      }
+      if (existingZones && existingZones.length > 0) {
+        drawExistingZonesOnMap(google, map)
+      }
 
       // Add click listener to place marker — uses free Nominatim reverse geocode
       map.addListener('click', async (event) => {
@@ -261,8 +293,44 @@ export default function ZoneSetup() {
   }
 
   // Draw existing zones on the map
+  const normalizeZoneCoordinates = (zone) => {
+    let raw = zone?.coordinates
+    if ((!raw || raw.length === 0) && zone?.boundary?.coordinates?.length) {
+      raw = zone.boundary.coordinates[0]
+    }
+    if (!Array.isArray(raw)) return []
+
+    return raw.map((coord) => {
+      if (Array.isArray(coord) && coord.length >= 2) {
+        let a = parseFloat(coord[0])
+        let b = parseFloat(coord[1])
+        if (!Number.isFinite(a) || !Number.isFinite(b)) return null
+        // Heuristic: fix swapped lat/lng if out of range
+        let lat = b
+        let lng = a
+        if (Math.abs(a) <= 90 && Math.abs(b) > 90) {
+          lat = a
+          lng = b
+        }
+        if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null
+        return { lat, lng }
+        return null
+      }
+      if (coord && typeof coord === 'object') {
+        const lat = parseFloat(coord.latitude ?? coord.lat)
+        const lng = parseFloat(coord.longitude ?? coord.lng)
+        if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng }
+        return null
+      }
+      return null
+    }).filter(Boolean)
+  }
+
   const drawExistingZonesOnMap = (google, map) => {
-    if (!existingZones || existingZones.length === 0) return
+    if (!existingZones || existingZones.length === 0) {
+      console.warn("[ZoneSetup] No existing zones to draw")
+      return
+    }
 
     // Clear previous polygons
     existingZonesPolygonsRef.current.forEach(polygon => {
@@ -270,17 +338,18 @@ export default function ZoneSetup() {
     })
     existingZonesPolygonsRef.current = []
 
-    existingZones.forEach((zone) => {
-      if (!zone.coordinates || zone.coordinates.length < 3) return
+    const bounds = new google.maps.LatLngBounds()
+    let polygonsDrawn = 0
 
-      const path = zone.coordinates.map(coord => {
-        const lat = typeof coord === 'object' ? (coord.latitude || coord.lat) : null
-        const lng = typeof coord === 'object' ? (coord.longitude || coord.lng) : null
-        if (lat === null || lng === null) return null
-        return new google.maps.LatLng(lat, lng)
-      }).filter(Boolean)
+    existingZones.forEach((zone) => {
+      const normalized = normalizeZoneCoordinates(zone)
+      if (normalized.length < 3) return
+
+      const path = normalized.map(coord => new google.maps.LatLng(coord.lat, coord.lng))
 
       if (path.length < 3) return
+
+      path.forEach(p => bounds.extend(p))
 
       const polygon = new google.maps.Polygon({
         paths: path,
@@ -297,6 +366,7 @@ export default function ZoneSetup() {
 
       polygon.setMap(map)
       existingZonesPolygonsRef.current.push(polygon)
+      polygonsDrawn += 1
 
       const infoWindow = new google.maps.InfoWindow({
         content: `
@@ -312,6 +382,17 @@ export default function ZoneSetup() {
         infoWindow.open(map)
       })
     })
+
+    if (polygonsDrawn > 0) {
+      try {
+        map.fitBounds(bounds)
+      } catch (e) {
+        console.warn("[ZoneSetup] Failed to fit bounds:", e)
+      }
+      console.log(`[ZoneSetup] Zones drawn: ${polygonsDrawn}`)
+    } else {
+      console.warn("[ZoneSetup] No valid zones were drawn")
+    }
   }
 
   // Redraw existing zones when data changes or map is ready
@@ -446,10 +527,10 @@ export default function ZoneSetup() {
     for (let i = 0, j = zoneCoordinates.length - 1; i < zoneCoordinates.length; j = i++) {
       const coordI = zoneCoordinates[i]
       const coordJ = zoneCoordinates[j]
-      const xi = typeof coordI === 'object' ? (coordI.latitude || coordI.lat) : null
-      const yi = typeof coordI === 'object' ? (coordI.longitude || coordI.lng) : null
-      const xj = typeof coordJ === 'object' ? (coordJ.latitude || coordJ.lat) : null
-      const yj = typeof coordJ === 'object' ? (coordJ.longitude || coordJ.lng) : null
+      const xi = coordI?.lat
+      const yi = coordI?.lng
+      const xj = coordJ?.lat
+      const yj = coordJ?.lng
       if (xi === null || yi === null || xj === null || yj === null) continue
       const intersect = (yi > lng) !== (yj > lng) && (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi)
       if (intersect) inside = !inside
@@ -459,7 +540,11 @@ export default function ZoneSetup() {
 
   const isLocationInAnyZone = (lat, lng, zones) => {
     if (!zones || zones.length === 0) return false
-    return zones.some(zone => isPointInZone(lat, lng, zone.coordinates))
+    return zones.some(zone => {
+      const normalized = normalizeZoneCoordinates(zone)
+      if (normalized.length < 3) return false
+      return isPointInZone(lat, lng, normalized)
+    })
   }
 
   return (
