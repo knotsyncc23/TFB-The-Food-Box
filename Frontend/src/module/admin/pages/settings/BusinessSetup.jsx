@@ -329,6 +329,9 @@ export default function BusinessSetup() {
                 {errors.email ? (
                   <p className="mt-1 text-[11px] text-red-600">{errors.email}</p>
                 ) : null}
+                {!errors.email ? (
+                  <p className="mt-1 text-[11px] text-slate-500">Use a valid email format like name@example.com</p>
+                ) : null}
               </div>
 
               <div>
@@ -586,6 +589,9 @@ export default function BusinessSetup() {
                     {errors.phoneCountryCode || errors.phoneNumber}
                   </p>
                 ) : null}
+                {!errors.phoneCountryCode && !errors.phoneNumber ? (
+                  <p className="mt-1 text-[11px] text-slate-500">Use digits only in the phone field. Country code should begin with +.</p>
+                ) : null}
               </div>
 
               <div className="md:col-span-2">
@@ -620,6 +626,9 @@ export default function BusinessSetup() {
                 {errors.state ? (
                   <p className="mt-1 text-[11px] text-red-600">{errors.state}</p>
                 ) : null}
+                {!errors.state ? (
+                  <p className="mt-1 text-[11px] text-slate-500">Example: Maharashtra, California, London</p>
+                ) : null}
               </div>
 
               <div>
@@ -637,6 +646,15 @@ export default function BusinessSetup() {
                 />
                 {errors.pincode ? (
                   <p className="mt-1 text-[11px] text-red-600">{errors.pincode}</p>
+                ) : null}
+                {!errors.pincode ? (
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    {formData.region === "US"
+                      ? "Use 12345 or 12345-6789 format"
+                      : formData.region === "UK"
+                        ? "Use a valid UK postcode"
+                        : "Use 6 digits for Indian pincode"}
+                  </p>
                 ) : null}
               </div>
             </div>

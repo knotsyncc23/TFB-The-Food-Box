@@ -139,18 +139,14 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
     }
 
     if (!normalizedPhoneCountryCode.startsWith("+")) {
-      return errorResponse(res, 400, "Country code is required");
+      return errorResponse(res, 400, "Country code must start with +");
     }
     if (!normalizedPhoneNumber || normalizedPhoneNumber.length < 7 || normalizedPhoneNumber.length > 15) {
       return errorResponse(res, 400, "Phone number must be 7 to 15 digits");
     }
 
     if (normalizedState && !stateRegex.test(normalizedState)) {
-      return errorResponse(
-        res,
-        400,
-        "State should contain only letters and spaces",
-      );
+      return errorResponse(res, 400, "State should be in format like 'Maharashtra'");
     }
 
     if (normalizedAddress && !addressRegex.test(normalizedAddress)) {
@@ -158,13 +154,13 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
     }
 
     if (normalizedRegion === "India" && normalizedPincode && !/^\d{6}$/.test(normalizedPincode)) {
-      return errorResponse(res, 400, "Indian pincode must be 6 digits");
+      return errorResponse(res, 400, "Indian pincode should be 6 digits");
     }
     if (normalizedRegion === "US" && normalizedPincode && !/^\d{5}(-\d{4})?$/.test(normalizedPincode)) {
-      return errorResponse(res, 400, "US ZIP code must be 5 digits or 5+4 format");
+      return errorResponse(res, 400, "US ZIP code should be in 12345 or 12345-6789 format");
     }
     if (normalizedRegion === "UK" && normalizedPincode && !/^[A-Z0-9]{5,8}$/.test(normalizedPincode)) {
-      return errorResponse(res, 400, "UK postcode should be alphanumeric");
+      return errorResponse(res, 400, "UK postcode should be alphanumeric and 5-8 characters long");
     }
 
     // Get existing settings
