@@ -143,6 +143,7 @@ export default function DiningList() {
 
     const handleDiningToggle = async (restaurant) => {
         const newStatus = !restaurant.diningSettings?.isEnabled
+        const restaurantId = restaurant._id || restaurant.id
         try {
             // Optimistic update
             setRestaurants(prev => prev.map(r =>
@@ -158,7 +159,7 @@ export default function DiningList() {
                     : r
             ))
 
-            await adminAPI.updateRestaurantDiningSettings(restaurant._id, {
+            await adminAPI.updateRestaurantDiningSettings(restaurantId, {
                 isEnabled: newStatus
             })
             // Could show success toast here
@@ -176,6 +177,7 @@ export default function DiningList() {
     const handleMaxGuestsUpdate = async (restaurant, newValue) => {
         const guests = parseInt(newValue)
         if (isNaN(guests) || guests < 1) return
+        const restaurantId = restaurant._id || restaurant.id
 
         // Prevent unnecessary API calls
         if (guests === restaurant.diningSettings?.maxGuests) return
@@ -188,7 +190,7 @@ export default function DiningList() {
                     : r
             ))
 
-            await adminAPI.updateRestaurantDiningSettings(restaurant._id, {
+            await adminAPI.updateRestaurantDiningSettings(restaurantId, {
                 maxGuests: guests
             })
         } catch (error) {
@@ -507,7 +509,8 @@ export default function DiningList() {
                                 onClick={async () => {
                                     try {
                                         setLoading(true)
-                                        await adminAPI.updateRestaurantDiningSettings(editingRestaurant._id, editingRestaurant.diningSettings)
+                                        const restaurantId = editingRestaurant._id || editingRestaurant.id
+                                        await adminAPI.updateRestaurantDiningSettings(restaurantId, editingRestaurant.diningSettings)
 
                                         // Update local state
                                         setRestaurants(prev => prev.map(r =>

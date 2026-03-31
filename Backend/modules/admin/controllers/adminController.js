@@ -1576,16 +1576,55 @@ export const updateRestaurantDiningSettings = asyncHandler(async (req, res) => {
       return errorResponse(res, 404, "Restaurant not found");
     }
 
-    // Ensure container exists
-    if (!restaurant.diningSettings) {
-      restaurant.diningSettings = {};
+    const existingDiningSettings =
+      restaurant.diningSettings?.toObject?.() ||
+      restaurant.diningSettings ||
+      {};
+
+    const normalizedDiningSettings = {
+      isEnabled: !!existingDiningSettings.isEnabled,
+      maxGuests: Number.isFinite(Number(existingDiningSettings.maxGuests))
+        ? Math.max(1, Number(existingDiningSettings.maxGuests))
+        : 6,
+      diningType:
+        typeof existingDiningSettings.diningType === "string" &&
+        existingDiningSettings.diningType.trim()
+          ? existingDiningSettings.diningType.trim()
+          : "family-dining",
+      requestStatus:
+        existingDiningSettings.requestStatus === "pending"
+          ? "pending"
+          : "none",
+      lastRequestAt: existingDiningSettings.lastRequestAt || undefined,
+      lastDecisionAt: existingDiningSettings.lastDecisionAt || undefined,
+      lastDecisionBy: existingDiningSettings.lastDecisionBy || undefined,
+    };
+
+    const allowedUpdateFields = ["isEnabled", "maxGuests", "diningType"];
+    for (const field of allowedUpdateFields) {
+      if (Object.prototype.hasOwnProperty.call(diningSettings, field)) {
+        normalizedDiningSettings[field] = diningSettings[field];
+      }
     }
 
-    // Shallow-merge existing settings
-    restaurant.diningSettings = {
-      ...restaurant.diningSettings,
-      ...diningSettings,
-    };
+    if (Object.prototype.hasOwnProperty.call(diningSettings, "requestStatus")) {
+      normalizedDiningSettings.requestStatus =
+        diningSettings.requestStatus === "pending" ? "pending" : "none";
+    }
+
+    if (Object.prototype.hasOwnProperty.call(diningSettings, "lastRequestAt")) {
+      normalizedDiningSettings.lastRequestAt = diningSettings.lastRequestAt;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(diningSettings, "lastDecisionAt")) {
+      normalizedDiningSettings.lastDecisionAt = diningSettings.lastDecisionAt;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(diningSettings, "lastDecisionBy")) {
+      normalizedDiningSettings.lastDecisionBy = diningSettings.lastDecisionBy;
+    }
+
+    restaurant.diningSettings = normalizedDiningSettings;
 
     // If admin explicitly updates isEnabled, clear any pending request and record decision metadata
     if (Object.prototype.hasOwnProperty.call(diningSettings, "isEnabled")) {
