@@ -209,11 +209,6 @@ export default function ZoneSetup() {
       } else {
         throw new Error("Google Maps failed to load")
       }
-    } else {
-        console.error("❌ No API key available")
-        setMapLoading(false)
-        toast.error("Google Maps API key not found. Please contact administrator.")
-      }
     } catch (error) {
       console.error("❌ Error loading Google Maps:", error)
       setMapLoading(false)
@@ -654,3 +649,4 @@ export default function ZoneSetup() {
     </div>
   )
 }
+

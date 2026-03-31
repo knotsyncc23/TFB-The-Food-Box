@@ -7,6 +7,7 @@ import { clearCache, updateFavicon, updateTitle } from "@/lib/utils/businessSett
 export default function BusinessSetup() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
   const [logoPreview, setLogoPreview] = useState(null);
   const [faviconPreview, setFaviconPreview] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
@@ -24,6 +25,96 @@ export default function BusinessSetup() {
     pincode: "",
     region: "",
   });
+
+  const formatText = (value) =>
+    String(value || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const formatEmail = (value) =>
+    String(value || "")
+      .replace(/\s+/g, "")
+      .trim()
+      .toLowerCase();
+
+  const formatPhoneNumber = (value) =>
+    String(value || "").replace(/[^\d]/g, "");
+
+  const formatPincode = (value, region = formData.region) => {
+    const raw = String(value || "").toUpperCase().replace(/\s+/g, "");
+    if (region === "India") return raw.replace(/[^\d]/g, "").slice(0, 6);
+    if (region === "US") return raw.replace(/[^0-9-]/g, "").slice(0, 10);
+    return raw.replace(/[^A-Z0-9]/g, "").slice(0, 10);
+  };
+
+  const validateBusinessSettings = (data) => {
+    const nextErrors = {};
+    const companyName = formatText(data.companyName);
+    const email = formatEmail(data.email);
+    const phoneNumber = formatPhoneNumber(data.phoneNumber);
+    const address = formatText(data.address);
+    const state = formatText(data.state);
+    const pincode = formatPincode(data.pincode, data.region);
+
+    const companyNameRegex = /^[A-Za-z0-9][A-Za-z0-9 '&().,/-]*$/;
+    const stateRegex = /^[A-Za-z][A-Za-z\s.'-]*$/;
+    const addressRegex = /^[A-Za-z0-9][A-Za-z0-9\s,.'#&()/-]*$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!companyName) {
+      nextErrors.companyName = "Company name is required";
+    } else if (companyName.length < 2 || companyName.length > 120) {
+      nextErrors.companyName = "Company name must be between 2 and 120 characters";
+    } else if (!companyNameRegex.test(companyName)) {
+      nextErrors.companyName = "Company name contains invalid characters";
+    }
+
+    if (!email) {
+      nextErrors.email = "Email is required";
+    } else if (!emailRegex.test(email)) {
+      nextErrors.email = "Enter a valid email address";
+    }
+
+    if (!data.phoneCountryCode || !String(data.phoneCountryCode).startsWith("+")) {
+      nextErrors.phoneCountryCode = "Select a valid country code";
+    }
+
+    if (!phoneNumber) {
+      nextErrors.phoneNumber = "Phone number is required";
+    } else if (phoneNumber.length < 7 || phoneNumber.length > 15) {
+      nextErrors.phoneNumber = "Phone number must be 7 to 15 digits";
+    }
+
+    if (state && !stateRegex.test(state)) {
+      nextErrors.state = "State should contain only letters and spaces";
+    }
+
+    if (address && !addressRegex.test(address)) {
+      nextErrors.address = "Address contains invalid characters";
+    }
+
+    if (data.region === "India" && pincode && !/^\d{6}$/.test(pincode)) {
+      nextErrors.pincode = "Indian pincode must be 6 digits";
+    } else if (data.region === "US" && pincode && !/^\d{5}(-\d{4})?$/.test(pincode)) {
+      nextErrors.pincode = "US ZIP code must be 5 digits or 5+4 format";
+    } else if (data.region === "UK" && pincode && !/^[A-Z0-9]{5,8}$/.test(pincode)) {
+      nextErrors.pincode = "UK postcode should be alphanumeric";
+    }
+
+    return {
+      errors: nextErrors,
+      normalized: {
+        companyName,
+        email,
+        phoneCountryCode: String(data.phoneCountryCode || "").trim(),
+        phoneNumber,
+        address,
+        state,
+        pincode,
+        region: data.region,
+      },
+    };
+  };
 
   // Fetch business settings on mount
   useEffect(() => {
@@ -65,40 +156,45 @@ export default function BusinessSetup() {
   };
 
   const handleInputChange = (field, value) => {
+    let nextValue = value;
+
+    if (field === "companyName" || field === "address" || field === "state") {
+      nextValue = formatText(value);
+    } else if (field === "email") {
+      nextValue = formatEmail(value);
+    } else if (field === "phoneNumber") {
+      nextValue = formatPhoneNumber(value);
+    } else if (field === "pincode") {
+      nextValue = formatPincode(value, formData.region);
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [field]: value,
+      [field]: nextValue,
+    }));
+
+    setErrors((prev) => ({
+      ...prev,
+      [field]: undefined,
     }));
   };
 
   const handleSave = async () => {
     try {
-      // Validate required fields
-      if (!formData.companyName.trim()) {
-        toast.error("Company name is required");
-        return;
-      }
-      if (!formData.email.trim()) {
-        toast.error("Email is required");
-        return;
-      }
-      if (!formData.phoneNumber.trim()) {
-        toast.error("Phone number is required");
+      const { errors: validationErrors, normalized } = validateBusinessSettings(formData);
+      if (Object.keys(validationErrors).length > 0) {
+        setErrors(validationErrors);
+        const firstError = Object.values(validationErrors)[0];
+        toast.error(firstError || "Please fix the highlighted fields");
         return;
       }
 
       setSaving(true);
+      setErrors({});
 
       // Prepare form data
       const dataToSend = {
-        companyName: formData.companyName.trim(),
-        email: formData.email.trim(),
-        phoneCountryCode: formData.phoneCountryCode,
-        phoneNumber: formData.phoneNumber.trim(),
-        address: formData.address.trim(),
-        state: formData.state.trim(),
-        pincode: formData.pincode.trim(),
-        region: formData.region,
+        ...normalized,
       };
 
       // Prepare files
@@ -210,8 +306,12 @@ export default function BusinessSetup() {
                   placeholder="Enter Your Company Name"
                   value={formData.companyName}
                   onChange={(e) => handleInputChange("companyName", e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onBlur={() => handleInputChange("companyName", formData.companyName)}
+                  className={`w-full px-3 py-2 text-xs border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.companyName ? "border-red-400 focus:ring-red-500 focus:border-red-500" : "border-slate-300"}`}
                 />
+                {errors.companyName ? (
+                  <p className="mt-1 text-[11px] text-red-600">{errors.companyName}</p>
+                ) : null}
               </div>
 
               <div>
@@ -223,19 +323,30 @@ export default function BusinessSetup() {
                   placeholder="Enter Your Email"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onBlur={() => handleInputChange("email", formData.email)}
+                  className={`w-full px-3 py-2 text-xs border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.email ? "border-red-400 focus:ring-red-500 focus:border-red-500" : "border-slate-300"}`}
                 />
+                {errors.email ? (
+                  <p className="mt-1 text-[11px] text-red-600">{errors.email}</p>
+                ) : null}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Region <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={formData.region}
-                  onChange={(e) => handleInputChange("region", e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
+                  <select
+                    value={formData.region}
+                    onChange={(e) => {
+                      const region = e.target.value;
+                      handleInputChange("region", region);
+                      setFormData((prev) => ({
+                        ...prev,
+                        pincode: formatPincode(prev.pincode, region),
+                      }));
+                    }}
+                    className={`w-full px-3 py-2 text-xs border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.region ? "border-red-400 focus:ring-red-500 focus:border-red-500" : "border-slate-300"}`}
+                  >
                   <option value="India">India</option>
                   <option value="UK">UK</option>
                   <option value="US">US</option>
@@ -251,7 +362,7 @@ export default function BusinessSetup() {
                     <select
                       value={formData.phoneCountryCode}
                       onChange={(e) => handleInputChange("phoneCountryCode", e.target.value)}
-                      className="w-full pl-8 pr-6 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
+                      className={`w-full pl-8 pr-6 py-2 text-xs border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none ${errors.phoneCountryCode ? "border-red-400 focus:ring-red-500 focus:border-red-500" : "border-slate-300"}`}
                     >
                       <option value="+1">+1 (US/CA)</option>
                       <option value="+7">+7 (RU/KZ)</option>
@@ -465,9 +576,16 @@ export default function BusinessSetup() {
                     placeholder="Enter Your Phone Number"
                     value={formData.phoneNumber}
                     onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
-                    className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    inputMode="numeric"
+                    onBlur={() => handleInputChange("phoneNumber", formData.phoneNumber)}
+                    className={`flex-1 px-3 py-2 text-xs border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.phoneNumber ? "border-red-400 focus:ring-red-500 focus:border-red-500" : "border-slate-300"}`}
                   />
                 </div>
+                {errors.phoneCountryCode || errors.phoneNumber ? (
+                  <p className="mt-1 text-[11px] text-red-600">
+                    {errors.phoneCountryCode || errors.phoneNumber}
+                  </p>
+                ) : null}
               </div>
 
               <div className="md:col-span-2">
@@ -479,8 +597,12 @@ export default function BusinessSetup() {
                   placeholder="Enter Your Addresss"
                   value={formData.address}
                   onChange={(e) => handleInputChange("address", e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  onBlur={() => handleInputChange("address", formData.address)}
+                  className={`w-full px-3 py-2 text-xs border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none ${errors.address ? "border-red-400 focus:ring-red-500 focus:border-red-500" : "border-slate-300"}`}
                 />
+                {errors.address ? (
+                  <p className="mt-1 text-[11px] text-red-600">{errors.address}</p>
+                ) : null}
               </div>
 
               <div>
@@ -492,8 +614,12 @@ export default function BusinessSetup() {
                   placeholder="Enter Your State"
                   value={formData.state}
                   onChange={(e) => handleInputChange("state", e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onBlur={() => handleInputChange("state", formData.state)}
+                  className={`w-full px-3 py-2 text-xs border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.state ? "border-red-400 focus:ring-red-500 focus:border-red-500" : "border-slate-300"}`}
                 />
+                {errors.state ? (
+                  <p className="mt-1 text-[11px] text-red-600">{errors.state}</p>
+                ) : null}
               </div>
 
               <div>
@@ -505,8 +631,13 @@ export default function BusinessSetup() {
                   placeholder="Enter Your Pincode"
                   value={formData.pincode}
                   onChange={(e) => handleInputChange("pincode", e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  inputMode={formData.region === "India" ? "numeric" : "text"}
+                  onBlur={() => handleInputChange("pincode", formData.pincode)}
+                  className={`w-full px-3 py-2 text-xs border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.pincode ? "border-red-400 focus:ring-red-500 focus:border-red-500" : "border-slate-300"}`}
                 />
+                {errors.pincode ? (
+                  <p className="mt-1 text-[11px] text-red-600">{errors.pincode}</p>
+                ) : null}
               </div>
             </div>
 
