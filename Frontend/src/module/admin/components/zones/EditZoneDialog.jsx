@@ -23,9 +23,11 @@ export default function EditZoneDialog({ isOpen, onOpenChange, zone, onSave }) {
 
   useEffect(() => {
     if (zone) {
-      setZoneName(zone.name || "")
-      setZoneDisplayName(zone.displayName || "")
-      setActiveLanguage("default")
+      setTimeout(() => {
+        setZoneName(zone.name || "")
+        setZoneDisplayName(zone.displayName || "")
+        setActiveLanguage("default")
+      }, 0)
     }
   }, [zone])
 

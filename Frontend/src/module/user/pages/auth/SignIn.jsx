@@ -711,7 +711,7 @@ export default function SignIn() {
                 id="rememberMe"
                 checked={formData.rememberMe}
                 onCheckedChange={(checked) =>
-                  setFormData({ ...formData, rememberMe: checked })
+                  setFormData({ ...formData, rememberMe: checked === true })
                 }
                 className="w-4 h-4 border-2 border-gray-300 rounded data-[state=checked]:bg-[#671E1F] data-[state=checked]:border-[#671E1F] flex items-center justify-center"
               />

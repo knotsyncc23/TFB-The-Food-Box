@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { Search, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, X, Loader2 } from "lucide-react";
 import { adminAPI } from "@/lib/api";
@@ -25,21 +25,21 @@ export default function DiningCoupons() {
   const [deletingId, setDeletingId] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
 
-  const fetchList = async () => {
+  const fetchList = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminAPI.getDiningCoupons({ search: search || undefined, limit: 100 });
+      const res = await adminAPI.getDiningCoupons({ search: search.trim() || undefined, limit: 100 });
       if (res.data?.success && res.data?.data?.data) setList(res.data.data.data);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to load coupons");
     } finally {
       setLoading(false);
     }
-  };
+  }, [search]);
 
   useEffect(() => {
     fetchList();
-  }, []);
+  }, [fetchList]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search || "");
@@ -47,7 +47,6 @@ export default function DiningCoupons() {
     if (modalParam === "create") {
       openCreate();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
   const openCreate = () => {
@@ -148,7 +147,10 @@ export default function DiningCoupons() {
     }
   };
 
-  const filteredList = search.trim() ? list.filter((c) => c.code?.toLowerCase().includes(search.toLowerCase())) : list;
+  const normalizedSearch = search.replace(/\s+/g, "").toLowerCase();
+  const filteredList = normalizedSearch
+    ? list.filter((c) => (c.code || "").replace(/\s+/g, "").toLowerCase().includes(normalizedSearch))
+    : list;
 
   return (
     <div className="p-4 lg:p-6 bg-slate-50 min-h-screen">
@@ -163,7 +165,7 @@ export default function DiningCoupons() {
                   type="text"
                   placeholder="Search by code..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => setSearch(e.target.value.replace(/^\s+/, ""))}
                   className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500"
                 />
               </div>

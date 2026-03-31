@@ -139,19 +139,6 @@ export default function AdminNavbar({ onMenuClick }) {
     item.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Mock data for dropdowns
-  const messages = [
-    { id: 1, sender: "Sarah Johnson", message: "Order #12345 needs attention", time: "2m ago", unread: true },
-    { id: 2, sender: "Mike Chen", message: "New restaurant registration", time: "15m ago", unread: true },
-    { id: 3, sender: "Emma Wilson", message: "Payment issue resolved", time: "1h ago", unread: false },
-  ];
-
-  const emails = [
-    { id: 1, subject: "Weekly Report Ready", from: "reports@appzeto.com", time: "5m ago", unread: true },
-    { id: 2, subject: "New Order Notification", from: "orders@appzeto.com", time: "1h ago", unread: true },
-    { id: 3, subject: "System Update", from: "admin@appzeto.com", time: "2h ago", unread: false },
-  ];
-
   // Handle logout
   const handleLogout = async () => {
     try {

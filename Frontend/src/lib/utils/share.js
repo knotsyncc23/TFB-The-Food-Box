@@ -11,6 +11,7 @@ export const shareContent = async ({ title, text, url }) => {
   if (title) shareData.title = title
   if (text) shareData.text = text
   if (url) shareData.url = url
+  const fallbackMessage = buildShareMessage({ title, text, url })
 
   try {
     if (
@@ -26,6 +27,16 @@ export const shareContent = async ({ title, text, url }) => {
     }
   }
 
+  // Try clipboard first - this works even if popup blockers block new windows.
+  if (navigator.clipboard?.writeText && fallbackMessage) {
+    try {
+      await navigator.clipboard.writeText(fallbackMessage)
+      return { method: "clipboard" }
+    } catch {
+      // continue to whatsapp fallbacks
+    }
+  }
+
   const whatsappUrl = buildWhatsAppShareUrl({ title, text, url })
   const shareWindow = window.open(whatsappUrl, "_blank", "noopener,noreferrer")
 
@@ -33,10 +44,10 @@ export const shareContent = async ({ title, text, url }) => {
     return { method: "whatsapp" }
   }
 
-  const fallbackMessage = buildShareMessage({ title, text, url })
-  if (navigator.clipboard?.writeText && fallbackMessage) {
-    await navigator.clipboard.writeText(fallbackMessage)
-    return { method: "clipboard" }
+  // Last-resort fallback for aggressive popup blockers.
+  if (whatsappUrl) {
+    window.location.assign(whatsappUrl)
+    return { method: "whatsapp" }
   }
 
   throw new Error("Share is not supported on this device")

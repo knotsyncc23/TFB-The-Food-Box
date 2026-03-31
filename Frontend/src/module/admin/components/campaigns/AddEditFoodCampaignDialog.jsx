@@ -20,26 +20,28 @@ export default function AddEditFoodCampaignDialog({ isOpen, onOpenChange, campai
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
-    if (campaign) {
-      setFormData({
-        title: campaign.title || "",
-        dateStart: campaign.dateStart || "",
-        dateEnd: campaign.dateEnd || "",
-        timeStart: campaign.timeStart || "",
-        timeEnd: campaign.timeEnd || "",
-        price: campaign.price ? campaign.price.toString() : "",
-      })
-    } else {
-      setFormData({
-        title: "",
-        dateStart: "",
-        dateEnd: "",
-        timeStart: "",
-        timeEnd: "",
-        price: "",
-      })
-    }
-    setErrors({})
+    const nextFormData = campaign
+      ? {
+          title: campaign.title || "",
+          dateStart: campaign.dateStart || "",
+          dateEnd: campaign.dateEnd || "",
+          timeStart: campaign.timeStart || "",
+          timeEnd: campaign.timeEnd || "",
+          price: campaign.price ? campaign.price.toString() : "",
+        }
+      : {
+          title: "",
+          dateStart: "",
+          dateEnd: "",
+          timeStart: "",
+          timeEnd: "",
+          price: "",
+        }
+
+    setTimeout(() => {
+      setFormData(nextFormData)
+      setErrors({})
+    }, 0)
   }, [campaign, isOpen])
 
   const validateForm = () => {

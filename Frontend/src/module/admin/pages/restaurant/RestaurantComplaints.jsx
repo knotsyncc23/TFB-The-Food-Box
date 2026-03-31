@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { adminAPI } from "@/lib/api"
 import { toast } from "sonner"
-import { Search, Filter, AlertCircle, CheckCircle, Clock, XCircle, FileText } from "lucide-react"
+import { AlertCircle, CheckCircle, Clock, XCircle, FileText } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -34,13 +34,6 @@ export default function RestaurantComplaints() {
   const [complaints, setComplaints] = useState([])
   const [loading, setLoading] = useState(true)
   const [updatingStatusId, setUpdatingStatusId] = useState(null)
-  const [stats, setStats] = useState({
-    total: 0,
-    pending: 0,
-    in_progress: 0,
-    resolved: 0,
-    rejected: 0
-  })
   const [filters, setFilters] = useState({
     status: 'all',
     complaintType: 'all',
@@ -55,11 +48,7 @@ export default function RestaurantComplaints() {
     pages: 1
   })
 
-  useEffect(() => {
-    fetchComplaints()
-  }, [filters])
-
-  const fetchComplaints = async () => {
+  const fetchComplaints = useCallback(async () => {
     try {
       setLoading(true)
       const params = {
@@ -68,13 +57,17 @@ export default function RestaurantComplaints() {
       }
       if (filters.status && filters.status !== 'all') params.status = filters.status
       if (filters.complaintType && filters.complaintType !== 'all') params.complaintType = filters.complaintType
-      if (filters.search) params.search = filters.search
+      if (filters.search?.trim()) params.search = filters.search.trim()
 
       const response = await adminAPI.getRestaurantComplaints(params)
       if (response?.data?.success) {
         setComplaints(response.data.data.complaints || [])
-        setStats(response.data.data.stats || stats)
-        setPagination(response.data.data.pagination || pagination)
+        setPagination(response.data.data.pagination || {
+          page: 1,
+          limit: 50,
+          total: 0,
+          pages: 1,
+        })
       }
     } catch (error) {
       console.error('Error fetching complaints:', error)
@@ -82,7 +75,11 @@ export default function RestaurantComplaints() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters])
+
+  useEffect(() => {
+    fetchComplaints()
+  }, [fetchComplaints])
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -96,21 +93,6 @@ export default function RestaurantComplaints() {
         return <XCircle className="w-4 h-4 text-red-600" />
       default:
         return <FileText className="w-4 h-4 text-gray-600" />
-    }
-  }
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'in_progress':
-        return 'bg-blue-100 text-blue-800'
-      case 'resolved':
-        return 'bg-red-100 text-red-800'
-      case 'rejected':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
     }
   }
 
@@ -146,7 +128,7 @@ export default function RestaurantComplaints() {
               type="text"
               placeholder="Search by order, Customer, Restaurant name"
               value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value, page: 1 })}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value.replace(/^\s+/, ""), page: 1 })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>

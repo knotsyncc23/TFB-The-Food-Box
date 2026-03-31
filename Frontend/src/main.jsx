@@ -46,7 +46,9 @@ const safeSessionSet = (key, value) => {
   try {
     if (typeof window === "undefined" || !window.sessionStorage) return
     window.sessionStorage.setItem(key, value)
-  } catch {}
+  } catch {
+    return
+  }
 }
 
 const attemptChunkRecoveryReload = () => {
@@ -61,7 +63,7 @@ const attemptChunkRecoveryReload = () => {
     window.location.reload()
   } catch {
     // Last-resort same-tab navigation fallback.
-    window.location.href = window.location.href
+    window.location.assign(window.location.href)
   }
 }
 
@@ -141,7 +143,7 @@ setTimeout(async () => {
     } else {
       window.__googleMapsLoading = false
     }
-  } catch (error) {
+  } catch {
     window.__googleMapsLoading = false
     // No fallback - Google Maps will not load if key is not in database
     console.warn('⚠️ Google Maps API key not available. Please set it in Admin → System → Environment Variables')

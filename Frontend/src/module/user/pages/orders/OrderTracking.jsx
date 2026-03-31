@@ -245,6 +245,19 @@ export default function OrderTracking() {
     "cancelled",
   ])
 
+  const normalizeStatusForUi = useCallback((statusValue) => {
+    const status = String(statusValue || "").toLowerCase()
+    if (!status) return "placed"
+    if (status === "cancelled" || status === "canceled" || status === "restaurant_cancelled" || status === "user_cancelled") {
+      return "cancelled"
+    }
+    if (status === "delivered" || status === "completed") return "delivered"
+    if (status === "out_for_delivery" || status === "outfordelivery") return "pickup"
+    if (status === "ready") return "prepared"
+    if (status === "preparing") return "preparing"
+    return "placed"
+  }, [])
+
   const applyOrderStatus = useCallback((apiOrder) => {
     if (!apiOrder) return
     const status = apiOrder.status
@@ -371,6 +384,7 @@ export default function OrderTracking() {
           console.log('⚠️ Context order missing restaurantId, will fetch from API');
         }
         setOrder(contextOrder)
+        setOrderStatus(normalizeStatusForUi(contextOrder.status || contextOrder.originalStatus))
         setLoading(false)
         return
       }
@@ -501,7 +515,7 @@ export default function OrderTracking() {
     if (orderId) {
       fetchOrder()
     }
-  }, [orderId, getOrderById, applyOrderStatus])
+  }, [orderId, getOrderById, applyOrderStatus, normalizeStatusForUi])
 
   // Simulate order status progression
   useEffect(() => {

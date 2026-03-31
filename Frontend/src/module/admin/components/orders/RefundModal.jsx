@@ -17,8 +17,10 @@ export default function RefundModal({ isOpen, onOpenChange, order, onConfirm, is
   useEffect(() => {
     if (order && isOpen) {
       const defaultAmount = order.totalAmount || 0
-      setRefundAmount(defaultAmount.toString())
-      setError("")
+      setTimeout(() => {
+        setRefundAmount(defaultAmount.toString())
+        setError("")
+      }, 0)
     }
   }, [order, isOpen])
 

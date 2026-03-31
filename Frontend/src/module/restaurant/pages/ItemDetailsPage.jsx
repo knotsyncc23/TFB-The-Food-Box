@@ -1000,18 +1000,8 @@ export default function ItemDetailsPage() {
                 />
                 <button
                   type="button"
-                  onClick={async () => {
-                    if (hasFlutterCameraBridge()) {
-                      const { success, file } = await openCameraViaFlutter({
-                        source: "gallery",
-                      })
-                      if (success && file) {
-                        await handleImageAdd({ target: { files: [file] } })
-                      }
-                      return
-                    }
-
-                    // Browser fallback: open native file picker.
+                  onClick={() => {
+                    // Always open gallery/file picker for this action.
                     fileInputRef.current?.click()
                   }}
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-xl text-sm font-semibold cursor-pointer hover:from-gray-800 hover:to-gray-700 transition-all shadow-md hover:shadow-lg active:scale-95"

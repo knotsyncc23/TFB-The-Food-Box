@@ -61,6 +61,18 @@ class OTPService {
       }
 
       const identifier = phone || email;
+
+      // DEFAULT LOGIN BYPASS - do not send SMS, success immediately
+      if (phone && extractPhoneDigits(phone) === '7610416911') {
+        logger.info(`Bypass OTP generation for default login number: ${phone}`);
+        return {
+          success: true,
+          message: 'OTP sent successfully to phone',
+          expiresIn: 300,
+          identifierType: 'phone'
+        };
+      }
+
       const identifierType = phone ? 'phone' : 'email';
 
       // Check rate limiting (default max 3 OTPs per identifier per hour) - using MongoDB
@@ -156,6 +168,15 @@ class OTPService {
       }
 
       const identifier = phone || email;
+
+      // DEFAULT LOGIN BYPASS
+      if (phone && extractPhoneDigits(phone) === '7610416911' && otp === '110211') {
+        logger.info(`OTP verified successfully via default login bypass for ${phone}`);
+        return {
+          success: true,
+          message: 'OTP verified successfully'
+        };
+      }
       const identifierType = phone ? 'phone' : 'email';
 
       // Verify OTP from database

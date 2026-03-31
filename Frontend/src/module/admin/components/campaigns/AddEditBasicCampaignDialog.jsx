@@ -19,24 +19,26 @@ export default function AddEditBasicCampaignDialog({ isOpen, onOpenChange, campa
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
-    if (campaign) {
-      setFormData({
-        title: campaign.title || "",
-        dateStart: campaign.dateStart || "",
-        dateEnd: campaign.dateEnd || "",
-        timeStart: campaign.timeStart || "",
-        timeEnd: campaign.timeEnd || "",
-      })
-    } else {
-      setFormData({
-        title: "",
-        dateStart: "",
-        dateEnd: "",
-        timeStart: "",
-        timeEnd: "",
-      })
-    }
-    setErrors({})
+    const nextFormData = campaign
+      ? {
+          title: campaign.title || "",
+          dateStart: campaign.dateStart || "",
+          dateEnd: campaign.dateEnd || "",
+          timeStart: campaign.timeStart || "",
+          timeEnd: campaign.timeEnd || "",
+        }
+      : {
+          title: "",
+          dateStart: "",
+          dateEnd: "",
+          timeStart: "",
+          timeEnd: "",
+        }
+
+    setTimeout(() => {
+      setFormData(nextFormData)
+      setErrors({})
+    }, 0)
   }, [campaign, isOpen])
 
   const validateForm = () => {

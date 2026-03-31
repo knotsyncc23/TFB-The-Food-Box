@@ -45,6 +45,11 @@ const step3ImageDisplayName = (value) => {
 
 const ONBOARDING_STORAGE_KEY = "restaurant_onboarding_data"
 const TOTAL_VISIBLE_STEPS = 3
+const getTodayDateOnly = () => {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  return now
+}
 
 // Helper functions for localStorage
 const saveOnboardingToLocalStorage = (step1, step2, step3, step4, currentStep) => {
@@ -281,7 +286,15 @@ export default function RestaurantOnboarding() {
         return !validFssai ? "Please upload a valid FSSAI image" : ""
       }
       case "gstNumber":
-        return s.gstRegistered && !s.gstNumber?.trim() ? "GST number is required" : ""
+        if (!s.gstRegistered) return ""
+        if (!s.gstNumber?.trim()) return "GST number is required"
+      {
+        const gst = s.gstNumber.trim().toUpperCase()
+        if (!/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[A-Z0-9]Z[A-Z0-9]$/.test(gst)) {
+          return "GST format must be: 2 digits state code + PAN + entity + Z + check code"
+        }
+        return ""
+      }
       case "gstLegalName":
         return s.gstRegistered && !s.gstLegalName?.trim() ? "Legal name is required" : ""
       case "gstAddress":
@@ -1163,7 +1176,12 @@ export default function RestaurantOnboarding() {
             <Label className="text-xs text-gray-700">Full name*</Label>
             <Input
               value={step1.ownerName || ""}
-              onChange={(e) => setStep1({ ...step1, ownerName: e.target.value })}
+              onChange={(e) =>
+                setStep1({
+                  ...step1,
+                  ownerName: e.target.value.replace(/[^a-zA-Z\s]/g, ""),
+                })
+              }
               className="mt-1 bg-white text-sm text-black placeholder-black"
               placeholder="Owner full name"
             />
@@ -1697,6 +1715,7 @@ export default function RestaurantOnboarding() {
                 <Calendar
                   mode="single"
                   selected={step3.fssaiExpiry ? new Date(step3.fssaiExpiry + "T12:00:00") : undefined}
+                  disabled={(date) => date < getTodayDateOnly()}
                   onSelect={(date) => {
                     if (date) {
                       const y = date.getFullYear()
