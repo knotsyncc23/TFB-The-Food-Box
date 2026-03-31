@@ -10441,103 +10441,95 @@ export default function DeliveryHome() {
       >
         <div className="flex flex-col h-full">
           <div className="flex-1 overflow-y-auto pb-28">
-          {/* Success Icon and Title */}
-          <div className="text-center mb-6">
-            <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Great job! Delivery complete ðŸ‘
-            </h1>
-          </div>
-
-          {/* Trip Details */}
-          <div className="bg-gray-50 rounded-xl p-4 mb-6">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-gray-600" />
-                  <span className="text-gray-600 text-sm">Trip distance</span>
-                </div>
-                <span className="text-gray-900 font-semibold">
-                  {tripDistance !== null 
-                    ? (tripDistance >= 1000 
-                        ? `${(tripDistance / 1000).toFixed(1)} kms` 
-                        : `${tripDistance.toFixed(0)} m`)
-                    : (selectedRestaurant?.tripDistance || 'Calculating...')}
-                </span>
+            <div className="text-center mb-6">
+              <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-600" />
-                  <span className="text-gray-600 text-sm">Trip time</span>
-                </div>
-                <span className="text-gray-900 font-semibold">
-                  {tripTime !== null 
-                    ? (tripTime >= 60 
-                        ? `${Math.round(tripTime / 60)} mins` 
-                        : `${tripTime} secs`)
-                    : (selectedRestaurant?.tripTime || 'Calculating...')}
-                </span>
-              </div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Delivery completed</h1>
             </div>
-          </div>
 
-          {/* Payment info: Online = amount paid, COD = collect from customer */}
-          {selectedRestaurant?.total != null && (() => {
-            const m = (selectedRestaurant.paymentMethod || '').toLowerCase()
-            const isCod = m === 'cash' || m === 'cod'
-            const total = Number(selectedRestaurant.total) || 0
-            return (
-              <div className={`rounded-xl p-4 mb-4 ${isCod ? 'bg-amber-50 border border-amber-200' : 'bg-red-50 border border-red-200'}`}>
+            <div className="bg-gray-50 rounded-xl p-4 mb-6">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <IndianRupee className={`w-4 h-4 ${isCod ? 'text-amber-600' : 'text-red-600'}`} />
-                    <span className={`text-sm font-medium ${isCod ? 'text-amber-800' : 'text-red-800'}`}>
-                      {isCod ? 'Collect from customer (COD)' : 'Amount paid (Online)'}
-                    </span>
+                    <MapPin className="w-4 h-4 text-gray-600" />
+                    <span className="text-gray-600 text-sm">Distance</span>
                   </div>
-                  <span className={`text-lg font-bold ${isCod ? 'text-amber-700' : 'text-red-700'}`}>
-                    â‚¹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <span className="text-gray-900 font-semibold">
+                    {tripDistance !== null
+                      ? (tripDistance >= 1000
+                          ? `${(tripDistance / 1000).toFixed(1)} km`
+                          : `${tripDistance.toFixed(0)} m`)
+                      : (selectedRestaurant?.tripDistance || 'Calculating...')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-gray-600" />
+                    <span className="text-gray-600 text-sm">Time</span>
+                  </div>
+                  <span className="text-gray-900 font-semibold">
+                    {tripTime !== null
+                      ? (tripTime >= 60
+                          ? `${Math.round(tripTime / 60)} mins`
+                          : `${tripTime} secs`)
+                      : (selectedRestaurant?.tripTime || 'Calculating...')}
                   </span>
                 </div>
               </div>
-            )
-          })()}
+            </div>
 
-          {/* Your earning: delivery commission added to wallet when you confirm */}
-          {(() => {
-            const estimated = getEstimatedEarningValue()
-            const earned = orderEarnings > 0 ? orderEarnings : estimated
-            const showMismatch =
-              orderEarnings > 0 &&
-              estimated > 0 &&
-              Math.abs(Number(orderEarnings) - Number(estimated)) >= 1
-            if (earned <= 0) return null
-            return (
-              <div className="rounded-xl p-4 mb-6 bg-red-50 border border-red-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-red-600" />
-                    <span className="text-sm font-medium text-red-800">
-                      Your earning {orderEarnings > 0 ? '(added to wallet)' : '(will be added when you confirm)'}
+            {selectedRestaurant?.total != null && (() => {
+              const m = (selectedRestaurant.paymentMethod || '').toLowerCase()
+              const isCod = m === 'cash' || m === 'cod'
+              const total = Number(selectedRestaurant.total) || 0
+              return (
+                <div className={`rounded-xl p-4 mb-4 ${isCod ? 'bg-amber-50 border border-amber-200' : 'bg-red-50 border border-red-200'}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <IndianRupee className={`w-4 h-4 ${isCod ? 'text-amber-600' : 'text-red-600'}`} />
+                      <span className={`text-sm font-medium ${isCod ? 'text-amber-800' : 'text-red-800'}`}>
+                        {isCod ? 'Cash to collect' : 'Paid online'}
+                      </span>
+                    </div>
+                    <span className={`text-lg font-bold ${isCod ? 'text-amber-700' : 'text-red-700'}`}>
+                      {"\u20B9"}{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
-                  <span className="text-lg font-bold text-red-700">
-                    â‚¹{Number(earned).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
                 </div>
-                {showMismatch && (
-                  <div className="mt-2 text-xs text-red-700/80 flex justify-between">
-                    <span>Offer estimate</span>
-                    <span>â‚¹{Number(estimated).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              )
+            })()}
+
+            {(() => {
+              const estimated = getEstimatedEarningValue()
+              const earned = orderEarnings > 0 ? orderEarnings : estimated
+              const showMismatch =
+                orderEarnings > 0 &&
+                estimated > 0 &&
+                Math.abs(Number(orderEarnings) - Number(estimated)) >= 1
+              if (earned <= 0) return null
+              return (
+                <div className="rounded-xl p-4 mb-6 bg-red-50 border border-red-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="w-4 h-4 text-red-600" />
+                      <span className="text-sm font-medium text-red-800">Earnings</span>
+                    </div>
+                    <span className="text-lg font-bold text-red-700">
+                      {"\u20B9"}{Number(earned).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
                   </div>
-                )}
-              </div>
-            )
-          })()}
+                  {showMismatch && (
+                    <div className="mt-2 text-xs text-red-700/80 flex justify-between">
+                      <span>Offer estimate</span>
+                      <span>{"\u20B9"}{Number(estimated).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
           {/* Done button (only after delivery is completed) */}
           {(isDeliveryCompleted || orderEarnings > 0 || isDeliveredOrCompletedSummary) && (
@@ -10644,15 +10636,15 @@ export default function DeliveryHome() {
           >
             {/* Header */}
             <div className="bg-red-500 text-white px-6 py-6">
-              <h1 className="text-2xl font-bold mb-2">Payment</h1>
+              <h1 className="text-2xl font-bold mb-2">Payout</h1>
               <p className="text-white/90 text-sm">Order ID: {selectedRestaurant?.orderId || 'ORD1234567890'}</p>
             </div>
 
             {/* Payment Amount */}
             <div className="px-6 py-8 text-center bg-gray-50">
-              <p className="text-gray-600 text-sm mb-2">Earnings from this order</p>
+              <p className="text-gray-600 text-sm mb-2">Earnings</p>
               <p className="text-5xl font-bold text-gray-900">
-                â‚¹{(() => {
+                {"\u20B9"}{(() => {
                   if (orderEarnings > 0) {
                     return orderEarnings.toFixed(2);
                   }
@@ -10662,18 +10654,18 @@ export default function DeliveryHome() {
                   ).amount.toFixed(2);
                 })()}
               </p>
-              <p className="text-red-600 text-sm mt-2">ðŸ’° Added to your wallet</p>
+              <p className="text-red-600 text-sm mt-2">Credited to your wallet</p>
             </div>
 
             {/* Payment Details */}
             <div className="px-6 py-6 pb-6 h-full flex flex-col justify-between">
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Payment Details</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Breakdown</h3>
                 
                 <div className="space-y-3">
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-gray-600">Delivery pay</span>
-                    <span className="text-gray-900 font-semibold">â‚¹{(() => {
+                    <span className="text-gray-600">Pay</span>
+                    <span className="text-gray-900 font-semibold">{"\u20B9"}{(() => {
                       if (orderEarnings > 0) {
                         return orderEarnings.toFixed(2);
                       }
@@ -10685,8 +10677,8 @@ export default function DeliveryHome() {
                   </div>
                   
                   <div className="flex justify-between items-center py-2">
-                    <span className="text-lg font-bold text-gray-900">Total Earnings</span>
-                    <span className="text-lg font-bold text-gray-900">â‚¹{(() => {
+                    <span className="text-lg font-bold text-gray-900">Total</span>
+                    <span className="text-lg font-bold text-gray-900">{"\u20B9"}{(() => {
                       if (orderEarnings > 0) {
                         return orderEarnings.toFixed(2);
                       }
@@ -10700,7 +10692,6 @@ export default function DeliveryHome() {
               </div>
 
 
-              {/* Complete Button */}
               <button
                 onClick={() => {
                   setShowPaymentPage(false)
