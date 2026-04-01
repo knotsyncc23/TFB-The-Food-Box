@@ -44,6 +44,10 @@ const countryCodes = [
   { code: "+46", country: "SE", flag: "🇸🇪" },
 ]
 
+const redirectToUserHome = () => {
+  window.location.replace("/")
+}
+
 export default function SignIn() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -164,7 +168,7 @@ export default function SignIn() {
         }
 
         console.log(`✅ Navigating to user dashboard from ${source}...`)
-        navigate("/user", { replace: true })
+        redirectToUserHome()
       } else {
         console.error(`❌ Invalid backend response from ${source}`)
         redirectHandledRef.current = false
@@ -213,7 +217,7 @@ export default function SignIn() {
       window.history.replaceState({}, document.title, window.location.pathname)
     }
 
-    navigate("/user", { replace: true })
+    redirectToUserHome()
   }
 
   // Handle Firebase redirect result on component mount and URL changes

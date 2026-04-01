@@ -9,6 +9,10 @@ import { registerFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
 import { authAPI } from "@/lib/api"
 import { firebaseAuth, ensureFirebaseInitialized } from "@/lib/firebase"
 
+const redirectToUserHome = () => {
+  window.location.replace("/")
+}
+
 export default function AuthCallback() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -76,7 +80,7 @@ export default function AuthCallback() {
 
             setStatus("success")
             setTimeout(() => {
-              navigate("/user", { replace: true })
+              redirectToUserHome()
             }, 800)
             return
           }
@@ -105,7 +109,7 @@ export default function AuthCallback() {
 
             // Redirect to home after short delay
             setTimeout(() => {
-              navigate("/user", { replace: true })
+              redirectToUserHome()
             }, 1000)
             return
           } catch (err) {
@@ -114,30 +118,10 @@ export default function AuthCallback() {
           }
         }
 
-        // If no code and no token, it might be a direct redirect (for demo purposes)
+        // Do not fake a successful login if we have no real auth payload.
         if (!code) {
-          // Simulate OAuth flow for demo
-          await new Promise((resolve) => setTimeout(resolve, 2000))
-
-          // In a real app, you would:
-          // 1. Exchange the code for tokens
-          // 2. Get user info from the provider
-          // 3. Create/login user in your backend
-          // 4. Set authentication tokens
-
-          // For now, if we don't have a token, we can't really log them in properly
-          // unless this is just a mockup
-
-          // Store auth success in sessionStorage
-          sessionStorage.setItem("oauthSuccess", JSON.stringify({
-            provider: providerParam,
-            timestamp: Date.now(),
-          }))
-
-          // Redirect to home after short delay
-          setTimeout(() => {
-            navigate("/user")
-          }, 1500)
+          setStatus("error")
+          setError("Authentication did not return a valid session. Please try again.")
           return
         }
 
@@ -176,7 +160,7 @@ export default function AuthCallback() {
 
         // Redirect to home
         setTimeout(() => {
-          navigate("/user")
+          redirectToUserHome()
         }, 1500)
       } catch (err) {
         setStatus("error")
