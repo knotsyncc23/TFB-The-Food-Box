@@ -162,26 +162,6 @@ export async function getCloudinaryCredentials() {
  * @returns {Promise<Object>} Firebase credentials object
  */
 export async function getFirebaseCredentials() {
-  const normalizePrivateKey = (value) => {
-    if (value == null) return "";
-    let v = typeof value === "string" ? value : String(value);
-    v = v.trim();
-
-    // Remove surrounding quotes if ENV/DB stored the JSON string literal including quotes.
-    if (
-      (v.startsWith('"') && v.endsWith('"')) ||
-      (v.startsWith("'") && v.endsWith("'"))
-    ) {
-      v = v.slice(1, -1);
-    }
-
-    // Support both escaped newlines and Windows newlines.
-    if (v.includes("\\n")) v = v.replace(/\\n/g, "\n");
-    v = v.replace(/\r\n/g, "\n");
-
-    return v.trim();
-  };
-
   return {
     apiKey: await getEnvVar("FIREBASE_API_KEY"),
     authDomain: await getEnvVar("FIREBASE_AUTH_DOMAIN"),
@@ -191,7 +171,7 @@ export async function getFirebaseCredentials() {
     measurementId: await getEnvVar("MEASUREMENT_ID"),
     projectId: await getEnvVar("FIREBASE_PROJECT_ID"),
     clientEmail: await getEnvVar("FIREBASE_CLIENT_EMAIL"),
-    privateKey: normalizePrivateKey(await getEnvVar("FIREBASE_PRIVATE_KEY")),
+    privateKey: await getEnvVar("FIREBASE_PRIVATE_KEY"),
   };
 }
 

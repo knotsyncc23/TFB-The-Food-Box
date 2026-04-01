@@ -66,10 +66,7 @@ export let API_BASE_URL = rawApiBaseUrl;
 // Safety override for production app domain if env accidentally points to app-domain /api or localhost.
 if (isProd && hostLooksLikeAppDomain) {
   const isLocalhostTarget = /localhost|127\.0\.0\.1/.test(API_BASE_URL);
-  // Never point API calls at the SPA host (app.tifunbox.com / www.app.tifunbox.com),
-  // because most static hosts will rewrite /api/* to index.html and return 200 HTML,
-  // which breaks auth flows (looks like 200 OK but missing JSON tokens).
-  const pointsToAppDomainApi = /^https?:\/\/(?:www\.)?app\.tifunbox\.com\/api/i.test(API_BASE_URL);
+  const pointsToAppDomainApi = /^https?:\/\/app\.tifunbox\.com\/api/i.test(API_BASE_URL);
   if (isLocalhostTarget || pointsToAppDomainApi) {
     console.warn("⚠️ Overriding API base URL to production backend fallback:", PROD_BACKEND_FALLBACK);
     API_BASE_URL = PROD_BACKEND_FALLBACK;

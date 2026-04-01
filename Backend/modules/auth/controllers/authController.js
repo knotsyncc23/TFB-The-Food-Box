@@ -1007,18 +1007,6 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
  * POST /api/auth/firebase/social-login
  */
 export const firebaseSocialLogin = asyncHandler(async (req, res) => {
-  try {
-    const provider = String(req.body?.provider || "").toLowerCase();
-    const role = String(req.body?.role || "user").toLowerCase();
-    const hasIdToken = !!req.body?.idToken;
-    logger.info("Firebase social login request", {
-      provider: provider || null,
-      role,
-      hasIdToken,
-      origin: req.headers?.origin || null,
-      userAgent: req.headers?.["user-agent"] || null,
-    });
-  } catch (_) {}
   return handleFirebaseSocialLogin(req, res, "google", "user");
 });
 

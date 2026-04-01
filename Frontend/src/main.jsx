@@ -7,7 +7,6 @@ import App from './App.jsx'
 import OfflineBanner from './components/OfflineBanner.jsx'
 import { getGoogleMapsApiKey } from './lib/utils/googleMapsApiKey.js'
 import { loadBusinessSettings } from './lib/utils/businessSettings.js'
-import { setAuthData } from './lib/utils/auth.js'
 
 const safeStorageGet = (key, fallback = null) => {
   try {
@@ -16,15 +15,6 @@ const safeStorageGet = (key, fallback = null) => {
     return value == null ? fallback : value
   } catch {
     return fallback
-  }
-}
-
-const safeStorageSet = (key, value) => {
-  try {
-    if (typeof window === 'undefined' || !window.localStorage) return
-    window.localStorage.setItem(key, value)
-  } catch {
-    return
   }
 }
 
@@ -60,99 +50,6 @@ const safeSessionSet = (key, value) => {
     return
   }
 }
-
-/**
- * Canonicalize host to prevent iOS WebView Apple auth returning to a different origin
- * (e.g. www.app.tifunbox.com) which would lose localStorage-based session.\n+ *
- * Strategy:\n+ * - If we are on www.app.tifunbox.com, redirect to app.tifunbox.com\n+ * - Before redirect, bridge user auth token/user payload via URL params (one-time)\n+ * - On app.tifunbox.com, consume bridge params and store them, then clean the URL\n+ */
-const CANONICAL_APP_HOST = "app.tifunbox.com"
-const WWW_APP_HOST = "www.app.tifunbox.com"
-const BRIDGE_TOKEN_PARAM = "__bridge_user_token"
-const BRIDGE_USER_PARAM = "__bridge_user"
-
-const getStoredUserAuthForBridge = () => {
-  try {
-    const token =
-      window?.localStorage?.getItem("user_accessToken") ||
-      window?.sessionStorage?.getItem("user_accessToken") ||
-      null
-    const userStr =
-      window?.localStorage?.getItem("user_user") ||
-      window?.sessionStorage?.getItem("user_user") ||
-      null
-    return { token, userStr }
-  } catch {
-    return { token: null, userStr: null }
-  }
-}
-
-const consumeAuthBridgeParams = () => {
-  try {
-    const url = new URL(window.location.href)
-    const token = url.searchParams.get(BRIDGE_TOKEN_PARAM)
-    const userEncoded = url.searchParams.get(BRIDGE_USER_PARAM)
-    if (!token) return false
-
-    let user = null
-    if (userEncoded) {
-      try {
-        user = JSON.parse(decodeURIComponent(userEncoded))
-      } catch {
-        user = null
-      }
-    }
-
-    try {
-      setAuthData("user", token, user)
-    } catch (e) {
-      // Last-resort fallback if setAuthData fails due to storage limitations.
-      safeStorageSet("user_accessToken", token)
-      safeStorageSet("user_authenticated", "true")
-      if (user) safeStorageSet("user_user", JSON.stringify(user))
-    }
-
-    // Clean up URL (remove bridge params) without reloading
-    url.searchParams.delete(BRIDGE_TOKEN_PARAM)
-    url.searchParams.delete(BRIDGE_USER_PARAM)
-    window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`)
-    return true
-  } catch {
-    return false
-  }
-}
-
-const enforceCanonicalAppHost = () => {
-  try {
-    const { hostname } = window.location
-    // If we landed on canonical host, consume bridge params (if any) and continue.
-    if (hostname === CANONICAL_APP_HOST) {
-      consumeAuthBridgeParams()
-      return
-    }
-
-    // If we landed on www host, redirect to canonical app host.
-    if (hostname === WWW_APP_HOST) {
-      const url = new URL(window.location.href)
-      url.hostname = CANONICAL_APP_HOST
-
-      const { token, userStr } = getStoredUserAuthForBridge()
-      if (token) {
-        url.searchParams.set(BRIDGE_TOKEN_PARAM, token)
-        if (userStr) {
-          // userStr is already JSON string; encode as URI component to survive redirect
-          url.searchParams.set(BRIDGE_USER_PARAM, encodeURIComponent(userStr))
-        }
-      }
-
-      window.location.replace(url.toString())
-    }
-  } catch {
-    // ignore
-  }
-}
-
-// Enforce canonical host ASAP (before React renders) so auth storage stays consistent.
-enforceCanonicalAppHost()
 
 const attemptChunkRecoveryReload = () => {
   // Prevent infinite reload loops in case of persistent server/cache issue.

@@ -21,14 +21,6 @@ const logAppleCallback = (message, details = null) => {
   console.log(`[AppleCallback] ${message}`)
 }
 
-const normalizeBackendAuthPayload = (response) => {
-  const top = response?.data || {}
-  const nested = top?.data && typeof top.data === "object" ? top.data : null
-  const payload = nested || top
-  if (!payload || typeof payload !== "object") return {}
-  return payload
-}
-
 export default function AuthCallback() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -110,7 +102,7 @@ export default function AuthCallback() {
               "user",
               providerParam,
             )
-            const data = normalizeBackendAuthPayload(response)
+            const data = response?.data?.data || {}
             if (providerParam === "apple") {
               logAppleCallback("Backend social login finished", {
                 hasAccessToken: !!data.accessToken,
