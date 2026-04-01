@@ -121,6 +121,9 @@ export const authAPI = {
       role,
     });
   },
+  getAppleConfig: () => {
+    return apiClient.get(API_ENDPOINTS.AUTH.APPLE_CONFIG);
+  },
   // Login/Register via Apple identity token
   appleLogin: (identityToken, role = "user", name = null) => {
     const payload = { identityToken, role };

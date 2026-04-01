@@ -74,10 +74,19 @@ export default function SignIn() {
   const isIOSBrowser = /iPad|iPhone|iPod/i.test(
     typeof navigator !== "undefined" ? navigator.userAgent : "",
   )
-  const appleClientId = import.meta.env.VITE_APPLE_CLIENT_ID?.trim()
-  const appleRedirectUri =
-    import.meta.env.VITE_APPLE_REDIRECT_URI?.trim() ||
-    (typeof window !== "undefined" ? window.location.origin : "")
+  const envAppleClientId = import.meta.env.VITE_APPLE_CLIENT_ID?.trim() || ""
+  const defaultAppleRedirectUri =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/auth/apple/callback`
+      : ""
+  const envAppleRedirectUri =
+    import.meta.env.VITE_APPLE_REDIRECT_URI?.trim() || defaultAppleRedirectUri
+  const [appleConfig, setAppleConfig] = useState({
+    clientId: envAppleClientId,
+    redirectUri: envAppleRedirectUri,
+  })
+  const appleClientId = appleConfig.clientId?.trim() || ""
+  const appleRedirectUri = appleConfig.redirectUri?.trim() || defaultAppleRedirectUri
   const appleConfigAvailable = Boolean(appleClientId)
 
   // Prefill phone when user comes back from OTP screen
@@ -99,6 +108,42 @@ export default function SignIn() {
       }
     } catch (_) {}
   }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadAppleConfig = async () => {
+      try {
+        const response = await authAPI.getAppleConfig()
+        const config = response?.data?.data || {}
+
+        if (!isMounted) return
+
+        setAppleConfig({
+          clientId: config.clientId?.trim() || envAppleClientId,
+          redirectUri: config.redirectUri?.trim() || envAppleRedirectUri,
+        })
+      } catch (error) {
+        if (!isMounted) return
+
+        console.warn("Unable to load Apple Sign-In config from backend:", error)
+        setAppleConfig({
+          clientId: envAppleClientId,
+          redirectUri: envAppleRedirectUri,
+        })
+      }
+    }
+
+    loadAppleConfig()
+
+    return () => {
+      isMounted = false
+    }
+  }, [envAppleClientId, envAppleRedirectUri])
+
+  useEffect(() => {
+    appleInitRef.current = false
+  }, [appleClientId, appleRedirectUri])
 
   // Load Apple JS SDK when configuration is available
   useEffect(() => {

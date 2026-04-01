@@ -18,7 +18,9 @@ export default function AuthCallback() {
     const handleAuthCallback = async () => {
       try {
         // Get provider from URL params
-        const providerParam = searchParams.get("provider") || "google"
+        const providerParam =
+          searchParams.get("provider") ||
+          (window.location.pathname.includes("/auth/apple/callback") ? "apple" : "google")
         setProvider(providerParam)
 
         // Get OAuth parameters from URL

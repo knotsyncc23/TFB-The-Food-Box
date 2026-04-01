@@ -295,7 +295,7 @@ export default function SystemAddons() {
               <InputField
                 label="Apple Redirect URI"
                 fieldKey="APPLE_REDIRECT_URI"
-                placeholder="https://app.example.com/api/auth/apple/callback"
+                placeholder="https://app.example.com/auth/apple/callback"
               />
             </div>
             <p className="text-xs text-slate-500 mt-3">

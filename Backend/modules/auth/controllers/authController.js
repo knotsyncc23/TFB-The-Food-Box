@@ -1202,6 +1202,23 @@ export const appleLogin = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/auth/apple/config
+ */
+export const getAppleConfig = asyncHandler(async (_req, res) => {
+  const clientId =
+    (await getEnvVar("APPLE_CLIENT_ID")) || process.env.APPLE_CLIENT_ID || "";
+  const redirectUri =
+    (await getEnvVar("APPLE_REDIRECT_URI")) ||
+    process.env.APPLE_REDIRECT_URI ||
+    "";
+
+  return successResponse(res, 200, "Apple config fetched successfully", {
+    clientId: clientId.trim(),
+    redirectUri: redirectUri.trim(),
+  });
+});
+
+/**
  * Initiate Google OAuth flow
  * GET /api/auth/google/:role
  */

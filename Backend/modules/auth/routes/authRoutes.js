@@ -12,6 +12,7 @@ import {
   googleCallback,
   firebaseGoogleLogin,
   appleLogin,
+  getAppleConfig,
   registerFcmToken,
   removeFcmToken,
 } from '../controllers/authController.js';
@@ -148,6 +149,7 @@ router.delete('/fcm-token', authenticate, mergeFcmQueryForBody, validate(fcmDele
 
 // Firebase Google login (using Firebase Auth ID token)
 router.post('/firebase/google-login', firebaseGoogleLogin);
+router.get('/apple/config', getAppleConfig);
 router.post('/apple', validate(appleLoginSchema), appleLogin);
 
 // Google OAuth routes
