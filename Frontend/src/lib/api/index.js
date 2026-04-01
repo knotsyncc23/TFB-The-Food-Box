@@ -584,6 +584,11 @@ export const restaurantAPI = {
     return apiClient.get(API_ENDPOINTS.RESTAURANT.ORDERS, { params });
   },
 
+  // Get restaurant review summary/list
+  getReviews: (params = {}) => {
+    return apiClient.get("/restaurant/reviews", { params });
+  },
+
   // Get order by ID
   getOrderById: (id) => {
     return apiClient.get(

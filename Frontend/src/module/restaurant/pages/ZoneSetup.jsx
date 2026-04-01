@@ -55,6 +55,35 @@ export default function ZoneSetup() {
     }, 300)
   }
 
+  const reverseGeocodeLocation = async (lat, lng) => {
+    const fallbackAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+
+    try {
+      const resp = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en&zoom=18`,
+        { headers: { 'User-Agent': 'Tifunbox-App/1.0' } }
+      )
+      const data = await resp.json()
+      const details = data?.address || {}
+
+      return {
+        address: data?.display_name || fallbackAddress,
+        area: details.suburb || details.neighbourhood || details.city_district || details.county || "",
+        city: details.city || details.town || details.village || "",
+        state: details.state || "",
+        pincode: details.postcode || "",
+      }
+    } catch {
+      return {
+        address: fallbackAddress,
+        area: "",
+        city: "",
+        state: "",
+        pincode: "",
+      }
+    }
+  }
+
   const applySelectionToMap = (lat, lng, address) => {
     setLocationSearch(address)
     setSelectedAddress(address)
@@ -68,12 +97,20 @@ export default function ZoneSetup() {
     }
   }
 
-  const handleSelectSuggestion = (suggestion) => {
+  const handleSelectSuggestion = async (suggestion) => {
     setSearchSuggestions([])
     const lat = parseFloat(suggestion.lat)
     const lng = parseFloat(suggestion.lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
-    applySelectionToMap(lat, lng, suggestion.name)
+
+    const exactLocation = await reverseGeocodeLocation(lat, lng)
+    applySelectionToMap(lat, lng, exactLocation.address || suggestion.name)
+    setSelectedLocation({
+      lat,
+      lng,
+      address: exactLocation.address || suggestion.name,
+      ...exactLocation,
+    })
   }
 
   // Load existing restaurant location when data is fetched
@@ -266,16 +303,11 @@ export default function ZoneSetup() {
       map.addListener('click', async (event) => {
         const lat = event.latLng.lat()
         const lng = event.latLng.lng()
-        let address = `${lat.toFixed(6)}, ${lng.toFixed(6)}`
-        try {
-          const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en&zoom=18`, { headers: { 'User-Agent': 'Tifunbox-App/1.0' } })
-          const data = await resp.json()
-          if (data?.display_name) address = data.display_name
-        } catch { /* use coordinate fallback */ }
-        setLocationSearch(address)
-        setSelectedAddress(address)
-        setSelectedLocation({ lat, lng, address })
-        updateMarker(lat, lng, address)
+        const exactLocation = await reverseGeocodeLocation(lat, lng)
+        setLocationSearch(exactLocation.address)
+        setSelectedAddress(exactLocation.address)
+        setSelectedLocation({ lat, lng, ...exactLocation })
+        updateMarker(lat, lng, exactLocation.address)
       })
 
       setMapLoading(false)
@@ -432,15 +464,10 @@ export default function ZoneSetup() {
     marker.addListener('dragend', async (event) => {
       const newLat = event.latLng.lat()
       const newLng = event.latLng.lng()
-      let newAddress = `${newLat.toFixed(6)}, ${newLng.toFixed(6)}`
-      try {
-        const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${newLat}&lon=${newLng}&addressdetails=1&accept-language=en&zoom=18`, { headers: { 'User-Agent': 'Tifunbox-App/1.0' } })
-        const data = await resp.json()
-        if (data?.display_name) newAddress = data.display_name
-      } catch { /* use coordinate fallback */ }
-      setLocationSearch(newAddress)
-      setSelectedAddress(newAddress)
-      setSelectedLocation({ lat: newLat, lng: newLng, address: newAddress })
+      const exactLocation = await reverseGeocodeLocation(newLat, newLng)
+      setLocationSearch(exactLocation.address)
+      setSelectedAddress(exactLocation.address)
+      setSelectedLocation({ lat: newLat, lng: newLng, ...exactLocation })
     })
 
     markerRef.current = marker
@@ -475,7 +502,7 @@ export default function ZoneSetup() {
     }
 
     try {
-      const { lat, lng, address } = selectedLocation
+      const { lat, lng, address, area, city, state, pincode } = selectedLocation
       const latNum = parseFloat(lat)
       const lngNum = parseFloat(lng)
 
@@ -495,10 +522,15 @@ export default function ZoneSetup() {
       const response = await restaurantAPI.updateProfile({
         location: {
           ...(restaurantData?.location || {}),
-          latitude: lat,
-          longitude: lng,
-          coordinates: [lng, lat], // GeoJSON format: [longitude, latitude]
-          formattedAddress: address
+          latitude: latNum,
+          longitude: lngNum,
+          coordinates: [lngNum, latNum], // GeoJSON format: [longitude, latitude]
+          formattedAddress: address,
+          address,
+          area: area || restaurantData?.location?.area || "",
+          city: city || restaurantData?.location?.city || "",
+          state: state || restaurantData?.location?.state || "",
+          pincode: pincode || restaurantData?.location?.pincode || "",
         }
       })
 

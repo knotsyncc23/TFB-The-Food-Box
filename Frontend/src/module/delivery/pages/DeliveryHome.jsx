@@ -10287,7 +10287,7 @@ export default function DeliveryHome() {
             </p>
           </div>
 
-          {/* Action Buttons - Call (customer), Chat, Map (navigation to customer) */}
+          {/* Action Buttons - Call and chat only once the rider has reached the drop */}
           <div className="flex gap-3 mb-6">
             <button
               type="button"
@@ -10320,38 +10320,6 @@ export default function DeliveryHome() {
             >
               <MessageCircle className="w-5 h-5 text-gray-700" />
               <span className="text-gray-700 font-medium">Chat</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const customerLat = selectedRestaurant?.customerLat
-                const customerLng = selectedRestaurant?.customerLng
-                if (customerLat != null && customerLng != null) {
-                  const userAgent = navigator.userAgent || navigator.vendor || window.opera
-                  const isAndroid = /android/i.test(userAgent)
-                  const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream
-                  if (isAndroid) {
-                    window.location.href = `google.navigation:q=${customerLat},${customerLng}&mode=b`
-                    setTimeout(() => {
-                      window.open(`https://www.google.com/maps/dir/?api=1&destination=${customerLat},${customerLng}&travelmode=bicycling`, '_blank')
-                    }, 500)
-                  } else if (isIOS) {
-                    window.location.href = `comgooglemaps://?daddr=${customerLat},${customerLng}&directionsmode=bicycling`
-                    setTimeout(() => {
-                      window.open(`https://maps.google.com/?daddr=${customerLat},${customerLng}&directionsmode=bicycling`, '_blank')
-                    }, 500)
-                  } else {
-                    window.open(`https://www.google.com/maps/dir/?api=1&destination=${customerLat},${customerLng}&travelmode=bicycling`, '_blank')
-                  }
-                  toast.success('Opening Google Maps navigation')
-                } else {
-                  toast.error('Customer location not available')
-                }
-              }}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              <MapPin className="w-5 h-5 text-white" />
-              <span className="text-white font-medium">Map</span>
             </button>
           </div>
 

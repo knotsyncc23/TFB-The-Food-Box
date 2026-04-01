@@ -41,6 +41,7 @@ import {
 import { authAPI } from "@/lib/api"
 import { firebaseAuth } from "@/lib/firebase"
 import { clearModuleAuth } from "@/lib/utils/auth"
+import { removeFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
 
 export default function Profile() {
   const { userProfile, vegMode, setVegMode } = useProfile()
@@ -186,6 +187,12 @@ export default function Profile() {
     setIsLoggingOut(true)
 
     try {
+      try {
+        await removeFcmTokenForLoggedInUser()
+      } catch (fcmError) {
+        console.warn("FCM token removal failed:", fcmError)
+      }
+
       // Call backend logout API to invalidate refresh token
       try {
         await authAPI.logout()

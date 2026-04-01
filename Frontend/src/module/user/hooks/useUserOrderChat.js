@@ -78,6 +78,16 @@ export function useUserOrderChat(orderId, options = {}) {
   }, [fetchChat]);
 
   useEffect(() => {
+    if (!orderId || !enabled) return undefined;
+
+    const interval = window.setInterval(() => {
+      fetchChat();
+    }, 10000);
+
+    return () => window.clearInterval(interval);
+  }, [orderId, enabled, fetchChat]);
+
+  useEffect(() => {
     if (!orderId || !enabled) return;
 
     const socket = io(backendUrl, {

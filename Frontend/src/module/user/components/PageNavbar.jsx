@@ -823,21 +823,21 @@ export default function PageNavbar({
     >
       <div className="flex items-center justify-between gap-2 sm:gap-3 md:gap-4 lg:gap-6 max-w-7xl mx-auto">
         {/* Left: Location - Hidden on desktop, shown on mobile */}
-        <div className="flex md:hidden items-center gap-3 sm:gap-4 min-w-0">
+        <div className="flex md:hidden flex-1 items-center gap-3 sm:gap-4 min-w-0">
           {/* Location Button */}
           <Button
             variant="ghost"
             onClick={handleLocationClick}
             disabled={loading}
-            className="h-auto px-0 py-0 hover:bg-transparent transition-colors flex-shrink-0"
+            className="h-auto min-w-0 max-w-full justify-start px-0 py-0 hover:bg-transparent transition-colors"
           >
             {loading ? (
               <span className={`text-sm font-bold ${textColorClass} ${textColor === "white" ? "drop-shadow-lg" : ""}`}>
                 Loading...
               </span>
             ) : (
-              <div className="flex flex-col items-start min-w-0 max-w-[210px] sm:max-w-[260px]">
-                <div className="flex items-center gap-1.5 min-w-0">
+              <div className="flex flex-col items-start min-w-0 max-w-[170px] sm:max-w-[220px]">
+                <div className="flex items-center gap-1.5 min-w-0 w-full">
                   <span className={`text-md sm:text-lg font-bold ${textColorClass} truncate ${textColor === "white" ? "drop-shadow-lg" : ""}`}>
                     {mainLocationName}
                   </span>
@@ -855,7 +855,7 @@ export default function PageNavbar({
         </div>
 
         {/* Center: Company Logo or Name - Show on all screen sizes; show nothing if no logo */}
-        <Link to="/" className="flex items-center justify-center">
+        <Link to="/" className="flex items-center justify-center flex-shrink-0">
           {logoUrl && logoUrl !== DEFAULT_LOGO_PLACEHOLDER && (
             <img
               src={logoUrl}

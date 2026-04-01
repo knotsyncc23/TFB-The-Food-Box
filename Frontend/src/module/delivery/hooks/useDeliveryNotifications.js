@@ -5,6 +5,7 @@ import { deliveryAPI } from '@/lib/api';
 import { addDeliveryNotification } from '../utils/deliveryNotifications';
 import alertSound from '@/assets/audio/alert.mp3';
 import originalSound from '@/assets/audio/original.mp3';
+import { toast } from 'sonner';
 
 export const useDeliveryNotifications = () => {
   // CRITICAL: All hooks must be called unconditionally and in the same order every render
@@ -14,6 +15,7 @@ export const useDeliveryNotifications = () => {
   const socketRef = useRef(null);
   const audioRef = useRef(null);
   const newOrderRef = useRef(null);
+  const lastKnownStatusRef = useRef(null);
 
   // Step 2: All state hooks (unconditional)
   const [newOrder, setNewOrder] = useState(null);
@@ -156,6 +158,58 @@ export const useDeliveryNotifications = () => {
     };
     fetchDeliveryPartnerId();
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const handleStatusRefresh = async (showApprovalToast = false) => {
+      try {
+        const response = await deliveryAPI.getCurrentDelivery();
+        if (!isMounted || !response.data?.success || !response.data.data) return;
+
+        const deliveryPartner = response.data.data.user || response.data.data.deliveryPartner;
+        const latestStatus = deliveryPartner?.status?.toLowerCase?.() || null;
+        if (!latestStatus) return;
+
+        const previousStatus = lastKnownStatusRef.current;
+        lastKnownStatusRef.current = latestStatus;
+        setDeliveryStatus(latestStatus);
+
+        if (
+          showApprovalToast &&
+          ['approved', 'active'].includes(latestStatus) &&
+          previousStatus &&
+          previousStatus !== latestStatus &&
+          !['approved', 'active'].includes(previousStatus)
+        ) {
+          addDeliveryNotification({
+            type: 'account',
+            title: 'Account approved',
+            message: 'Your delivery account has been approved. You can start receiving orders now.',
+            createdAt: new Date().toISOString(),
+            read: false,
+          });
+          playNotificationSound();
+          toast.success('Your delivery account is approved now.');
+          window.dispatchEvent(new Event('deliveryProfileRefresh'));
+        }
+      } catch (error) {
+        if (error?.response?.status !== 401) {
+          console.warn('Unable to refresh delivery approval status:', error?.message || error);
+        }
+      }
+    };
+
+    handleStatusRefresh(false);
+    const interval = window.setInterval(() => {
+      handleStatusRefresh(true);
+    }, 15000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(interval);
+    };
+  }, [playNotificationSound]);
 
   // Socket connection effect
   useEffect(() => {

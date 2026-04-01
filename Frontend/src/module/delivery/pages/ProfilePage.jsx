@@ -25,6 +25,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { deliveryAPI } from "@/lib/api"
 import { toast } from "sonner"
 import { clearModuleAuth } from "@/lib/utils/auth"
+import { firebaseAuth } from "@/lib/firebase"
+import { removeFcmTokenForDelivery } from "@/lib/notifications/fcmWeb"
 import alertSound from "@/assets/audio/alert.mp3"
 import originalSound from "@/assets/audio/original.mp3"
 
@@ -167,11 +169,26 @@ export default function ProfilePage() {
     }
 
     try {
+      try {
+        await removeFcmTokenForDelivery()
+      } catch (fcmError) {
+        console.warn("Delivery FCM token removal failed:", fcmError)
+      }
+
       // Call logout API to clear refresh token on server
       await deliveryAPI.logout()
     } catch (error) {
       console.error("Logout API error (continuing with local cleanup):", error)
       // Continue with local cleanup even if API call fails
+    }
+
+    try {
+      const { signOut } = await import("firebase/auth")
+      if (firebaseAuth?.currentUser) {
+        await signOut(firebaseAuth)
+      }
+    } catch (firebaseError) {
+      console.warn("Firebase logout failed, continuing with local cleanup:", firebaseError)
     }
 
     // Use utility function to clear module auth

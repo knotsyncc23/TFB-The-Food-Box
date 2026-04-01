@@ -85,6 +85,16 @@ export function useDeliveryOrderChat(orderId, options = {}) {
   }, [fetchChat]);
 
   useEffect(() => {
+    if (!orderId || !enabled) return undefined;
+
+    const interval = window.setInterval(() => {
+      fetchChat();
+    }, 10000);
+
+    return () => window.clearInterval(interval);
+  }, [orderId, enabled, fetchChat]);
+
+  useEffect(() => {
     if (!orderId || !enabled) return;
     const socket = io(backendUrl, { transports: ['websocket', 'polling'], path: '/socket.io/' });
     socketRef.current = socket;

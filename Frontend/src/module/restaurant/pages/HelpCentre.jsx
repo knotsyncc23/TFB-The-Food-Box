@@ -33,7 +33,7 @@ const helpTopics = [
     icon: Building2,
     title: "Restaurant",
     subtitle: "Timings, contacts, FSSAI, bank details, location etc.",
-    path: "/restaurant/outlet-info"
+    path: "/restaurant/manage-outlets"
   },
   {
     id: 5,

@@ -1007,7 +1007,7 @@ Order again from this restaurant in the ${companyName} app.`
                   rows={4}
                   value={feedbackText}
                   onChange={(e) => setFeedbackText(e.target.value)}
-                  className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E23744] focus:border-[#E23744] resize-none transition-all"
+                  className="w-full rounded-xl border-2 border-gray-200 px-4 py-3.5 text-sm leading-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E23744] focus:border-[#E23744] resize-none transition-all"
                   placeholder="What did you like or dislike about this order? Share your experience..."
                 />
                 <p className="text-xs text-gray-400 mt-1">Your feedback helps us improve our service</p>

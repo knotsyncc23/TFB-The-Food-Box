@@ -735,7 +735,7 @@ export default function UserOrderDetails() {
               rows={3}
               value={feedbackText}
               onChange={(e) => setFeedbackText(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E23744] focus:border-[#E23744] resize-none"
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm leading-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E23744] focus:border-[#E23744] resize-none"
               placeholder="Share what you liked or disliked (optional)"
             />
 

@@ -92,6 +92,49 @@ export default function AcceptedOrderDetails() {
   }
 
   const statusMessage = getDeliveryStatusMessage(orderStatus)
+  const restaurantLocation = order.restaurantId?.location || order.restaurant?.location || {}
+  const restaurantCoordinates = Array.isArray(restaurantLocation.coordinates)
+    ? {
+        lat: restaurantLocation.coordinates[1],
+        lng: restaurantLocation.coordinates[0],
+      }
+    : {
+        lat: order.restaurantLat ?? order.restaurant?.lat,
+        lng: order.restaurantLng ?? order.restaurant?.lng,
+      }
+
+  const restaurantAddress = (
+    order.restaurantId?.address ||
+    order.restaurant?.address ||
+    restaurantLocation.formattedAddress ||
+    restaurantLocation.address ||
+    [
+      restaurantLocation.addressLine1,
+      restaurantLocation.addressLine2,
+      restaurantLocation.street,
+      restaurantLocation.area,
+      restaurantLocation.city,
+      restaurantLocation.state,
+      restaurantLocation.pincode || restaurantLocation.zipCode || restaurantLocation.postalCode,
+    ]
+      .filter(Boolean)
+      .join(", ")
+  ) || "Restaurant address not available"
+
+  const openMapLocation = (lat, lng, address, fallbackLabel) => {
+    if (lat != null && lng != null && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng))) {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, "_blank")
+      return
+    }
+
+    const trimmedAddress = String(address || "").trim()
+    if (trimmedAddress) {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmedAddress)}`, "_blank")
+      return
+    }
+
+    toast.error(`${fallbackLabel} location not available`)
+  }
 
   // Map backend order to frontend orderData structure
   const orderData = {
@@ -105,9 +148,9 @@ export default function AcceptedOrderDetails() {
       image: order.userId?.image || "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=100&h=100&fit=crop&q=80"
     },
     restaurant: {
-      name: order.restaurantName || order.restaurant?.name || "Restaurant",
-      address: order.restaurant?.address || "Restaurant Address",
-      rating: order.restaurant?.rating || 4.0
+      name: order.restaurantName || order.restaurantId?.name || order.restaurant?.name || "Restaurant",
+      address: restaurantAddress,
+      rating: order.restaurantId?.rating || order.restaurant?.rating || 4.0
     },
     items: order.items?.map((item, idx) => ({
       id: item.itemId || idx,
@@ -204,8 +247,23 @@ export default function AcceptedOrderDetails() {
                 </button>
                 <button
                   onClick={() => {
-                    const address = encodeURIComponent(orderData.customer.address)
-                    window.open(`https://www.google.com/maps/search/?api=1&query=${address}`, '_blank')
+                    const customerLocation = order.address?.location
+                    const coords = Array.isArray(customerLocation?.coordinates)
+                      ? {
+                          lat: customerLocation.coordinates[1],
+                          lng: customerLocation.coordinates[0],
+                        }
+                      : {
+                          lat: order.customerLat,
+                          lng: order.customerLng,
+                        }
+
+                    openMapLocation(
+                      coords.lat,
+                      coords.lng,
+                      orderData.customer.address,
+                      "Customer",
+                    )
                   }}
                   className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                 >
@@ -235,7 +293,11 @@ export default function AcceptedOrderDetails() {
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <button
                   onClick={() => {
-                    const phone = order.restaurant?.phone || order.restaurantPhone;
+                    const phone =
+                      order.restaurantId?.phone ||
+                      order.restaurantId?.ownerPhone ||
+                      order.restaurant?.phone ||
+                      order.restaurantPhone
                     if (phone) window.open(`tel:${phone}`, '_self');
                     else toast.error("Phone number not available");
                   }}
@@ -245,8 +307,12 @@ export default function AcceptedOrderDetails() {
                 </button>
                 <button
                   onClick={() => {
-                    const address = encodeURIComponent(orderData.restaurant.address)
-                    window.open(`https://www.google.com/maps/search/?api=1&query=${address}`, '_blank')
+                    openMapLocation(
+                      restaurantCoordinates.lat,
+                      restaurantCoordinates.lng,
+                      orderData.restaurant.address,
+                      "Restaurant",
+                    )
                   }}
                   className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
                 >

@@ -318,7 +318,7 @@ export const getRestaurants = async (req, res) => {
     }
 
     // Build query
-    const query = { isActive: true };
+    const query = { isActive: true, isAcceptingOrders: true };
 
     // Cuisine filter
     if (cuisine) {
@@ -546,6 +546,7 @@ export const getRestaurantById = async (req, res) => {
     // Build query conditions - only include _id if it's a valid ObjectId
     const queryConditions = {
       isActive: true,
+      isAcceptingOrders: true,
     };
 
     const orConditions = [{ restaurantId: id }, { slug: id }];

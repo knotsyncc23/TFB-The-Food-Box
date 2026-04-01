@@ -2883,10 +2883,10 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-gray-900 dark:text-white">
+                              <p className="font-semibold text-gray-900 dark:text-white truncate">
                                 {address.label || address.additionalDetails || "Home"}
                               </p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                              <p className="text-sm text-gray-500 dark:text-gray-400 break-words line-clamp-2">
                                 {[
                                   address.additionalDetails,
                                   address.street,
@@ -2895,7 +2895,7 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
                                   address.zipCode
                                 ].filter(Boolean).join(", ")}
                               </p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                                 Phone number: {address.phone || userProfile?.phone || "Not provided"}
                               </p>
                             </div>

@@ -276,7 +276,7 @@ export default function RestaurantOnboarding() {
         if (!s.fssaiExpiry?.trim()) return "FSSAI expiry date is required"
       {
         const expDate = new Date(s.fssaiExpiry + "T12:00:00")
-        if (expDate < new Date()) return "FSSAI expiry date must be in the future"
+        if (expDate < getTodayDateOnly()) return "FSSAI expiry date must be today or a future date"
         return ""
       }
       case "fssaiImage":
@@ -696,8 +696,8 @@ export default function RestaurantOnboarding() {
       errors.push("FSSAI expiry date is required")
     } else {
       const expDate = new Date(step3.fssaiExpiry + "T12:00:00")
-      if (expDate < new Date()) {
-        errors.push("FSSAI expiry date must be in the future")
+      if (expDate < getTodayDateOnly()) {
+        errors.push("FSSAI expiry date must be today or a future date")
       }
     }
     // Validate FSSAI image - must be a File or existing URL
@@ -717,6 +717,8 @@ export default function RestaurantOnboarding() {
     if (step3.gstRegistered) {
       if (!step3.gstNumber?.trim()) {
         errors.push("GST number is required when GST registered")
+      } else if (!/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[A-Z0-9]Z[A-Z0-9]$/.test(step3.gstNumber.trim().toUpperCase())) {
+        errors.push("GST number format is invalid")
       }
       if (!step3.gstLegalName?.trim()) {
         errors.push("GST legal name is required when GST registered")
@@ -1178,12 +1180,17 @@ export default function RestaurantOnboarding() {
             <Label className="text-xs text-gray-700">Full name*</Label>
             <Input
               value={step1.ownerName || ""}
-              onChange={(e) =>
+              onChange={(e) => {
+                const sanitizedName = e.target.value
+                  .replace(/[^a-zA-Z\s]/g, "")
+                  .replace(/\s{2,}/g, " ")
+                  .replace(/^\s+/, "")
+
                 setStep1({
                   ...step1,
-                  ownerName: e.target.value.replace(/[^a-zA-Z\s]/g, ""),
+                  ownerName: sanitizedName,
                 })
-              }
+              }}
               className="mt-1 bg-white text-sm text-black placeholder-black"
               placeholder="Owner full name"
             />
@@ -1580,7 +1587,12 @@ export default function RestaurantOnboarding() {
               <Input
                 value={step3.gstNumber || ""}
                 onChange={(e) => {
-                  setStep3({ ...step3, gstNumber: e.target.value })
+                  const formattedGst = e.target.value
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, "")
+                    .slice(0, 15)
+
+                  setStep3({ ...step3, gstNumber: formattedGst })
                   if (step3Errors.gstNumber) setStep3Errors((p) => ({ ...p, gstNumber: null }))
                 }}
                 onBlur={() => handleStep3Blur("gstNumber")}

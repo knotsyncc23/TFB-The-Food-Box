@@ -93,32 +93,32 @@ export default function DesktopNavbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Left: Location */}
-            <div className="flex items-center gap-3 lg:gap-4 min-w-0">
+            <div className="flex items-center gap-3 lg:gap-4 min-w-0 flex-1 max-w-[320px] lg:max-w-[420px]">
               <Button
                 variant="ghost"
                 onClick={handleLocationClick}
                 disabled={locationLoading}
-                className="h-auto px-0 py-0 hover:bg-transparent transition-colors flex-shrink-0"
+                className="h-auto min-w-0 max-w-full justify-start px-0 py-0 hover:bg-transparent transition-colors"
               >
                 {locationLoading ? (
                   <span className="text-sm font-bold text-black">
                     Loading...
                   </span>
                 ) : (
-                  <div className="flex flex-col items-start min-w-0">
-                    <div className="flex items-center gap-1.5 lg:gap-2">
+                  <div className="flex flex-col items-start min-w-0 max-w-full">
+                    <div className="flex items-center gap-1.5 lg:gap-2 min-w-0 max-w-full">
                       <FaLocationDot
                         className="h-5 w-5 lg:h-6 lg:w-6 text-black flex-shrink-0"
                         fill="black"
                         strokeWidth={2}
                       />
-                      <span className="text-sm lg:text-base font-bold text-black whitespace-nowrap">
+                      <span className="text-sm lg:text-base font-bold text-black truncate min-w-0">
                         {mainLocationName}
                       </span>
                       <ChevronDown className="h-4 w-4 lg:h-5 lg:w-5 text-black flex-shrink-0" strokeWidth={2.5} />
                     </div>
                     {secondaryLocation && (
-                      <span className="text-xs lg:text-sm font-bold text-black mt-0.5 whitespace-nowrap">
+                      <span className="text-xs lg:text-sm font-bold text-black mt-0.5 truncate w-full">
                         {secondaryLocation}
                       </span>
                     )}

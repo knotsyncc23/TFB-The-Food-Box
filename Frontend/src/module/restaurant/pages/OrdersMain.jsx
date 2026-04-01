@@ -1739,6 +1739,17 @@ export default function OrdersMain() {
                     </div>
                   )}
 
+                  {(popupOrder || newOrder)?.note && (
+                    <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                        Customer note
+                      </p>
+                      <p className="mt-1 text-sm text-amber-900 break-words">
+                        {(popupOrder || newOrder)?.note}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Total bill */}
                   <div className="mb-4 flex items-center justify-between py-3 border-y border-gray-200">
                     <div className="flex items-center gap-2">
@@ -1822,7 +1833,18 @@ export default function OrdersMain() {
 
                 {/* Footer */}
                 <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
-                  <button className="text-sm text-gray-600 hover:text-gray-900 transition-colors underline mx-auto block">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate("/restaurant/help-centre", {
+                        state: {
+                          orderId: (popupOrder || newOrder)?.orderId || null,
+                          source: "order-popup",
+                        },
+                      })
+                    }
+                    className="text-sm text-gray-600 hover:text-gray-900 transition-colors underline mx-auto block"
+                  >
                     Need help with this order?
                   </button>
                 </div>
