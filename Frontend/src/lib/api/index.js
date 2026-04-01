@@ -181,6 +181,11 @@ export const userAPI = {
     return apiClient.get(API_ENDPOINTS.USER.PROFILE);
   },
 
+  // Delete user account
+  deleteAccount: () => {
+    return apiClient.delete(API_ENDPOINTS.USER.PROFILE);
+  },
+
   // Get user notifications
   getNotifications: (params = {}) => {
     return apiClient.get(API_ENDPOINTS.USER.NOTIFICATIONS, { params });
@@ -942,6 +947,10 @@ export const deliveryAPI = {
   },
   getCurrentDelivery: () => {
     return apiClient.get(API_ENDPOINTS.DELIVERY.AUTH.ME);
+  },
+
+  deleteAccount: () => {
+    return apiClient.delete(API_ENDPOINTS.DELIVERY.PROFILE);
   },
 
   // Register / refresh FCM token for authenticated delivery partner

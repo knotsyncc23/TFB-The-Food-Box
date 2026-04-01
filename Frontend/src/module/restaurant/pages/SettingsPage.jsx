@@ -12,6 +12,7 @@ import {
   Sun,
   Info,
   LogOut,
+  Trash2,
   Lock,
   Mail,
   Phone,
@@ -23,12 +24,19 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import BottomNavbar from "../components/BottomNavbar"
 import MenuOverlay from "../components/MenuOverlay"
+import { restaurantAPI } from "@/lib/api"
+import { clearModuleAuth } from "@/lib/utils/auth"
+import { firebaseAuth } from "@/lib/firebase"
+import { removeFcmTokenForRestaurant } from "@/lib/notifications/fcmWeb"
+import { toast } from "sonner"
 
 export default function SettingsPage() {
   const navigate = useNavigate()
   const [showMenu, setShowMenu] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [darkMode, setDarkMode] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
 
   // Lenis smooth scrolling
   useEffect(() => {
@@ -49,6 +57,81 @@ export default function SettingsPage() {
       lenis.destroy()
     }
   }, [])
+
+  const completeRestaurantSignOut = async () => {
+    try {
+      const { signOut } = await import("firebase/auth")
+      if (firebaseAuth?.currentUser) {
+        await signOut(firebaseAuth)
+      }
+    } catch (firebaseError) {
+      console.warn("Firebase logout failed for restaurant cleanup:", firebaseError)
+    }
+
+    clearModuleAuth("restaurant")
+    localStorage.removeItem("restaurant_onboarding")
+    localStorage.removeItem("restaurant_invited_users")
+    sessionStorage.removeItem("restaurantAuthData")
+    window.dispatchEvent(new Event("restaurantAuthChanged"))
+  }
+
+  const handleLogout = async () => {
+    if (isLoggingOut || isDeletingAccount) return
+    if (!window.confirm("Are you sure you want to logout?")) return
+
+    setIsLoggingOut(true)
+    try {
+      try {
+        await removeFcmTokenForRestaurant()
+      } catch (fcmError) {
+        console.warn("Restaurant FCM token removal failed:", fcmError)
+      }
+
+      try {
+        await restaurantAPI.logout()
+      } catch (apiError) {
+        console.warn("Restaurant logout API failed, continuing with cleanup:", apiError)
+      }
+
+      await completeRestaurantSignOut()
+      toast.success("Logged out successfully")
+      navigate("/restaurant/login", { replace: true })
+    } catch (error) {
+      console.error("Error during restaurant logout:", error)
+      await completeRestaurantSignOut()
+      navigate("/restaurant/login", { replace: true })
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (isDeletingAccount || isLoggingOut) return
+    if (!window.confirm("Are you sure you want to delete your restaurant account? This action cannot be undone.")) return
+
+    setIsDeletingAccount(true)
+    try {
+      try {
+        await removeFcmTokenForRestaurant()
+      } catch (fcmError) {
+        console.warn("Restaurant FCM token removal failed before account deletion:", fcmError)
+      }
+
+      await restaurantAPI.deleteAccount()
+      await completeRestaurantSignOut()
+      toast.success("Account deleted successfully")
+      navigate("/restaurant/welcome", { replace: true })
+    } catch (error) {
+      console.error("Error deleting restaurant account:", error)
+      toast.error(
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to delete account",
+      )
+    } finally {
+      setIsDeletingAccount(false)
+    }
+  }
 
   // Settings sections
   const settingsSections = [
@@ -82,10 +165,20 @@ export default function SettingsPage() {
       id: "actions",
       title: "Actions",
       items: [
-        { id: "logout", label: "Logout", icon: LogOut, isDestructive: true, action: () => {
-          console.log("Logout clicked")
-          // Add logout logic here
-        } },
+        {
+          id: "delete-account",
+          label: isDeletingAccount ? "Deleting account..." : "Delete account",
+          icon: Trash2,
+          isDestructive: true,
+          action: handleDeleteAccount,
+        },
+        {
+          id: "logout",
+          label: isLoggingOut ? "Logging out..." : "Logout",
+          icon: LogOut,
+          isDestructive: true,
+          action: handleLogout,
+        },
       ]
     }
   ]

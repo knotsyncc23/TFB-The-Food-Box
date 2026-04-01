@@ -799,11 +799,34 @@ export default function PageNavbar({
     .map((part) => part.trim())
     .filter(Boolean)
 
+  const shortenLocationPart = (value, maxLength = 24) => {
+    if (!value) return ""
+    if (value.length <= maxLength) return value
+    return `${value.slice(0, maxLength).trim()}...`
+  }
+
+  const compactMainLocationName = (() => {
+    const firstPart = activeLocationParts[0] || locationDisplay.main || "Select location"
+    return shortenLocationPart(firstPart, 22)
+  })()
+
   const mainLocationName =
     activeLocationParts.slice(0, 2).join(", ") ||
     locationDisplay.main ||
     "Select location"
   const subLocationName = activeLocationParts.slice(2).join(", ")
+
+  const compactSubLocationName = (() => {
+    const secondPart = activeLocationParts[1]
+    const fallback =
+      secondPart ||
+      location?.area ||
+      location?.city ||
+      subLocationName ||
+      ""
+
+    return shortenLocationPart(fallback, 28)
+  })()
 
   const handleLocationClick = () => {
     // Open location selector overlay
@@ -836,17 +859,17 @@ export default function PageNavbar({
                 Loading...
               </span>
             ) : (
-              <div className="flex flex-col items-start min-w-0 max-w-[170px] sm:max-w-[220px]">
+              <div className="flex flex-col items-start min-w-0 max-w-[120px] sm:max-w-[150px]">
                 <div className="flex items-center gap-1.5 min-w-0 w-full">
                   <span className={`text-md sm:text-lg font-bold ${textColorClass} truncate ${textColor === "white" ? "drop-shadow-lg" : ""}`}>
-                    {mainLocationName}
+                    {compactMainLocationName}
                   </span>
                   <ChevronDown className={`h-4 w-4 sm:h-5 sm:w-5 ${textColorClass} flex-shrink-0 ${textColor === "white" ? "drop-shadow-lg" : ""}`} strokeWidth={2.5} />
                 </div>
                 {/* Show sub location (city, state) in second line */}
-                {subLocationName && (
+                {compactSubLocationName && (
                   <span className={`text-xs font-bold ${textColorClass}${textColor === "white" ? "/90" : ""} truncate mt-0.5 ${textColor === "white" ? "drop-shadow-md" : ""}`}>
-                    {subLocationName}
+                    {compactSubLocationName}
                   </span>
                 )}
               </div>

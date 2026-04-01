@@ -11,9 +11,13 @@ import {
   ChevronRight,
   HelpCircle,
   X,
+  MoreVertical,
+  Trash2,
 } from "lucide-react"
 import { DateRangeCalendar } from "@/components/ui/date-range-calendar"
 import { restaurantAPI } from "@/lib/api"
+import { toast } from "sonner"
+import { getHiddenOrderIds, hideOrderId } from "@/lib/utils/orderVisibility"
 
 // Mock order data matching the image (fallback)
 const mockOrders = [
@@ -259,6 +263,8 @@ export default function AllOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [restaurantData, setRestaurantData] = useState(null)
+  const [activeMenuOrderId, setActiveMenuOrderId] = useState(null)
+  const [hiddenOrderIds, setHiddenOrderIds] = useState(() => new Set(getHiddenOrderIds("restaurant")))
 
   // Fetch restaurant data
   useEffect(() => {
@@ -465,6 +471,21 @@ export default function AllOrdersPage() {
     setTimeout(() => setShowToast(false), 2000)
   }
 
+  const handleDeleteOrder = (order, e) => {
+    e.stopPropagation()
+
+    const orderId = String(order.id || order.orderId || "")
+    if (!orderId) return
+
+    const confirmed = window.confirm(`Do you want to delete order #${orderId}?`)
+    if (!confirmed) return
+
+    const nextHiddenOrderIds = hideOrderId("restaurant", orderId)
+    setHiddenOrderIds(new Set(nextHiddenOrderIds))
+    setActiveMenuOrderId(null)
+    toast.success("Order deleted from your list")
+  }
+
   const handleFilterToggle = (option) => {
     const key = option.key
     const value = option.id
@@ -532,6 +553,9 @@ export default function AllOrdersPage() {
   }
 
   const filteredOrders = orders.filter(order => {
+    const orderId = String(order.id || order.orderId || "")
+    if (hiddenOrderIds.has(orderId)) return false
+
     // Search filter - search in order ID (both full ID and numeric part)
     if (searchQuery) {
       const searchLower = searchQuery.toLowerCase().trim().replace(/\s/g, "")
@@ -723,9 +747,64 @@ export default function AllOrdersPage() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">{order.date}, {order.time}</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setActiveMenuOrderId(current => current === order.id ? null : order.id)
+                  }}
+                  className="rounded-full p-1 hover:bg-gray-100 transition-colors"
+                  aria-label="Order actions"
+                >
+                  <MoreVertical className="w-4 h-4 text-gray-500" />
+                </button>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </div>
             </div>
+
+            {activeMenuOrderId === order.id && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Close order actions"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setActiveMenuOrderId(null)
+                  }}
+                  className="fixed inset-0 z-30 bg-black/30"
+                />
+                <div
+                  className="fixed inset-x-0 bottom-0 z-40 rounded-t-3xl bg-white px-4 pb-6 pt-3 shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-300" />
+                  <div className="mb-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{order.restaurant}</p>
+                      <p className="text-xs text-gray-500">Order #{order.id}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveMenuOrderId(null)
+                      }}
+                      className="rounded-full p-2 hover:bg-gray-100"
+                    >
+                      <X className="h-5 w-5 text-gray-500" />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteOrder(order, e)}
+                    className="flex w-full items-center justify-between rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-100"
+                  >
+                    Delete order
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </>
+            )}
 
             {/* Order ID */}
             <div className="flex items-center gap-2 mb-2">

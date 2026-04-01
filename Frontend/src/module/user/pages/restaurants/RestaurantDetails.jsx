@@ -655,8 +655,7 @@ export default function RestaurantDetails() {
         restaurantName: restaurant?.name || "",
         restaurantSlug: restaurant?.slug || slug || "",
         foodType: item.foodType,
-        isSpicy: item.isSpicy,
-        customisable: item.customisable,
+                customisable: item.customisable,
       }
       addDishFavorite(dishData)
       toast.success("Dish added to favorites")
@@ -1311,7 +1310,7 @@ export default function RestaurantDetails() {
                           >
                             {/* Left Side - Details */}
                             <div className="flex-1 min-w-0">
-                              {/* Veg Icon & Spicy Indicator */}
+                              {/* Veg icon */}
                               <div className="flex items-center gap-2 mb-1">
                                 {isVeg ? (
                                   <div className="w-4 h-4 border-2 border-green-600 dark:border-green-500 flex items-center justify-center rounded-sm flex-shrink-0">
@@ -1322,7 +1321,6 @@ export default function RestaurantDetails() {
                                     <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
                                   </div>
                                 )}
-                                {item.isSpicy && <span className="text-red-500">🌶️</span>}
                               </div>
 
                               <h3 className="font-bold text-gray-800 dark:text-white text-lg leading-tight">{item.name}</h3>
@@ -1524,7 +1522,7 @@ export default function RestaurantDetails() {
                                     >
                                       {/* Left Side - Details */}
                                       <div className="flex-1 min-w-0">
-                                        {/* Veg Icon & Spicy Indicator */}
+                                        {/* Veg icon */}
                                         <div className="flex items-center gap-2 mb-1">
                                           {isVeg ? (
                                             <div className="w-4 h-4 border-2 border-green-600 dark:border-green-500 flex items-center justify-center rounded-sm flex-shrink-0">
@@ -1535,7 +1533,6 @@ export default function RestaurantDetails() {
                                               <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
                                             </div>
                                           )}
-                                          {item.isSpicy && <span className="text-red-500">🌶️</span>}
                                         </div>
 
                                         <h3 className="font-bold text-gray-800 dark:text-white text-lg leading-tight">{item.name}</h3>
@@ -1924,7 +1921,6 @@ export default function RestaurantDetails() {
                     </div>
 
                     {/* Dietary preference */}
-                    {/* Spicy filter removed (was causing UI confusion and extra filtering logic) */}
                     </div>
 
                   {/* Bottom Action Bar */}
@@ -2865,3 +2861,4 @@ export default function RestaurantDetails() {
     </AnimatedPage>
   )
 }
+

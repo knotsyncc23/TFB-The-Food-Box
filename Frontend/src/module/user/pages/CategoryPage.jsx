@@ -19,6 +19,7 @@ import { useZone } from "../hooks/useZone"
 import { useCart } from "../context/CartContext"
 import { isModuleAuthenticated } from "@/lib/utils/auth"
 import StickyCartCard from "../components/StickyCartCard"
+import { filterCategoriesByVegMode } from "@/lib/utils/categoryDietary"
 
 // Filter options
 const filterOptions = [
@@ -72,14 +73,17 @@ export default function CategoryPage() {
           const categoriesArray = response.data.data.categories
 
           // Transform API categories to match expected format
+          const visibleCategories = filterCategoriesByVegMode(categoriesArray, vegMode)
+
           const transformedCategories = [
             { id: 'all', name: "All", image: offerImage, slug: 'all' },
-            ...categoriesArray.map((cat) => ({
+            ...visibleCategories.map((cat) => ({
               id: cat.slug || cat.id,
               name: cat.name,
               image: cat.image || foodImages[0],
               slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-'),
               type: cat.type,
+              foodPreference: cat.foodPreference || "all",
             }))
           ]
 
@@ -87,7 +91,7 @@ export default function CategoryPage() {
 
           // Generate category keywords dynamically from category names
           const keywordsMap = {}
-          categoriesArray.forEach((cat) => {
+          visibleCategories.forEach((cat) => {
             const categoryId = cat.slug || cat.id
             const categoryName = cat.name.toLowerCase()
 
@@ -111,7 +115,7 @@ export default function CategoryPage() {
     }
 
     fetchCategories()
-  }, [])
+  }, [vegMode])
 
   // When a category is selected (including from homepage redirect),
   // auto-scroll the horizontal list so the selected category appears first in view.
@@ -426,6 +430,19 @@ export default function CategoryPage() {
       setSelectedCategory(category.toLowerCase())
     }
   }, [category, categories])
+
+  useEffect(() => {
+    if (!categories.length) return
+    const selectedStillVisible = categories.some((cat) => {
+      const categorySlug = cat.slug || cat.id
+      return categorySlug === selectedCategory || cat.id === selectedCategory
+    })
+
+    if (!selectedStillVisible) {
+      setSelectedCategory('all')
+      navigate('/user/category/all', { replace: true })
+    }
+  }, [categories, navigate, selectedCategory])
 
   const toggleFilter = (filterId) => {
     setActiveFilters(prev => {

@@ -16,6 +16,11 @@ const adminCategoryManagementSchema = new mongoose.Schema(
       trim: true,
       enum: ['Starters', 'Main course', 'Desserts', 'Beverages', 'Varieties'],
     },
+    foodPreference: {
+      type: String,
+      enum: ['all', 'veg', 'non-veg'],
+      default: 'all',
+    },
     priority: {
       type: String,
       enum: ['High', 'Normal', 'Low'],
@@ -47,6 +52,7 @@ const adminCategoryManagementSchema = new mongoose.Schema(
 adminCategoryManagementSchema.index({ name: 1 });
 adminCategoryManagementSchema.index({ status: 1 });
 adminCategoryManagementSchema.index({ priority: 1 });
+adminCategoryManagementSchema.index({ foodPreference: 1 });
 adminCategoryManagementSchema.index({ createdAt: -1 });
 
 // Virtual for serial number (for display purposes)

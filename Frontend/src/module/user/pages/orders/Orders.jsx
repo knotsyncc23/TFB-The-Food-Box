@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { ArrowLeft, Search, MoreVertical, ChevronRight, Star, RotateCcw, AlertCircle, Loader2, Clock } from "lucide-react"
+import { ArrowLeft, Search, MoreVertical, ChevronRight, Star, RotateCcw, AlertCircle, Loader2, Clock, Trash2, X } from "lucide-react"
 import { orderAPI, api, API_ENDPOINTS } from "@/lib/api"
 import { toast } from "sonner"
 import { getCompanyNameAsync } from "@/lib/utils/businessSettings"
 import { shareContent } from "@/lib/utils/share"
+import { getHiddenOrderIds, hideOrderId } from "@/lib/utils/orderVisibility"
 
 export default function Orders() {
   const navigate = useNavigate()
@@ -26,6 +27,7 @@ export default function Orders() {
       return new Set()
     }
   })
+  const [hiddenOrderIds, setHiddenOrderIds] = useState(() => new Set(getHiddenOrderIds("user")))
   
   // Save to localStorage whenever shownRatingForOrders changes
   useEffect(() => {
@@ -360,6 +362,9 @@ export default function Orders() {
 
   // Filter orders based on search query
   const filteredOrders = orders.filter(order => {
+    const orderId = String(order.id || order.orderId || order.mongoId || "")
+    if (hiddenOrderIds.has(orderId)) return false
+
     if (!searchQuery.trim()) return true
     
     const query = searchQuery.toLowerCase()
@@ -414,6 +419,19 @@ Order again from this restaurant in the ${companyName} app.`
   const handleViewOrderDetails = (order) => {
     setActiveMenuOrderId(null)
     navigate(`/user/orders/${order.id}/details`)
+  }
+
+  const handleDeleteOrder = (order) => {
+    const orderId = String(order.id || order.orderId || order.mongoId || "")
+    if (!orderId) return
+
+    const confirmed = window.confirm(`Do you want to delete order #${order.orderId || orderId}?`)
+    if (!confirmed) return
+
+    const nextHiddenOrderIds = hideOrderId("user", orderId)
+    setHiddenOrderIds(new Set(nextHiddenOrderIds))
+    setActiveMenuOrderId(null)
+    toast.success("Order deleted from your list")
   }
 
   // Open rating modal for an order
@@ -663,24 +681,56 @@ Order again from this restaurant in the ${companyName} app.`
                   </button>
                 </div>
 
-                {/* Three-dots dropdown menu */}
+                {/* Order action sheet */}
                 {activeMenuOrderId === order.id && (
-                  <div className="absolute right-3 top-10 z-20 w-40 rounded-xl bg-white shadow-lg border border-gray-100 py-1 text-xs">
+                  <>
                     <button
                       type="button"
-                      onClick={() => handleShareRestaurant(order)}
-                      className="w-full text-left px-3 py-2 hover:bg-gray-50 text-gray-800"
-                    >
-                      Share restaurant
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleViewOrderDetails(order)}
-                      className="w-full text-left px-3 py-2 hover:bg-gray-50 text-gray-800"
-                    >
-                      Order details
-                    </button>
-                  </div>
+                      aria-label="Close order actions"
+                      onClick={() => setActiveMenuOrderId(null)}
+                      className="fixed inset-0 z-30 bg-black/30"
+                    />
+                    <div className="fixed inset-x-0 bottom-0 z-40 rounded-t-3xl bg-white px-4 pb-6 pt-3 shadow-2xl">
+                      <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-300" />
+                      <div className="mb-4 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">{order.restaurant}</p>
+                          <p className="text-xs text-gray-500">Order #{order.orderId || order.id}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveMenuOrderId(null)}
+                          className="rounded-full p-2 hover:bg-gray-100"
+                        >
+                          <X className="h-5 w-5 text-gray-500" />
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => handleShareRestaurant(order)}
+                          className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-left text-sm font-medium text-gray-800 hover:bg-gray-50"
+                        >
+                          Share restaurant
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleViewOrderDetails(order)}
+                          className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-left text-sm font-medium text-gray-800 hover:bg-gray-50"
+                        >
+                          Order details
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteOrder(order)}
+                          className="flex w-full items-center justify-between rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-100"
+                        >
+                          Delete order
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 {/* Separator */}

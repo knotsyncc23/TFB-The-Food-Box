@@ -359,10 +359,6 @@ export default function ItemDetailsPage() {
       tags: ["Freshly Frosted", "Pre Frosted", "Chef's Special"]
     },
     {
-      category: "Spice Level",
-      tags: ["Medium Spicy", "Very Spicy"]
-    },
-    {
       category: "Miscellaneous",
       tags: ["Gluten Free", "Sugar Free", "Jain"]
     },
@@ -1498,3 +1494,4 @@ export default function ItemDetailsPage() {
     </div>
   )
 }
+

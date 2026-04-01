@@ -18,8 +18,11 @@ import OptimizedImage from "@/components/OptimizedImage"
 import api from "@/lib/api"
 import { restaurantAPI } from "@/lib/api"
 import { isModuleAuthenticated } from "@/lib/utils/auth"
+import { useProfile } from "../context/ProfileContext"
+import { filterCategoriesByVegMode } from "@/lib/utils/categoryDietary"
 
 export default function Under250() {
+  const { vegMode } = useProfile()
   const { location } = useLocation()
   const { zoneId, zoneStatus, isInService, isOutOfService } = useZone(location)
   const navigate = useNavigate()
@@ -209,11 +212,12 @@ export default function Under250() {
         setLoadingCategories(true)
         const response = await api.get('/categories/public')
         if (response.data.success && response.data.data.categories) {
-          const adminCategories = response.data.data.categories.map(cat => ({
+          const adminCategories = filterCategoriesByVegMode(response.data.data.categories, vegMode).map(cat => ({
             id: cat.id,
             name: cat.name,
             image: cat.image || foodImages[0], // Fallback to default image if not provided
-            slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-')
+            slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-'),
+            foodPreference: cat.foodPreference || "all",
           }))
           setCategories(adminCategories)
         } else {
@@ -241,7 +245,7 @@ export default function Under250() {
     }
 
     fetchCategories()
-  }, [])
+  }, [vegMode])
 
   // Sync quantities from cart (sum by base item id so variants of same dish show total)
   useEffect(() => {

@@ -8,12 +8,15 @@ import { setAuthData } from "@/lib/utils/auth"
 import { registerFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
 import { authAPI } from "@/lib/api"
 import { firebaseAuth, ensureFirebaseInitialized } from "@/lib/firebase"
+import { resolveFirebaseRedirectUser } from "@/lib/utils/firebaseRedirectRecovery"
+import { appendAppleDebugLog, getAppleDebugLog } from "@/lib/utils/appleDebugLog"
 
 const redirectToUserHome = () => {
   window.location.replace("/")
 }
 
 const logAppleCallback = (message, details = null) => {
+  appendAppleDebugLog(message, details)
   if (details) {
     console.log(`[AppleCallback] ${message}`, details)
     return
@@ -27,10 +30,16 @@ export default function AuthCallback() {
   const [status, setStatus] = useState("loading") // "loading", "success", "error"
   const [error, setError] = useState("")
   const [provider, setProvider] = useState("")
+  const [appleDebugEntries, setAppleDebugEntries] = useState(() => getAppleDebugLog())
 
   useEffect(() => {
+    const syncAppleLogs = () => {
+      setAppleDebugEntries(getAppleDebugLog())
+    }
+
     const handleAuthCallback = async () => {
       try {
+        syncAppleLogs()
         // Get provider from URL params
         const providerParam =
           searchParams.get("provider") ||
@@ -71,18 +80,27 @@ export default function AuthCallback() {
           await ensureFirebaseInitialized()
 
           let firebaseUser = null
+          let redirectSource = null
 
           if (firebaseAuth) {
-            const result = await Promise.race([
-              getRedirectResult(firebaseAuth),
-              new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
-            ])
-            firebaseUser = result?.user || firebaseAuth.currentUser || null
+            const redirectResolution = await resolveFirebaseRedirectUser(
+              firebaseAuth,
+              getRedirectResult,
+              {
+                timeoutMs: providerParam === "apple" ? 25000 : 12000,
+                pollIntervalMs: 600,
+                shouldLog: providerParam === "apple",
+                logLabel: "AppleCallback",
+              },
+            )
+            firebaseUser = redirectResolution?.user || null
+            redirectSource = redirectResolution?.source || null
             if (providerParam === "apple") {
               logAppleCallback("Checked Firebase redirect result", {
-                hasResultUser: !!result?.user,
+                redirectSource,
                 hasCurrentUser: !!firebaseAuth.currentUser,
                 resolvedUser: !!firebaseUser,
+                error: redirectResolution?.error?.message || null,
               })
             }
           }
@@ -129,6 +147,7 @@ export default function AuthCallback() {
             setTimeout(() => {
               if (providerParam === "apple") {
                 logAppleCallback("Redirecting to home after Apple callback success")
+                syncAppleLogs()
               }
               redirectToUserHome()
             }, 800)
@@ -174,6 +193,7 @@ export default function AuthCallback() {
             setTimeout(() => {
               if (providerParam === "apple") {
                 logAppleCallback("Redirecting to home after direct Apple callback success")
+                syncAppleLogs()
               }
               redirectToUserHome()
             }, 1000)
@@ -238,6 +258,7 @@ export default function AuthCallback() {
           logAppleCallback("Unhandled callback error", {
             message: err?.message || "Unknown error",
           })
+          syncAppleLogs()
         }
         setStatus("error")
         setError(
@@ -316,6 +337,39 @@ export default function AuthCallback() {
                 <p className="text-sm md:text-base text-muted-foreground">
                   Please try signing in again or use a different method.
                 </p>
+                {provider === "apple" && appleDebugEntries.length > 0 && (
+                  <div className="mx-auto mt-4 max-w-sm rounded-lg border border-amber-200 bg-amber-50 p-3 text-left dark:border-amber-900 dark:bg-amber-950/40">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                        Apple Debug
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAppleDebugEntries(getAppleDebugLog())}
+                        className="h-auto px-2 py-1 text-[11px] text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100"
+                      >
+                        Refresh
+                      </Button>
+                    </div>
+                    <div className="max-h-40 space-y-2 overflow-y-auto pr-1">
+                      {appleDebugEntries.map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="rounded-md bg-white/70 p-2 text-[11px] text-amber-950 dark:bg-black/20 dark:text-amber-100"
+                        >
+                          <p className="font-medium">{entry.message}</p>
+                          {entry.details && (
+                            <pre className="mt-1 whitespace-pre-wrap break-words font-mono text-[10px] text-amber-800 dark:text-amber-200">
+                              {JSON.stringify(entry.details, null, 2)}
+                            </pre>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex flex-col sm:flex-row gap-3 w-full pt-4 md:pt-6">
                 <Button

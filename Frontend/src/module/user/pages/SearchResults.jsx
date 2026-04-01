@@ -9,6 +9,7 @@ import { useProfile } from "../context/ProfileContext"
 import { useLocation } from "../hooks/useLocation"
 import { useZone } from "../hooks/useZone"
 import { restaurantAPI, adminAPI } from "@/lib/api"
+import { filterCategoriesByVegMode } from "@/lib/utils/categoryDietary"
 
 // Import shared food images - prevents duplication
 import { foodImages } from "@/constants/images"
@@ -31,6 +32,7 @@ export default function SearchResults() {
   const [searchParams, setSearchParams] = useSearchParams()
   const query = searchParams.get("q") || ""
   const navigate = useNavigate()
+  const { vegMode } = useProfile()
   const { location } = useLocation()
   const { zoneId, isOutOfService } = useZone(location)
   const [searchQuery, setSearchQuery] = useState(query)
@@ -54,7 +56,7 @@ export default function SearchResults() {
         const response = await adminAPI.getPublicCategories()
 
         if (response.data && response.data.success && response.data.data && response.data.data.categories) {
-          const categoriesArray = response.data.data.categories
+          const categoriesArray = filterCategoriesByVegMode(response.data.data.categories, vegMode)
 
           // Transform API categories to match expected format
           const transformedCategories = [
@@ -64,6 +66,7 @@ export default function SearchResults() {
               name: cat.name,
               image: cat.image || foodImages[0],
               type: cat.type,
+              foodPreference: cat.foodPreference || "all",
             }))
           ]
 
@@ -92,7 +95,7 @@ export default function SearchResults() {
     }
 
     fetchCategories()
-  }, [])
+  }, [vegMode])
 
   // Keep local search input in sync with URL ?q= when user lands here from previous page
   useEffect(() => {
@@ -418,6 +421,12 @@ export default function SearchResults() {
       }
     }
   }, [query])
+
+  useEffect(() => {
+    if (!categories.some((cat) => cat.id === selectedCategory) && selectedCategory !== 'all') {
+      setSelectedCategory('all')
+    }
+  }, [categories, selectedCategory])
 
   const toggleFilter = (filterId) => {
     setActiveFilters(prev => {

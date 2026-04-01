@@ -17,6 +17,8 @@ import { firebaseAuth, googleProvider, ensureFirebaseInitialized } from "@/lib/f
 import { hasFlutterGoogleBridge, nativeGoogleSignIn } from "@/lib/utils/flutterGoogleAuthBridge"
 import { setAuthData } from "@/lib/utils/auth"
 import { registerFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
+import { resolveFirebaseRedirectUser } from "@/lib/utils/firebaseRedirectRecovery"
+import { appendAppleDebugLog, clearAppleDebugLog, getAppleDebugLog } from "@/lib/utils/appleDebugLog"
 import loginBanner from "@/assets/loginbanner.jpg"
 import tifunboxLogo from "@/assets/tifunboxlogo.png"
 
@@ -49,6 +51,7 @@ const redirectToUserHome = () => {
 }
 
 const logAppleDebug = (message, details = null) => {
+  appendAppleDebugLog(message, details)
   if (details) {
     console.log(`[AppleAuth] ${message}`, details)
     return
@@ -62,17 +65,30 @@ export default function SignIn() {
   const isSignUp = searchParams.get("mode") === "signup"
 
   const PENDING_PROVIDER_KEY = "pendingSocialProvider"
+  const APPLE_REDIRECT_IN_PROGRESS_KEY = "appleRedirectInProgress"
   const setPendingProvider = (provider) => {
     if (typeof sessionStorage === "undefined" || !provider) return
-    sessionStorage.setItem(PENDING_PROVIDER_KEY, provider)
+    sessionStorage.setItem(
+      PENDING_PROVIDER_KEY,
+      JSON.stringify({ provider, startedAt: Date.now() }),
+    )
   }
   const getPendingProvider = () => {
     if (typeof sessionStorage === "undefined") return null
-    return sessionStorage.getItem(PENDING_PROVIDER_KEY)
+    const stored = sessionStorage.getItem(PENDING_PROVIDER_KEY)
+    if (!stored) return null
+
+    try {
+      const parsed = JSON.parse(stored)
+      return typeof parsed?.provider === "string" ? parsed.provider : stored
+    } catch {
+      return stored
+    }
   }
   const clearPendingProvider = () => {
     if (typeof sessionStorage === "undefined") return
     sessionStorage.removeItem(PENDING_PROVIDER_KEY)
+    sessionStorage.removeItem(APPLE_REDIRECT_IN_PROGRESS_KEY)
   }
 
   const [authMethod, setAuthMethod] = useState("phone") // "phone" or "email"
@@ -94,9 +110,35 @@ export default function SignIn() {
   const redirectHandledRef = useRef(false)
   const [isAppleLoading, setIsAppleLoading] = useState(false)
   const [appleError, setAppleError] = useState("")
+  const [appleDebugEntries, setAppleDebugEntries] = useState(() => getAppleDebugLog())
   const isIOSBrowser = /iPad|iPhone|iPod/i.test(
     typeof navigator !== "undefined" ? navigator.userAgent : "",
   )
+
+  useEffect(() => {
+    if (typeof sessionStorage === "undefined") return
+    if (
+      getPendingProvider() === "apple" &&
+      sessionStorage.getItem(APPLE_REDIRECT_IN_PROGRESS_KEY) === "true"
+    ) {
+      setIsAppleLoading(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    const syncAppleLogs = () => {
+      setAppleDebugEntries(getAppleDebugLog())
+    }
+
+    syncAppleLogs()
+    window.addEventListener("focus", syncAppleLogs)
+    document.addEventListener("visibilitychange", syncAppleLogs)
+
+    return () => {
+      window.removeEventListener("focus", syncAppleLogs)
+      document.removeEventListener("visibilitychange", syncAppleLogs)
+    }
+  }, [])
 
   // Prefill phone when user comes back from OTP screen
   useEffect(() => {
@@ -298,44 +340,37 @@ export default function SignIn() {
         }
 
         // Check if we're coming back from a redirect
-        let result = null
-        try {
-          result = await Promise.race([
-            getRedirectResult(firebaseAuth),
-            new Promise((resolve) =>
-              setTimeout(() => resolve(null), 3000)
-            )
-          ])
-        } catch (redirectError) {
-          console.log("ℹ️ getRedirectResult error:", redirectError?.code)
-          result = null
-        }
+        const redirectResolution = await resolveFirebaseRedirectUser(
+          firebaseAuth,
+          getRedirectResult,
+          {
+            timeoutMs: getPendingProvider() === "apple" ? 25000 : 12000,
+            pollIntervalMs: 600,
+            shouldLog: getPendingProvider() === "apple",
+            logLabel: "AppleAuth",
+          }
+        )
 
-        if (result?.user) {
+        if (redirectResolution?.user) {
           if (getPendingProvider() === "apple") {
             logAppleDebug("Firebase redirect result returned a user", {
-              uid: result.user.uid,
-              email: result.user.email || null,
+              uid: redirectResolution.user.uid,
+              email: redirectResolution.user.email || null,
+              source: redirectResolution.source,
             })
           }
-          await processSignedInUser(result.user, "redirect-result")
-        } else {
-          const currentUser = firebaseAuth?.currentUser
-          if (currentUser && !redirectHandledRef.current) {
-            if (getPendingProvider() === "apple") {
-              logAppleDebug("Using firebaseAuth.currentUser after redirect", {
-                uid: currentUser.uid,
-                email: currentUser.email || null,
-              })
-            }
-            await processSignedInUser(currentUser, "current-user-check")
-          } else if (getPendingProvider() === "apple") {
-            logAppleDebug("No redirect result and no current user after return", {
-              hasRedirectResult: false,
-              hasCurrentUser: !!currentUser,
-              redirectHandled: redirectHandledRef.current,
-            })
-          }
+          await processSignedInUser(
+            redirectResolution.user,
+            redirectResolution.source || "redirect-result"
+          )
+        } else if (getPendingProvider() === "apple") {
+          logAppleDebug("No redirect result and no current user after waiting", {
+            hasRedirectResult: false,
+            hasCurrentUser: !!firebaseAuth?.currentUser,
+            redirectHandled: redirectHandledRef.current,
+            error: redirectResolution?.error?.message || null,
+          })
+          setIsAppleLoading(false)
         }
       } catch (error) {
         console.error("❌ Google sign-in check error:", error)
@@ -667,9 +702,14 @@ export default function SignIn() {
   }
 
   const handleAppleSignIn = async () => {
+    clearAppleDebugLog()
+    setAppleDebugEntries([])
     setAppleError("")
     setIsAppleLoading(true)
     setPendingProvider("apple")
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
+    }
     logAppleDebug("Starting Apple sign-in", {
       path: window.location.pathname,
       origin: window.location.origin,
@@ -758,8 +798,10 @@ export default function SignIn() {
       }
 
       setAppleError(message)
+      setAppleDebugEntries(getAppleDebugLog())
     } finally {
       setIsAppleLoading(false)
+      setAppleDebugEntries(getAppleDebugLog())
     }
   }
 
@@ -1046,6 +1088,42 @@ export default function SignIn() {
             <div className="text-center space-y-1">
               {appleError && <p className="text-xs text-red-600 font-medium">{appleError}</p>}
             </div>
+
+          {(appleDebugEntries.length > 0 || isAppleLoading) && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                  Apple Debug
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearAppleDebugLog()
+                    setAppleDebugEntries([])
+                  }}
+                  className="text-[11px] font-medium text-amber-700 underline"
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="max-h-40 space-y-1 overflow-y-auto rounded bg-white/70 p-2">
+                {appleDebugEntries.length === 0 ? (
+                  <p className="text-[11px] text-amber-700">Waiting for Apple sign-in logs...</p>
+                ) : (
+                  appleDebugEntries.map((entry, index) => (
+                    <div key={`${entry.timestamp}-${index}`} className="text-[11px] text-gray-700">
+                      <p className="font-medium">{entry.message}</p>
+                      {entry.details && (
+                        <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] text-gray-600">
+                          {JSON.stringify(entry.details, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Legal Disclaimer */}
           <div className="text-center text-xs md:text-sm text-gray-500 dark:text-gray-400 pt-4 md:pt-6">

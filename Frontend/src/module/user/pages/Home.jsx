@@ -37,6 +37,7 @@ import offerImage from "@/assets/offerimage.png"
 import api, { restaurantAPI } from "@/lib/api"
 import { API_BASE_URL } from "@/lib/api/config"
 import OptimizedImage from "@/components/OptimizedImage"
+import { filterCategoriesByVegMode } from "@/lib/utils/categoryDietary"
 // Explore More Icons
 import exploreOffers from "@/assets/explore more icons/offers.png"
 import exploreGourmet from "@/assets/explore more icons/gourmet.png"
@@ -324,12 +325,13 @@ export default function Home() {
         setLoadingRealCategories(true)
         const response = await api.get('/categories/public')
         if (response.data.success && response.data.data.categories) {
-          const adminCategories = response.data.data.categories.map(cat => ({
+          const adminCategories = filterCategoriesByVegMode(response.data.data.categories, vegMode).map(cat => ({
             id: cat.id,
             name: cat.name,
             image: cat.image || foodImages[0], // Fallback to default image if not provided
             slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-'),
-            label: cat.name // For compatibility with existing code
+            label: cat.name, // For compatibility with existing code
+            foodPreference: cat.foodPreference || "all",
           }))
           setRealCategories(adminCategories)
         } else {
@@ -344,7 +346,7 @@ export default function Home() {
     }
 
     fetchRealCategories()
-  }, [])
+  }, [vegMode])
 
   // Fetch landing page config (categories, explore more, settings)
   useEffect(() => {

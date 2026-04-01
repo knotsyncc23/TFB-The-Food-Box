@@ -194,6 +194,37 @@ export const removeProfileImage = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Delete user account
+ * DELETE /api/user/profile
+ */
+export const deleteUserAccount = asyncHandler(async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return errorResponse(res, 404, "User not found");
+    }
+
+    await User.findByIdAndDelete(user._id);
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    });
+
+    logger.info(`User account deleted: ${user._id}`);
+
+    return successResponse(res, 200, "User account deleted successfully");
+  } catch (error) {
+    logger.error(`Error deleting user account: ${error.message}`, {
+      error: error.stack,
+    });
+    return errorResponse(res, 500, "Failed to delete user account");
+  }
+});
+
+/**
  * Update user current location (Live Location Tracking)
  * PUT /api/user/location
  * 

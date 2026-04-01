@@ -5,6 +5,7 @@ import { Search, Download, ChevronDown, Plus, Edit, Trash2, Info, MapPin, Slider
 import { Button } from "@/components/ui/button"
 import { adminAPI } from "@/lib/api"
 import { API_BASE_URL } from "@/lib/api/config"
+import { getCategoryFoodPreferenceLabel } from "@/lib/utils/categoryDietary"
 import { toast } from "sonner"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
@@ -25,7 +26,8 @@ export default function Category() {
     name: "",
     image: "https://via.placeholder.com/40",
     status: true,
-    type: ""
+    type: "",
+    foodPreference: "all"
   })
   const [selectedImageFile, setSelectedImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
@@ -230,7 +232,8 @@ export default function Category() {
       name: category.name || "",
       image: category.image || "https://via.placeholder.com/40",
       status: category.status !== undefined ? category.status : true,
-      type: category.type || ""
+      type: category.type || "",
+      foodPreference: category.foodPreference || "all"
     })
     setSelectedImageFile(null)
     setImagePreview(category.image || null)
@@ -243,7 +246,8 @@ export default function Category() {
       name: "",
       image: "https://via.placeholder.com/40",
       status: true,
-      type: ""
+      type: "",
+      foodPreference: "all"
     })
     setSelectedImageFile(null)
     setImagePreview(null)
@@ -287,6 +291,7 @@ export default function Category() {
         index + 1,
         category.name || '-',
         category.type || '-',
+        getCategoryFoodPreferenceLabel(category.foodPreference),
         category.priority || 'Normal',
         category.status ? 'Active' : 'Inactive',
         shortenId(category.id || category._id),
@@ -298,7 +303,7 @@ export default function Category() {
       // Add table with better formatting
       autoTable(doc, {
         startY: 28,
-        head: [['SL', 'Category Name', 'Type', 'Priority', 'Status', 'ID', 'Description']],
+        head: [['SL', 'Category Name', 'Type', 'Food Pref.', 'Priority', 'Status', 'ID', 'Description']],
         body: tableData,
         theme: 'striped',
         headStyles: {
@@ -326,11 +331,12 @@ export default function Category() {
         columnStyles: {
           0: { cellWidth: 15, halign: 'center' }, // SL - centered
           1: { cellWidth: 50, halign: 'left' }, // Category Name
-          2: { cellWidth: 40, halign: 'left' }, // Type
-          3: { cellWidth: 30, halign: 'center' }, // Priority - centered
-          4: { cellWidth: 30, halign: 'center' }, // Status - centered
-          5: { cellWidth: 35, halign: 'left', fontStyle: 'normal' }, // ID
-          6: { cellWidth: 80, halign: 'left' }  // Description
+          2: { cellWidth: 32, halign: 'left' }, // Type
+          3: { cellWidth: 28, halign: 'center' }, // Food preference
+          4: { cellWidth: 28, halign: 'center' }, // Priority
+          5: { cellWidth: 28, halign: 'center' }, // Status
+          6: { cellWidth: 30, halign: 'left', fontStyle: 'normal' }, // ID
+          7: { cellWidth: 70, halign: 'left' }  // Description
         },
         margin: { left: 15, right: 15, top: 28 },
         showHead: 'everyPage'
@@ -406,7 +412,8 @@ export default function Category() {
       name: "",
       image: "https://via.placeholder.com/40",
       status: true,
-      type: ""
+      type: "",
+      foodPreference: "all"
     })
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
@@ -422,6 +429,7 @@ export default function Category() {
       const formDataToSend = new FormData()
       formDataToSend.append('name', formData.name)
       formDataToSend.append('type', formData.type)
+      formDataToSend.append('foodPreference', formData.foodPreference)
       formDataToSend.append('status', formData.status.toString())
 
       // Add image file if selected, otherwise use existing image URL
@@ -435,6 +443,7 @@ export default function Category() {
       console.log('Sending category data:', {
         name: formData.name,
         type: formData.type,
+        foodPreference: formData.foodPreference,
         status: formData.status,
         hasImageFile: !!selectedImageFile,
         imageUrl: formData.image
@@ -649,6 +658,9 @@ export default function Category() {
                   Type
                 </th>
                 <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-700 uppercase tracking-wider">
+                  Food Pref.
+                </th>
+                <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-700 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-4 text-center text-[10px] font-bold text-slate-700 uppercase tracking-wider">
@@ -701,6 +713,11 @@ export default function Category() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-medium text-slate-700">{category.type || 'N/A'}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700">
+                        {getCategoryFoodPreferenceLabel(category.foodPreference)}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
@@ -1136,6 +1153,38 @@ export default function Category() {
                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Enter category name"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Food Preference
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { value: 'all', label: 'All' },
+                          { value: 'veg', label: 'Veg' },
+                          { value: 'non-veg', label: 'Non-Veg' },
+                        ].map((option) => {
+                          const isSelected = formData.foodPreference === option.value
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, foodPreference: option.value })}
+                              className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                                isSelected
+                                  ? 'border-blue-600 bg-blue-50 text-blue-700'
+                                  : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <p className="mt-2 text-xs text-slate-500">
+                        Non-veg categories will be hidden when users enable veg mode.
+                      </p>
                     </div>
 
                     <div>
