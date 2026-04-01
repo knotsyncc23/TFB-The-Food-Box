@@ -763,20 +763,37 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * Login / register using Firebase Google ID token
- * POST /api/auth/firebase/google-login
- */
-export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
-  const { idToken, role = "restaurant" } = req.body;
+const FIREBASE_PROVIDER_CONFIG = {
+  google: {
+    tokenProviderId: "google.com",
+    uidField: "googleId",
+    emailField: "googleEmail",
+    defaultName: "Google User",
+    displayName: "Google",
+  },
+  apple: {
+    tokenProviderId: "apple.com",
+    uidField: "appleId",
+    emailField: null,
+    defaultName: "Apple User",
+    displayName: "Apple",
+  },
+};
+
+async function handleFirebaseSocialLogin(
+  req,
+  res,
+  fallbackProvider = "google",
+  defaultRole = "user",
+) {
+  const { idToken, role = defaultRole, provider = fallbackProvider } = req.body;
 
   if (!idToken) {
     return errorResponse(res, 400, "Firebase ID token is required");
   }
 
-  // Validate role - admin cannot be authenticated through this endpoint
   const allowedRoles = ["user", "restaurant", "delivery"];
-  const userRole = role || "restaurant";
+  const userRole = role || "user";
   if (!allowedRoles.includes(userRole)) {
     return errorResponse(
       res,
@@ -785,7 +802,16 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
     );
   }
 
-  // Ensure Firebase Admin is configured
+  const providerKey = String(provider || fallbackProvider).toLowerCase();
+  const providerConfig = FIREBASE_PROVIDER_CONFIG[providerKey];
+  if (!providerConfig) {
+    return errorResponse(
+      res,
+      400,
+      "Invalid Firebase provider. Allowed providers: google, apple",
+    );
+  }
+
   const firebaseReady = await firebaseAuthService.ensureInitialized();
   if (!firebaseReady) {
     return errorResponse(
@@ -796,74 +822,33 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
   }
 
   try {
-    // Verify Firebase ID token
     const decoded = await firebaseAuthService.verifyIdToken(idToken);
+    const tokenProviderId = decoded?.firebase?.sign_in_provider || "";
+
+    if (tokenProviderId && tokenProviderId !== providerConfig.tokenProviderId) {
+      return errorResponse(
+        res,
+        400,
+        `This Firebase token was issued for ${tokenProviderId}, not ${providerConfig.tokenProviderId}.`,
+      );
+    }
 
     const firebaseUid = decoded.uid;
-    const email = decoded.email || null;
-    const name = decoded.name || decoded.display_name || "Google User";
+    const email = decoded.email ? decoded.email.toLowerCase().trim() : null;
+    const name =
+      decoded.name?.trim() ||
+      decoded.display_name?.trim() ||
+      providerConfig.defaultName;
     const picture = decoded.picture || decoded.photo_url || null;
-    const emailVerified = !!decoded.email_verified;
 
-    // Validate email is present
-    if (!email) {
-      logger.error("Firebase Google login failed: Email not found in token", {
-        uid: firebaseUid,
-      });
-      return errorResponse(
-        res,
-        400,
-        "Email not found in Firebase user. Please ensure email is available in your Google account.",
-      );
+    const lookupConditions = [{ [providerConfig.uidField]: firebaseUid }];
+    if (email) {
+      lookupConditions.push({ email, role: userRole });
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      logger.error("Firebase Google login failed: Invalid email format", {
-        email,
-      });
-      return errorResponse(
-        res,
-        400,
-        "Invalid email format received from Google.",
-      );
-    }
-
-    // Find existing user by firebase UID (stored in googleId) or email with same role
-    let user = await User.findOne({
-      $or: [{ googleId: firebaseUid }, { email, role: userRole }],
-    });
+    let user = await User.findOne({ $or: lookupConditions });
 
     if (user) {
-      // If user exists but googleId not linked yet, link it
-      if (!user.googleId) {
-        user.googleId = firebaseUid;
-        user.googleEmail = email;
-        if (!user.profileImage && picture) {
-          user.profileImage = picture;
-        }
-        // Update signupMethod if not already set
-        if (!user.signupMethod) {
-          user.signupMethod = "google";
-        }
-        await user.save();
-        logger.info("Linked Google account to existing user", {
-          userId: user._id,
-          email,
-        });
-      }
-
-      // If this is a restaurant login, make sure role matches
-      if (userRole === "restaurant" && user.role !== "restaurant") {
-        return errorResponse(
-          res,
-          403,
-          "This account is not registered as a restaurant partner",
-        );
-      }
-
-      // If user role doesn't match requested role, return error
       if (user.role !== userRole) {
         return errorResponse(
           res,
@@ -872,73 +857,97 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
         );
       }
 
-      logger.info("Existing user logged in via Firebase Google", {
-        userId: user._id,
-        email,
-        role: user.role,
-      });
+      let shouldSave = false;
+
+      if (!user[providerConfig.uidField]) {
+        user[providerConfig.uidField] = firebaseUid;
+        shouldSave = true;
+      }
+      if (providerConfig.emailField && email && !user[providerConfig.emailField]) {
+        user[providerConfig.emailField] = email;
+        shouldSave = true;
+      }
+      if (email && !user.email) {
+        user.email = email;
+        shouldSave = true;
+      }
+      if (!user.name && name) {
+        user.name = name;
+        shouldSave = true;
+      }
+      if (!user.profileImage && picture) {
+        user.profileImage = picture;
+        shouldSave = true;
+      }
+      if (user.signupMethod !== providerKey) {
+        user.signupMethod = providerKey;
+        shouldSave = true;
+      }
+      if (user.authProvider !== providerKey) {
+        user.authProvider = providerKey;
+        shouldSave = true;
+      }
+
+      if (shouldSave) {
+        await user.save();
+      }
     } else {
-      // Auto-register new user based on Firebase data
       const userData = {
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        googleId: firebaseUid,
-        googleEmail: email.toLowerCase().trim(),
+        name,
         role: userRole,
-        signupMethod: "google",
+        signupMethod: providerKey,
+        authProvider: providerKey,
         profileImage: picture || null,
         isActive: true,
+        [providerConfig.uidField]: firebaseUid,
       };
+
+      if (email) {
+        userData.email = email;
+      }
+      if (providerConfig.emailField && email) {
+        userData[providerConfig.emailField] = email;
+      }
 
       try {
         user = await User.create(userData);
-
-        logger.info("New user registered via Firebase Google login", {
-          firebaseUid,
-          email,
-          userId: user._id,
-          role: userRole,
-          name: user.name,
-        });
       } catch (createError) {
-        // Handle duplicate key error - user might have been created between findOne and create
-        if (createError.code === 11000) {
-          logger.warn(
-            "Duplicate key error during user creation, retrying find",
-            { email, role: userRole },
-          );
+        if (createError.code === 11000 && email) {
           user = await User.findOne({ email, role: userRole });
           if (!user) {
-            logger.error("User not found after duplicate key error", {
-              email,
-              role: userRole,
-            });
             throw createError;
           }
-          // Link Google ID if not already linked
-          if (!user.googleId) {
-            user.googleId = firebaseUid;
-            user.googleEmail = email;
-            if (!user.profileImage && picture) {
-              user.profileImage = picture;
-            }
-            if (!user.signupMethod) {
-              user.signupMethod = "google";
-            }
+
+          let shouldSave = false;
+          if (!user[providerConfig.uidField]) {
+            user[providerConfig.uidField] = firebaseUid;
+            shouldSave = true;
+          }
+          if (providerConfig.emailField && !user[providerConfig.emailField]) {
+            user[providerConfig.emailField] = email;
+            shouldSave = true;
+          }
+          if (!user.signupMethod) {
+            user.signupMethod = providerKey;
+            shouldSave = true;
+          }
+          if (user.authProvider !== providerKey) {
+            user.authProvider = providerKey;
+            shouldSave = true;
+          }
+          if (!user.profileImage && picture) {
+            user.profileImage = picture;
+            shouldSave = true;
+          }
+          if (shouldSave) {
             await user.save();
           }
         } else {
-          logger.error("Error creating user via Firebase Google login", {
-            error: createError.message,
-            email,
-            role: userRole,
-          });
           throw createError;
         }
       }
     }
 
-    // Ensure user is active
     if (!user.isActive) {
       logger.warn("Inactive user attempted login", { userId: user._id, email });
       return errorResponse(
@@ -948,20 +957,18 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
       );
     }
 
-    // Generate JWT tokens for our app
     const tokens = jwtService.generateTokens({
       userId: user._id.toString(),
       role: user.role,
       email: user.email,
     });
 
-    // Set refresh token in httpOnly cookie
     res.cookie("refreshToken", tokens.refreshToken, getRefreshTokenCookieOptions());
 
     return successResponse(
       res,
       200,
-      "Firebase Google authentication successful",
+      `Firebase ${providerConfig.displayName} authentication successful`,
       {
         accessToken: tokens.accessToken,
         user: {
@@ -973,17 +980,34 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
           role: user.role,
           profileImage: user.profileImage,
           signupMethod: user.signupMethod,
+          authProvider: user.authProvider,
         },
       },
     );
   } catch (error) {
-    logger.error(`Error in Firebase Google login: ${error.message}`);
+    logger.error(`Error in Firebase ${providerConfig.displayName} login: ${error.message}`);
     return errorResponse(
       res,
       400,
-      error.message || "Firebase Google authentication failed",
+      error.message || `Firebase ${providerConfig.displayName} authentication failed`,
     );
   }
+}
+
+/**
+ * Login / register using Firebase Google ID token
+ * POST /api/auth/firebase/google-login
+ */
+export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
+  return handleFirebaseSocialLogin(req, res, "google", "restaurant");
+});
+
+/**
+ * Login / register using Firebase social ID token
+ * POST /api/auth/firebase/social-login
+ */
+export const firebaseSocialLogin = asyncHandler(async (req, res) => {
+  return handleFirebaseSocialLogin(req, res, "google", "user");
 });
 
 /**

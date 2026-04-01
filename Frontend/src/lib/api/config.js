@@ -157,6 +157,7 @@ export const API_ENDPOINTS = {
     REGISTER: "/auth/register",
     LOGIN: "/auth/login",
     FIREBASE_GOOGLE_LOGIN: "/auth/firebase/google-login",
+    FIREBASE_SOCIAL_LOGIN: "/auth/firebase/social-login",
     APPLE_CONFIG: "/auth/apple/config",
     APPLE_LOGIN: "/auth/apple",
     REFRESH_TOKEN: "/auth/refresh-token",

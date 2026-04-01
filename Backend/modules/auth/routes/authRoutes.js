@@ -11,6 +11,7 @@ import {
   googleAuth,
   googleCallback,
   firebaseGoogleLogin,
+  firebaseSocialLogin,
   appleLogin,
   getAppleConfig,
   registerFcmToken,
@@ -76,6 +77,12 @@ const resetPasswordSchema = Joi.object({
 const appleLoginSchema = Joi.object({
   identityToken: Joi.string().required(),
   name: Joi.string().trim().max(100).allow("", null),
+  role: Joi.string().valid('user', 'restaurant', 'delivery').default('user'),
+});
+
+const firebaseSocialLoginSchema = Joi.object({
+  idToken: Joi.string().required(),
+  provider: Joi.string().valid('google', 'apple').required(),
   role: Joi.string().valid('user', 'restaurant', 'delivery').default('user'),
 });
 
@@ -149,6 +156,7 @@ router.delete('/fcm-token', authenticate, mergeFcmQueryForBody, validate(fcmDele
 
 // Firebase Google login (using Firebase Auth ID token)
 router.post('/firebase/google-login', firebaseGoogleLogin);
+router.post('/firebase/social-login', validate(firebaseSocialLoginSchema), firebaseSocialLogin);
 router.get('/apple/config', getAppleConfig);
 router.post('/apple', validate(appleLoginSchema), appleLogin);
 

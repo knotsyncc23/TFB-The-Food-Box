@@ -121,6 +121,13 @@ export const authAPI = {
       role,
     });
   },
+  firebaseSocialLogin: (idToken, role = "user", provider = "google") => {
+    return apiClient.post(API_ENDPOINTS.AUTH.FIREBASE_SOCIAL_LOGIN, {
+      idToken,
+      role,
+      provider,
+    });
+  },
   getAppleConfig: () => {
     return apiClient.get(API_ENDPOINTS.AUTH.APPLE_CONFIG);
   },

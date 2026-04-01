@@ -66,28 +66,11 @@ export default function SignIn() {
   const [isLoading, setIsLoading] = useState(false)
   const [apiError, setApiError] = useState("")
   const redirectHandledRef = useRef(false)
-  const appleInitRef = useRef(false)
   const [isAppleLoading, setIsAppleLoading] = useState(false)
   const [appleError, setAppleError] = useState("")
-  const [appleSdkReady, setAppleSdkReady] = useState(false)
-  const [appleSdkError, setAppleSdkError] = useState("")
   const isIOSBrowser = /iPad|iPhone|iPod/i.test(
     typeof navigator !== "undefined" ? navigator.userAgent : "",
   )
-  const envAppleClientId = import.meta.env.VITE_APPLE_CLIENT_ID?.trim() || ""
-  const defaultAppleRedirectUri =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/auth/apple/callback`
-      : ""
-  const envAppleRedirectUri =
-    import.meta.env.VITE_APPLE_REDIRECT_URI?.trim() || defaultAppleRedirectUri
-  const [appleConfig, setAppleConfig] = useState({
-    clientId: envAppleClientId,
-    redirectUri: envAppleRedirectUri,
-  })
-  const appleClientId = appleConfig.clientId?.trim() || ""
-  const appleRedirectUri = appleConfig.redirectUri?.trim() || defaultAppleRedirectUri
-  const appleConfigAvailable = Boolean(appleClientId)
 
   // Prefill phone when user comes back from OTP screen
   useEffect(() => {
@@ -109,104 +92,8 @@ export default function SignIn() {
     } catch (_) {}
   }, [])
 
-  useEffect(() => {
-    let isMounted = true
-
-    const loadAppleConfig = async () => {
-      try {
-        const response = await authAPI.getAppleConfig()
-        const config = response?.data?.data || {}
-
-        if (!isMounted) return
-
-        setAppleConfig({
-          clientId: config.clientId?.trim() || envAppleClientId,
-          redirectUri: config.redirectUri?.trim() || envAppleRedirectUri,
-        })
-      } catch (error) {
-        if (!isMounted) return
-
-        console.warn("Unable to load Apple Sign-In config from backend:", error)
-        setAppleConfig({
-          clientId: envAppleClientId,
-          redirectUri: envAppleRedirectUri,
-        })
-      }
-    }
-
-    loadAppleConfig()
-
-    return () => {
-      isMounted = false
-    }
-  }, [envAppleClientId, envAppleRedirectUri])
-
-  useEffect(() => {
-    appleInitRef.current = false
-  }, [appleClientId, appleRedirectUri])
-
-  // Load Apple JS SDK when configuration is available
-  useEffect(() => {
-    if (!appleConfigAvailable || typeof window === "undefined") {
-      return
-    }
-
-    if (window.AppleID) {
-      setAppleSdkReady(true)
-      return
-    }
-
-    const existingScript = document.getElementById("appleid-sdk")
-    if (existingScript) {
-      if (window.AppleID) {
-        setAppleSdkReady(true)
-      }
-      return
-    }
-
-    const script = document.createElement("script")
-    script.id = "appleid-sdk"
-    script.src = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"
-    script.async = true
-    script.defer = true
-    script.onload = () => {
-      setAppleSdkReady(true)
-      setAppleSdkError("")
-    }
-    script.onerror = () => {
-      setAppleSdkError("Apple Sign-In could not be loaded. Please try again shortly.")
-    }
-    document.body.appendChild(script)
-  }, [appleConfigAvailable])
-
-  useEffect(() => {
-    if (!appleConfigAvailable || !appleSdkReady || appleInitRef.current) {
-      return
-    }
-
-    if (typeof window === "undefined" || !window.AppleID?.auth?.init) {
-      setAppleSdkError("Apple Sign-In is not supported in this browser.")
-      return
-    }
-
-    try {
-      window.AppleID.auth.init({
-        clientId: appleClientId,
-        scope: "name email",
-        redirectURI: appleRedirectUri || window.location.origin,
-        usePopup: true,
-      })
-      appleInitRef.current = true
-      setAppleSdkError("")
-    } catch (error) {
-      console.error("Apple SDK initialization failed:", error)
-      setAppleSdkError("Apple Sign-In is currently unavailable. Please try again later.")
-    }
-  }, [appleClientId, appleConfigAvailable, appleRedirectUri, appleSdkReady])
-
-
   // Helper function to process signed-in user
-  const processSignedInUser = async (user, source = "unknown") => {
+  const processSignedInUser = async (user, source = "unknown", providerOverride = null) => {
     if (redirectHandledRef.current) {
       console.log(`ℹ️ User already being processed, skipping (source: ${source})`)
       return
@@ -225,9 +112,15 @@ export default function SignIn() {
     try {
       // Force refresh so backend always gets a valid token (avoids expired/stale token 400)
       const idToken = await user.getIdToken(true)
+      const socialProvider =
+        providerOverride ||
+        (user.providerData || []).find((providerData) =>
+          ["google.com", "apple.com"].includes(providerData?.providerId),
+        )?.providerId?.replace(".com", "") ||
+        "google"
       console.log(`✅ Got fresh ID token from ${source}, calling backend...`)
 
-      const response = await authAPI.firebaseGoogleLogin(idToken, "user")
+      const response = await authAPI.firebaseSocialLogin(idToken, "user", socialProvider)
       const data = response?.data?.data || {}
 
       console.log(`✅ Backend response from ${source}:`, {
@@ -583,7 +476,7 @@ export default function SignIn() {
             credentialError?.message || credentialError,
           )
 
-          const response = await authAPI.firebaseGoogleLogin(idToken, "user")
+          const response = await authAPI.firebaseSocialLogin(idToken, "user", "google")
           const data = response?.data?.data || {}
 
           if (data.accessToken && data.user) {
@@ -660,52 +553,51 @@ export default function SignIn() {
 
   const handleAppleSignIn = async () => {
     setAppleError("")
-    if (!appleConfigAvailable) {
-      setAppleError("Apple Sign-In is not configured for this environment.")
-      return
-    }
-
-    if (typeof window === "undefined" || !window.AppleID?.auth?.signIn) {
-      setAppleError("Apple Sign-In is not available in this browser.")
-      return
-    }
-
-    if (!appleSdkReady) {
-      setAppleError("Apple Sign-In is still loading. Please wait a moment.")
-      return
-    }
-
     setIsAppleLoading(true)
 
     try {
-      const result = await window.AppleID.auth.signIn()
-      const identityToken = result?.authorization?.id_token
+      await ensureFirebaseInitialized()
 
-      if (!identityToken) {
-        throw new Error("Apple did not return an identity token.")
+      if (!firebaseAuth) {
+        throw new Error("Firebase Auth is not initialized. Please check your Firebase configuration.")
       }
 
-      const rawName = result?.user?.name
-      const appleFullName = [
-        rawName?.firstName,
-        rawName?.lastName,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .trim() || rawName?.nickname || null
+      const { OAuthProvider, signInWithPopup, signInWithRedirect } = await import("firebase/auth")
+      const appleProvider = new OAuthProvider("apple.com")
+      appleProvider.addScope("email")
+      appleProvider.addScope("name")
 
-      const response = await authAPI.appleLogin(
-        identityToken,
-        "user",
-        appleFullName,
-      )
-      const data = response?.data?.data || {}
-      await finalizeSocialLogin(data, "apple")
+      if (isIOSBrowser) {
+        await signInWithRedirect(firebaseAuth, appleProvider)
+        return
+      }
+
+      const result = await signInWithPopup(firebaseAuth, appleProvider)
+      if (result?.user) {
+        await processSignedInUser(result.user, "apple-popup-result", "apple")
+        return
+      }
+
+      throw new Error("Apple sign-in did not return a Firebase user.")
     } catch (error) {
       console.error("Apple sign-in failed:", error)
       let message = "Apple sign-in failed. Please try again."
 
-      if (error?.error === "popup_closed_by_user" || error?.code === "popup_closed_by_user") {
+      if (error?.code === "auth/configuration-not-found") {
+        message = "Firebase Apple sign-in is not configured for this domain. Enable Apple in Firebase Console and authorize this domain."
+      } else if (error?.code === "auth/operation-not-allowed") {
+        message = "Apple sign-in is disabled in Firebase Console."
+      } else if (error?.code === "auth/popup-blocked") {
+        try {
+          const { OAuthProvider, signInWithRedirect } = await import("firebase/auth")
+          const appleProvider = new OAuthProvider("apple.com")
+          appleProvider.addScope("email")
+          appleProvider.addScope("name")
+          await signInWithRedirect(firebaseAuth, appleProvider)
+          return
+        } catch (_) {}
+        message = "Popup was blocked. Please allow popups and try again."
+      } else if (error?.error === "popup_closed_by_user" || error?.code === "popup_closed_by_user" || error?.code === "auth/popup-closed-by-user") {
         message = "Apple sign-in was cancelled."
       } else if (error?.response?.data?.message) {
         message = error.response.data.message
@@ -943,7 +835,7 @@ export default function SignIn() {
                 <button
                   type="button"
                   onClick={handleAppleSignIn}
-                  disabled={isAppleLoading || !appleConfigAvailable || !!appleSdkError || !appleSdkReady}
+                  disabled={isAppleLoading}
                   className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-black flex items-center justify-center hover:bg-gray-900 transition-all hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label="Sign in with Apple"
                   aria-busy={isAppleLoading ? "true" : undefined}
@@ -954,12 +846,6 @@ export default function SignIn() {
                     <Apple className="h-6 w-6 text-white" />
                   )}
                 </button>
-                {/* Status Tooltips */}
-                {!appleConfigAvailable && (
-                  <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-max px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                    Not configured
-                  </div>
-                )}
               </div>
 
               {/* Google Login */}
@@ -1006,7 +892,6 @@ export default function SignIn() {
 
             {/* Social Login Error Messages */}
             <div className="text-center space-y-1">
-              {appleSdkError && <p className="text-xs text-amber-600 font-medium">{appleSdkError}</p>}
               {appleError && <p className="text-xs text-red-600 font-medium">{appleError}</p>}
             </div>
 

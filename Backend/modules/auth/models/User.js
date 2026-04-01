@@ -15,9 +15,9 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      // Phone is required only if email and googleId are not provided
+      // Phone is required only if email and social provider IDs are not provided
       required: function () {
-        return !this.email && !this.googleId;
+        return !this.email && !this.googleId && !this.appleId;
       },
       trim: true,
     },
