@@ -14,6 +14,99 @@ const firebaseConfig = {
   databaseURL: "", // Realtime DB for live tracking
 };
 
+const FIREBASE_PUBLIC_ENV_CACHE_KEY = "firebase_public_env_cache_v1";
+
+function safeLocalStorageGet(key) {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeLocalStorageSet(key, value) {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(key, value);
+  } catch {
+    // Ignore quota / private mode failures; we can still operate without cache.
+  }
+}
+
+function hydrateFirebaseConfigFromEnvPayload(envPayload) {
+  const config = envPayload || {};
+  // Backend/DB is the source of truth, but ignore obviously-invalid values
+  const safeStr = (v) => (typeof v === "string" ? v.trim() : "");
+  const looksLikeWebApiKey = (v) => /^AIza[0-9A-Za-z\-_]{10,}$/.test(v);
+  const looksLikeSenderId = (v) => /^[0-9]{6,}$/.test(v);
+  const looksLikeProjectId = (v) => /^[a-z0-9-]{3,}$/.test(v);
+
+  const apiKey = safeStr(config.FIREBASE_API_KEY);
+  const authDomain = safeStr(config.FIREBASE_AUTH_DOMAIN);
+  const projectId = safeStr(config.FIREBASE_PROJECT_ID);
+  const storageBucket = safeStr(config.FIREBASE_STORAGE_BUCKET);
+  const messagingSenderId = safeStr(config.FIREBASE_MESSAGING_SENDER_ID);
+  const appId = safeStr(config.FIREBASE_APP_ID);
+  const vapidKey = safeStr(config.FIREBASE_VAPID_KEY);
+  const measurementId = safeStr(config.MEASUREMENT_ID);
+  const databaseURL = safeStr(config.FIREBASE_DATABASE_URL);
+
+  if (apiKey) {
+    firebaseConfig.apiKey = apiKey;
+    if (!looksLikeWebApiKey(apiKey)) {
+      console.warn("⚠️ FIREBASE_API_KEY format looks unusual:", apiKey);
+    }
+  }
+  if (authDomain) firebaseConfig.authDomain = authDomain;
+  if (projectId) {
+    firebaseConfig.projectId = projectId;
+    if (!looksLikeProjectId(projectId)) {
+      console.warn("⚠️ FIREBASE_PROJECT_ID format looks unusual:", projectId);
+    }
+  }
+  if (storageBucket) firebaseConfig.storageBucket = storageBucket;
+  if (messagingSenderId) {
+    firebaseConfig.messagingSenderId = messagingSenderId;
+    if (!looksLikeSenderId(messagingSenderId)) {
+      console.warn(
+        "⚠️ FIREBASE_MESSAGING_SENDER_ID format looks unusual:",
+        messagingSenderId,
+      );
+    }
+  }
+  if (appId) firebaseConfig.appId = appId;
+  if (vapidKey) firebaseConfig.vapidKey = vapidKey;
+  if (measurementId) firebaseConfig.measurementId = measurementId;
+  if (databaseURL) firebaseConfig.databaseURL = databaseURL;
+
+  // Return whether we got enough to proceed.
+  return true;
+}
+
+function loadCachedFirebasePublicEnv() {
+  const raw = safeLocalStorageGet(FIREBASE_PUBLIC_ENV_CACHE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedFirebasePublicEnv(envPayload) {
+  if (!envPayload || typeof envPayload !== "object") return;
+  safeLocalStorageSet(
+    FIREBASE_PUBLIC_ENV_CACHE_KEY,
+    JSON.stringify({
+      ...envPayload,
+      _cachedAt: Date.now(),
+    }),
+  );
+}
+
 // Fetch config from backend and inject DB env values
 const fetchFirebaseConfig = async () => {
   try {
@@ -22,51 +115,8 @@ const fetchFirebaseConfig = async () => {
 
     if (response.data.success && response.data.data) {
       const config = response.data.data;
-      // Backend/DB is the source of truth, but ignore obviously-invalid values
-      const safeStr = (v) => (typeof v === "string" ? v.trim() : "");
-      const looksLikeWebApiKey = (v) => /^AIza[0-9A-Za-z\-_]{10,}$/.test(v);
-      const looksLikeSenderId = (v) => /^[0-9]{6,}$/.test(v);
-      const looksLikeProjectId = (v) => /^[a-z0-9-]{3,}$/.test(v);
-
-      const apiKey = safeStr(config.FIREBASE_API_KEY);
-      const authDomain = safeStr(config.FIREBASE_AUTH_DOMAIN);
-      const projectId = safeStr(config.FIREBASE_PROJECT_ID);
-      const storageBucket = safeStr(config.FIREBASE_STORAGE_BUCKET);
-      const messagingSenderId = safeStr(config.FIREBASE_MESSAGING_SENDER_ID);
-      const appId = safeStr(config.FIREBASE_APP_ID);
-      const vapidKey = safeStr(config.FIREBASE_VAPID_KEY);
-      const measurementId = safeStr(config.MEASUREMENT_ID);
-      const databaseURL = safeStr(config.FIREBASE_DATABASE_URL);
-
-      // Always use DB values if present. Regex checks are warning-only so
-      // production does not silently skip config and leave Firebase uninitialized.
-      if (apiKey) {
-        firebaseConfig.apiKey = apiKey;
-        if (!looksLikeWebApiKey(apiKey)) {
-          console.warn("⚠️ FIREBASE_API_KEY format looks unusual:", apiKey);
-        }
-      }
-      if (authDomain) firebaseConfig.authDomain = authDomain;
-      if (projectId) {
-        firebaseConfig.projectId = projectId;
-        if (!looksLikeProjectId(projectId)) {
-          console.warn("⚠️ FIREBASE_PROJECT_ID format looks unusual:", projectId);
-        }
-      }
-      if (storageBucket) firebaseConfig.storageBucket = storageBucket;
-      if (messagingSenderId) {
-        firebaseConfig.messagingSenderId = messagingSenderId;
-        if (!looksLikeSenderId(messagingSenderId)) {
-          console.warn(
-            "⚠️ FIREBASE_MESSAGING_SENDER_ID format looks unusual:",
-            messagingSenderId,
-          );
-        }
-      }
-      if (appId) firebaseConfig.appId = appId;
-      if (vapidKey) firebaseConfig.vapidKey = vapidKey;
-      if (measurementId) firebaseConfig.measurementId = measurementId;
-      if (databaseURL) firebaseConfig.databaseURL = databaseURL;
+      hydrateFirebaseConfigFromEnvPayload(config);
+      saveCachedFirebasePublicEnv(config);
 
       console.log("✅ Firebase config loaded from backend env");
       return true;
@@ -88,12 +138,38 @@ let googleProvider;
 
 // Function to ensure Firebase is initialized
 async function ensureFirebaseInitialized() {
+  const existingApps = getApps();
+  // If Firebase was already initialized (e.g. before an iOS WebView redirect reload),
+  // don't block auth flows just because config fetch is temporarily unavailable.
+  if (existingApps.length > 0) {
+    app = existingApps[0];
+    if (!firebaseAuth) {
+      firebaseAuth = getAuth(app);
+    }
+    if (!googleProvider) {
+      googleProvider = new GoogleAuthProvider();
+      googleProvider.addScope("email");
+      googleProvider.addScope("profile");
+    }
+    // Best-effort refresh config in background (non-blocking)
+    fetchFirebaseConfig().catch(() => {});
+    return app;
+  }
+
   const loadedFromBackend = await fetchFirebaseConfig();
   if (!loadedFromBackend) {
-    console.error(
-      "❌ Firebase configuration could not be loaded from backend (/api/env/public).",
-    );
-    return;
+    const cached = loadCachedFirebasePublicEnv();
+    if (cached) {
+      console.warn(
+        "⚠️ Firebase public env fetch failed; falling back to cached config",
+      );
+      hydrateFirebaseConfigFromEnvPayload(cached);
+    } else {
+      console.error(
+        "❌ Firebase configuration could not be loaded from backend (/api/env/public) and no cache was found.",
+      );
+      return;
+    }
   }
 
   // Validate Firebase configuration
@@ -120,7 +196,6 @@ async function ensureFirebaseInitialized() {
   }
 
   try {
-    const existingApps = getApps();
     if (existingApps.length === 0) {
       app = initializeApp(firebaseConfig);
       console.log(

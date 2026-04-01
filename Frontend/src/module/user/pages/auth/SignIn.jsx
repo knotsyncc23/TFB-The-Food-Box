@@ -299,16 +299,24 @@ export default function SignIn() {
 
         // Check if we're coming back from a redirect
         let result = null
-        try {
-          result = await Promise.race([
-            getRedirectResult(firebaseAuth),
-            new Promise((resolve) =>
-              setTimeout(() => resolve(null), 3000)
-            )
-          ])
-        } catch (redirectError) {
-          console.log("ℹ️ getRedirectResult error:", redirectError?.code)
-          result = null
+        const attemptRedirectResult = async (timeoutMs) => {
+          try {
+            return await Promise.race([
+              getRedirectResult(firebaseAuth),
+              new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+            ])
+          } catch (redirectError) {
+            console.log("ℹ️ getRedirectResult error:", redirectError?.code)
+            return null
+          }
+        }
+
+        // iOS WebView can be slow after returning from Apple; 3s is often too short.
+        result = await attemptRedirectResult(8000)
+        if (!result?.user) {
+          // One more delayed attempt to catch late hydration.
+          await new Promise((r) => setTimeout(r, 1200))
+          result = await attemptRedirectResult(8000)
         }
 
         if (result?.user) {
@@ -336,6 +344,24 @@ export default function SignIn() {
               redirectHandled: redirectHandledRef.current,
             })
           }
+
+          // Final fallback: give iOS a bit more time to populate currentUser.
+          if (!redirectHandledRef.current && !firebaseAuth?.currentUser) {
+            setTimeout(async () => {
+              try {
+                const lateUser = firebaseAuth?.currentUser
+                if (lateUser && !redirectHandledRef.current) {
+                  if (getPendingProvider() === "apple") {
+                    logAppleDebug("Late currentUser detected after redirect", {
+                      uid: lateUser.uid,
+                      email: lateUser.email || null,
+                    })
+                  }
+                  await processSignedInUser(lateUser, "late-current-user-check")
+                }
+              } catch (_) {}
+            }, 3500)
+          }
         }
       } catch (error) {
         console.error("❌ Google sign-in check error:", error)
@@ -345,7 +371,9 @@ export default function SignIn() {
             code: error?.code || null,
           })
         }
-        setApiError("Failed to check authentication status. Please try refreshing.")
+        setApiError(
+          "Failed to complete sign-in after returning from Apple. Please try again.",
+        )
         setIsLoading(false)
       }
     }
