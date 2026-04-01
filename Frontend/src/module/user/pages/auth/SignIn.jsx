@@ -45,9 +45,8 @@ const countryCodes = [
 ]
 
 // Apple requires an explicit redirect URI that matches the one configured in
-// Apple Developer > Services ID. We start with the Firebase auth handler
-// and override it at runtime with the backend-provided value to avoid
-// mismatches across environments/domains.
+// Apple Developer > Services ID. Firebase defaults to <authDomain>/__/auth/handler;
+// we hard‑pin it to avoid mismatches when the SPA is served from a custom domain.
 const APPLE_REDIRECT_URI = "https://tifunbox.firebaseapp.com/__/auth/handler"
 
 export default function SignIn() {
@@ -88,7 +87,6 @@ export default function SignIn() {
   const redirectHandledRef = useRef(false)
   const [isAppleLoading, setIsAppleLoading] = useState(false)
   const [appleError, setAppleError] = useState("")
-  const [appleRedirectUri, setAppleRedirectUri] = useState(APPLE_REDIRECT_URI)
   const isIOSBrowser = /iPad|iPhone|iPod/i.test(
     typeof navigator !== "undefined" ? navigator.userAgent : "",
   )
@@ -111,27 +109,6 @@ export default function SignIn() {
         }
       }
     } catch (_) {}
-  }, [])
-
-  // Keep Apple redirect URI in sync with backend configuration to avoid callback
-  // mismatches between Firebase auth domain and the domain registered in Apple.
-  useEffect(() => {
-    let cancelled = false
-
-    const loadAppleConfig = async () => {
-      try {
-        const response = await authAPI.getAppleConfig()
-        const uri = response?.data?.data?.redirectUri
-        if (!cancelled && uri && typeof uri === "string" && uri.trim().length > 0) {
-          setAppleRedirectUri(uri.trim())
-        }
-      } catch (error) {
-        console.warn("Apple config fetch failed, falling back to default redirect URI", error?.message || error)
-      }
-    }
-
-    loadAppleConfig()
-    return () => { cancelled = true }
   }, [])
 
   // Helper function to process signed-in user
@@ -616,7 +593,7 @@ export default function SignIn() {
       // Force the handler domain Apple expects; prevents redirect loops when the app
       // runs on a custom hostname while Firebase uses its own auth domain.
       appleProvider.setCustomParameters({
-        redirect_uri: appleRedirectUri || APPLE_REDIRECT_URI,
+        redirect_uri: APPLE_REDIRECT_URI,
         response_type: "code id_token",
       })
 
@@ -646,10 +623,6 @@ export default function SignIn() {
           const appleProvider = new OAuthProvider("apple.com")
           appleProvider.addScope("email")
           appleProvider.addScope("name")
-          appleProvider.setCustomParameters({
-            redirect_uri: appleRedirectUri || APPLE_REDIRECT_URI,
-            response_type: "code id_token",
-          })
           await signInWithRedirect(firebaseAuth, appleProvider)
           return
         } catch (_) {}
