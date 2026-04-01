@@ -48,6 +48,14 @@ const redirectToUserHome = () => {
   window.location.replace("/")
 }
 
+const logAppleDebug = (message, details = null) => {
+  if (details) {
+    console.log(`[AppleAuth] ${message}`, details)
+    return
+  }
+  console.log(`[AppleAuth] ${message}`)
+}
+
 export default function SignIn() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -122,6 +130,13 @@ export default function SignIn() {
       uid: user.uid,
       displayName: user.displayName
     })
+    if (providerOverride === "apple" || source.includes("apple")) {
+      logAppleDebug(`Processing signed-in Firebase user from ${source}`, {
+        uid: user.uid,
+        email: user.email || null,
+        providerData: (user.providerData || []).map((item) => item?.providerId).filter(Boolean),
+      })
+    }
 
     redirectHandledRef.current = true
     setIsLoading(true)
@@ -138,10 +153,28 @@ export default function SignIn() {
           ["google.com", "apple.com"].includes(providerData?.providerId),
         )?.providerId?.replace(".com", "") ||
         "google"
+      if (socialProvider === "apple") {
+        logAppleDebug("Prepared backend social login payload", {
+          source,
+          pendingProvider,
+          resolvedProvider: socialProvider,
+          hasIdToken: !!idToken,
+          idTokenLength: idToken?.length || 0,
+        })
+      }
       console.log(`✅ Got fresh ID token from ${source}, calling backend...`)
 
       const response = await authAPI.firebaseSocialLogin(idToken, "user", socialProvider)
       const data = response?.data?.data || {}
+      if (socialProvider === "apple") {
+        logAppleDebug("Received backend social login response", {
+          source,
+          hasAccessToken: !!data.accessToken,
+          hasUser: !!data.user,
+          role: data.user?.role || null,
+          signupMethod: data.user?.signupMethod || null,
+        })
+      }
 
       console.log(`✅ Backend response from ${source}:`, {
         hasAccessToken: !!data.accessToken,
@@ -155,6 +188,14 @@ export default function SignIn() {
       if (accessToken && appUser) {
         clearPendingProvider()
         setAuthData("user", accessToken, appUser)
+        if (socialProvider === "apple") {
+          logAppleDebug("Stored app auth token after backend login", {
+            source,
+            localToken: !!localStorage.getItem("user_accessToken"),
+            sessionToken: !!sessionStorage.getItem("user_accessToken"),
+            redirectPath: window.location.pathname,
+          })
+        }
         window.dispatchEvent(new Event("userAuthChanged"))
 
         // Register FCM token for push notifications (fire-and-forget)
@@ -168,6 +209,12 @@ export default function SignIn() {
         }
 
         console.log(`✅ Navigating to user dashboard from ${source}...`)
+        if (socialProvider === "apple") {
+          logAppleDebug("Redirecting to home after successful Apple login", {
+            source,
+            destination: "/",
+          })
+        }
         redirectToUserHome()
       } else {
         console.error(`❌ Invalid backend response from ${source}`)
@@ -177,6 +224,14 @@ export default function SignIn() {
       }
     } catch (error) {
       console.error(`❌ Error processing user from ${source}:`, error)
+      if (providerOverride === "apple" || source.includes("apple")) {
+        logAppleDebug("Failed while processing Apple user", {
+          source,
+          status: error?.response?.status || null,
+          message: error?.response?.data?.message || error?.message || "Unknown error",
+          responseData: error?.response?.data || null,
+        })
+      }
       redirectHandledRef.current = false
       setIsLoading(false)
 
@@ -234,6 +289,14 @@ export default function SignIn() {
           return
         }
 
+        if (getPendingProvider() === "apple") {
+          logAppleDebug("Checking redirect result on mount", {
+            path: window.location.pathname,
+            search: window.location.search,
+            hasCurrentUser: !!firebaseAuth?.currentUser,
+          })
+        }
+
         // Check if we're coming back from a redirect
         let result = null
         try {
@@ -249,15 +312,39 @@ export default function SignIn() {
         }
 
         if (result?.user) {
+          if (getPendingProvider() === "apple") {
+            logAppleDebug("Firebase redirect result returned a user", {
+              uid: result.user.uid,
+              email: result.user.email || null,
+            })
+          }
           await processSignedInUser(result.user, "redirect-result")
         } else {
           const currentUser = firebaseAuth?.currentUser
           if (currentUser && !redirectHandledRef.current) {
+            if (getPendingProvider() === "apple") {
+              logAppleDebug("Using firebaseAuth.currentUser after redirect", {
+                uid: currentUser.uid,
+                email: currentUser.email || null,
+              })
+            }
             await processSignedInUser(currentUser, "current-user-check")
+          } else if (getPendingProvider() === "apple") {
+            logAppleDebug("No redirect result and no current user after return", {
+              hasRedirectResult: false,
+              hasCurrentUser: !!currentUser,
+              redirectHandled: redirectHandledRef.current,
+            })
           }
         }
       } catch (error) {
         console.error("❌ Google sign-in check error:", error)
+        if (getPendingProvider() === "apple") {
+          logAppleDebug("Redirect result check failed", {
+            message: error?.message || "Unknown error",
+            code: error?.code || null,
+          })
+        }
         setApiError("Failed to check authentication status. Please try refreshing.")
         setIsLoading(false)
       }
@@ -272,6 +359,12 @@ export default function SignIn() {
 
         unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
           if (user && !redirectHandledRef.current) {
+            if (getPendingProvider() === "apple") {
+              logAppleDebug("Auth state listener received user", {
+                uid: user.uid,
+                email: user.email || null,
+              })
+            }
             await processSignedInUser(user, "auth-state-listener")
           }
         })
@@ -577,6 +670,11 @@ export default function SignIn() {
     setAppleError("")
     setIsAppleLoading(true)
     setPendingProvider("apple")
+    logAppleDebug("Starting Apple sign-in", {
+      path: window.location.pathname,
+      origin: window.location.origin,
+      isIOSBrowser,
+    })
 
     try {
       await ensureFirebaseInitialized()
@@ -599,14 +697,25 @@ export default function SignIn() {
       // Apple often falls back to a full-page redirect on mobile/Safari, so we
       // force persistent auth storage before starting the OAuth flow.
       await setPersistence(firebaseAuth, browserLocalPersistence)
+      logAppleDebug("Configured Firebase persistence for Apple sign-in", {
+        persistence: "browserLocalPersistence",
+      })
 
       if (isIOSBrowser) {
+        logAppleDebug("Using Apple redirect flow", {
+          reason: "iOS browser detected",
+        })
         await signInWithRedirect(firebaseAuth, appleProvider)
         return
       }
 
+      logAppleDebug("Using Apple popup flow")
       const result = await signInWithPopup(firebaseAuth, appleProvider)
       if (result?.user) {
+        logAppleDebug("Apple popup returned Firebase user", {
+          uid: result.user.uid,
+          email: result.user.email || null,
+        })
         await processSignedInUser(result.user, "apple-popup-result", "apple")
         return
       }
@@ -614,6 +723,10 @@ export default function SignIn() {
       throw new Error("Apple sign-in did not return a Firebase user.")
     } catch (error) {
       console.error("Apple sign-in failed:", error)
+      logAppleDebug("Apple sign-in entry flow failed", {
+        code: error?.code || error?.error || null,
+        message: error?.response?.data?.message || error?.message || "Unknown error",
+      })
       let message = "Apple sign-in failed. Please try again."
 
       if (error?.code === "auth/configuration-not-found") {

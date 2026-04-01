@@ -13,6 +13,14 @@ const redirectToUserHome = () => {
   window.location.replace("/")
 }
 
+const logAppleCallback = (message, details = null) => {
+  if (details) {
+    console.log(`[AppleCallback] ${message}`, details)
+    return
+  }
+  console.log(`[AppleCallback] ${message}`)
+}
+
 export default function AuthCallback() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -28,6 +36,12 @@ export default function AuthCallback() {
           searchParams.get("provider") ||
           (window.location.pathname.includes("/auth/apple/callback") ? "apple" : "google")
         setProvider(providerParam)
+        if (providerParam === "apple") {
+          logAppleCallback("Callback handler started", {
+            path: window.location.pathname,
+            search: window.location.search,
+          })
+        }
 
         // Get OAuth parameters from URL
         const code = searchParams.get("code")
@@ -36,6 +50,11 @@ export default function AuthCallback() {
 
         // Check for OAuth errors
         if (errorParam) {
+          if (providerParam === "apple") {
+            logAppleCallback("Apple callback returned OAuth error", {
+              error: errorParam,
+            })
+          }
           setStatus("error")
           setError(
             errorParam === "access_denied"
@@ -59,33 +78,70 @@ export default function AuthCallback() {
               new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
             ])
             firebaseUser = result?.user || firebaseAuth.currentUser || null
+            if (providerParam === "apple") {
+              logAppleCallback("Checked Firebase redirect result", {
+                hasResultUser: !!result?.user,
+                hasCurrentUser: !!firebaseAuth.currentUser,
+                resolvedUser: !!firebaseUser,
+              })
+            }
           }
 
           if (firebaseUser) {
             const idToken = await firebaseUser.getIdToken(true)
+            if (providerParam === "apple") {
+              logAppleCallback("Got Firebase user during Apple callback", {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || null,
+                hasIdToken: !!idToken,
+                idTokenLength: idToken?.length || 0,
+              })
+            }
             const response = await authAPI.firebaseSocialLogin(
               idToken,
               "user",
               providerParam,
             )
             const data = response?.data?.data || {}
+            if (providerParam === "apple") {
+              logAppleCallback("Backend social login finished", {
+                hasAccessToken: !!data.accessToken,
+                hasUser: !!data.user,
+                role: data.user?.role || null,
+              })
+            }
 
             if (!data.accessToken || !data.user) {
               throw new Error("Invalid response from server while completing social login")
             }
 
             setAuthData("user", data.accessToken, data.user)
+            if (providerParam === "apple") {
+              logAppleCallback("Stored access token from Apple callback", {
+                localToken: !!localStorage.getItem("user_accessToken"),
+                sessionToken: !!sessionStorage.getItem("user_accessToken"),
+              })
+            }
             window.dispatchEvent(new Event("userAuthChanged"))
             registerFcmTokenForLoggedInUser().catch(() => {})
 
             setStatus("success")
             setTimeout(() => {
+              if (providerParam === "apple") {
+                logAppleCallback("Redirecting to home after Apple callback success")
+              }
               redirectToUserHome()
             }, 800)
             return
           }
         } catch (firebaseError) {
           console.error("Firebase callback completion failed:", firebaseError)
+          if (providerParam === "apple") {
+            logAppleCallback("Firebase callback completion failed", {
+              message: firebaseError?.message || "Unknown error",
+              code: firebaseError?.code || null,
+            })
+          }
         }
 
         // Check for direct token from backend (Backend OAuth flow)
@@ -98,6 +154,13 @@ export default function AuthCallback() {
 
             // Save auth data
             setAuthData("user", token, user)
+            if (providerParam === "apple") {
+              logAppleCallback("Stored token from direct backend callback", {
+                hasUser: !!user,
+                localToken: !!localStorage.getItem("user_accessToken"),
+                sessionToken: !!sessionStorage.getItem("user_accessToken"),
+              })
+            }
 
             // Notify app of auth change
             window.dispatchEvent(new Event("userAuthChanged"))
@@ -109,6 +172,9 @@ export default function AuthCallback() {
 
             // Redirect to home after short delay
             setTimeout(() => {
+              if (providerParam === "apple") {
+                logAppleCallback("Redirecting to home after direct Apple callback success")
+              }
               redirectToUserHome()
             }, 1000)
             return
@@ -120,6 +186,11 @@ export default function AuthCallback() {
 
         // Do not fake a successful login if we have no real auth payload.
         if (!code) {
+          if (providerParam === "apple") {
+            logAppleCallback("Apple callback ended without code or token", {
+              search: window.location.search,
+            })
+          }
           setStatus("error")
           setError("Authentication did not return a valid session. Please try again.")
           return
@@ -163,6 +234,11 @@ export default function AuthCallback() {
           redirectToUserHome()
         }, 1500)
       } catch (err) {
+        if (provider === "apple" || window.location.pathname.includes("/auth/apple/callback")) {
+          logAppleCallback("Unhandled callback error", {
+            message: err?.message || "Unknown error",
+          })
+        }
         setStatus("error")
         setError(
           err.message || "An error occurred during authentication. Please try again."
