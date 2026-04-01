@@ -44,6 +44,11 @@ const countryCodes = [
   { code: "+46", country: "SE", flag: "🇸🇪" },
 ]
 
+// Apple requires an explicit redirect URI that matches the one configured in
+// Apple Developer > Services ID. Firebase defaults to <authDomain>/__/auth/handler;
+// we hard‑pin it to avoid mismatches when the SPA is served from a custom domain.
+const APPLE_REDIRECT_URI = "https://tifunbox.firebaseapp.com/__/auth/handler"
+
 export default function SignIn() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -585,6 +590,12 @@ export default function SignIn() {
       const appleProvider = new OAuthProvider("apple.com")
       appleProvider.addScope("email")
       appleProvider.addScope("name")
+      // Force the handler domain Apple expects; prevents redirect loops when the app
+      // runs on a custom hostname while Firebase uses its own auth domain.
+      appleProvider.setCustomParameters({
+        redirect_uri: APPLE_REDIRECT_URI,
+        response_type: "code id_token",
+      })
 
       if (isIOSBrowser) {
         await signInWithRedirect(firebaseAuth, appleProvider)
