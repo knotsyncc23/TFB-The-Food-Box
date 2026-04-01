@@ -640,10 +640,17 @@ export default function SignIn() {
       }
 
       // 4) Normal browser path
-      const { signInWithPopup, signInWithRedirect } = await import("firebase/auth")
+      const {
+        browserLocalPersistence,
+        setPersistence,
+        signInWithPopup,
+        signInWithRedirect,
+      } = await import("firebase/auth")
 
       // Log current origin for debugging
       console.log("🚀 Starting Google sign-in popup...")
+
+      await setPersistence(firebaseAuth, browserLocalPersistence)
 
       // iOS browsers often block popup-based auth; redirect flow is more reliable there.
       if (isIOSBrowser) {
