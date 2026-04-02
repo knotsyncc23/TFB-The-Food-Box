@@ -62,11 +62,6 @@ export default function AuthCallback() {
             logAppleCallback("Apple callback returned OAuth error", {
               error: errorParam,
             })
-            // If user closed the sheet, redirect back to login immediately
-            if (errorParam === "access_denied") {
-              navigate("/user/auth/sign-in", { replace: true })
-              return
-            }
           }
           setStatus("error")
           setError(
