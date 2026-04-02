@@ -1,5 +1,7 @@
 import { Navigate } from "react-router-dom"
 import { isModuleAuthenticated } from "@/lib/utils/auth"
+import Loader from "@/components/Loader"
+import { useFirebaseUserSession } from "@/lib/firebaseUserSession"
 
 /**
  * AuthRedirect Component
@@ -12,6 +14,12 @@ import { isModuleAuthenticated } from "@/lib/utils/auth"
  * @param {string} props.redirectTo - Path to redirect to if authenticated (optional, defaults to module home)
  */
 export default function AuthRedirect({ children, module, redirectTo = null }) {
+  const firebaseUserSession = useFirebaseUserSession()
+
+  if (module === "user" && firebaseUserSession.isRestoring) {
+    return <Loader />
+  }
+
   // Check if user is authenticated for this module
   const isAuthenticated = isModuleAuthenticated(module)
 

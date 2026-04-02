@@ -14,6 +14,7 @@ import {
 const firebaseConfig = {
   apiKey: "",
   authDomain: "",
+  originalAuthDomain: "",
   projectId: "",
   storageBucket: "",
   messagingSenderId: "",
@@ -55,7 +56,10 @@ const fetchFirebaseConfig = async () => {
           console.warn("⚠️ FIREBASE_API_KEY format looks unusual:", apiKey);
         }
       }
-      if (authDomain) firebaseConfig.authDomain = authDomain;
+      if (authDomain) {
+        firebaseConfig.authDomain = authDomain;
+        firebaseConfig.originalAuthDomain = authDomain;
+      }
       if (projectId) {
         firebaseConfig.projectId = projectId;
         if (!looksLikeProjectId(projectId)) {
@@ -94,6 +98,20 @@ const fetchFirebaseConfig = async () => {
 let app;
 let firebaseAuth;
 let googleProvider;
+const FIREBASE_HOSTING_AUTH_DOMAIN = "tifunbox.firebaseapp.com";
+
+const getPreferredAuthDomain = () => {
+  const configuredAuthDomain = firebaseConfig.originalAuthDomain || firebaseConfig.authDomain || "";
+
+  if (configuredAuthDomain && configuredAuthDomain !== FIREBASE_HOSTING_AUTH_DOMAIN) {
+    console.warn("⚠️ Overriding Firebase authDomain to Firebase Hosting domain for redirect auth", {
+      configuredAuthDomain,
+      effectiveAuthDomain: FIREBASE_HOSTING_AUTH_DOMAIN,
+    })
+  }
+
+  return FIREBASE_HOSTING_AUTH_DOMAIN
+}
 
 // Function to ensure Firebase is initialized
 async function ensureFirebaseInitialized() {
@@ -129,6 +147,7 @@ async function ensureFirebaseInitialized() {
   }
 
   try {
+    firebaseConfig.authDomain = getPreferredAuthDomain();
     const existingApps = getApps();
     if (existingApps.length === 0) {
       app = initializeApp(firebaseConfig);
@@ -178,6 +197,14 @@ export function getFirebaseVapidKey() {
 /** Realtime Database URL for live tracking (must match backend). Use with getDatabase(app, url). */
 export function getFirebaseDatabaseURL() {
   return firebaseConfig.databaseURL || "";
+}
+
+export function getFirebaseAuthConfig() {
+  return {
+    authDomain: firebaseConfig.authDomain || "",
+    originalAuthDomain: firebaseConfig.originalAuthDomain || "",
+    projectId: firebaseConfig.projectId || "",
+  }
 }
 
 export { firebaseAuth, googleProvider, ensureFirebaseInitialized };
