@@ -838,7 +838,6 @@ export default function SignIn() {
         browserLocalPersistence,
         setPersistence,
         signInWithPopup,
-        signInWithRedirect,
       } = await import("firebase/auth")
       const appleProvider = new OAuthProvider("apple.com")
       appleProvider.addScope("email")
@@ -853,7 +852,7 @@ export default function SignIn() {
 
       if (shouldUsePopupForApple) {
         logAppleDebug("Using Apple popup flow", {
-          reason: "Prefer popup first in production to avoid redirect restore stalls",
+          reason: "Prefer popup on all browsers to avoid iOS redirect restore stalls",
         })
 
         const result = await signInWithPopup(firebaseAuth, appleProvider)
@@ -861,13 +860,10 @@ export default function SignIn() {
           await processSignedInUser(result.user, "apple-popup-result", "apple")
           return
         }
+
+        throw new Error("Apple popup completed without returning a Firebase user.")
       }
 
-      logAppleDebug("Using Apple redirect fallback", {
-        reason: "Popup did not return a Firebase user",
-      })
-      await signInWithRedirect(firebaseAuth, appleProvider)
-      return
     } catch (error) {
       console.error("Apple sign-in failed:", error)
       logAppleDebug("Apple sign-in entry flow failed", {
@@ -881,23 +877,6 @@ export default function SignIn() {
       } else if (error?.code === "auth/operation-not-allowed") {
         message = "Apple sign-in is disabled in Firebase Console."
       } else if (error?.code === "auth/popup-blocked") {
-        try {
-          const {
-            OAuthProvider,
-            browserLocalPersistence,
-            setPersistence,
-            signInWithRedirect,
-          } = await import("firebase/auth")
-          const appleProvider = new OAuthProvider("apple.com")
-          appleProvider.addScope("email")
-          appleProvider.addScope("name")
-          await setPersistence(firebaseAuth, browserLocalPersistence)
-          logAppleDebug("Falling back to Apple redirect after popup issue", {
-            code: error?.code || error?.error || null,
-          })
-          await signInWithRedirect(firebaseAuth, appleProvider)
-          return
-        } catch (_) {}
         message = "Popup was blocked. Please allow popups and try again."
       } else if (error?.error === "popup_closed_by_user" || error?.code === "popup_closed_by_user" || error?.code === "auth/popup-closed-by-user") {
         message = "Apple sign-in was cancelled."
