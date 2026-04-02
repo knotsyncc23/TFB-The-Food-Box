@@ -1,5 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { isModuleAuthenticated } from "@/lib/utils/auth";
+import Loader from "@/components/Loader";
+import { useFirebaseUserSession } from "@/lib/firebaseUserSession";
 
 /**
  * Role-based Protected Route Component
@@ -7,11 +9,16 @@ import { isModuleAuthenticated } from "@/lib/utils/auth";
  */
 export default function ProtectedRoute({ children, requiredRole, loginPath }) {
   const location = useLocation();
+  const firebaseUserSession = useFirebaseUserSession()
 
   // Check if user is authenticated for the required module using module-specific token
   if (!requiredRole) {
     // If no role required, allow access
     return children;
+  }
+
+  if (requiredRole === "user" && firebaseUserSession.isRestoring) {
+    return <Loader />
   }
 
   const isAuthenticated = isModuleAuthenticated(requiredRole);

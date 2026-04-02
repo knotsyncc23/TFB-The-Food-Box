@@ -17,8 +17,8 @@ import { firebaseAuth, googleProvider, ensureFirebaseInitialized } from "@/lib/f
 import { hasFlutterGoogleBridge, nativeGoogleSignIn } from "@/lib/utils/flutterGoogleAuthBridge"
 import { setAuthData } from "@/lib/utils/auth"
 import { registerFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
-import { resolveFirebaseRedirectUser } from "@/lib/utils/firebaseRedirectRecovery"
 import { appendAppleDebugLog, clearAppleDebugLog, getAppleDebugLog } from "@/lib/utils/appleDebugLog"
+import { useFirebaseUserSession } from "@/lib/firebaseUserSession"
 import loginBanner from "@/assets/loginbanner.jpg"
 import tifunboxLogo from "@/assets/tifunboxlogo.png"
 
@@ -66,16 +66,54 @@ export default function SignIn() {
 
   const PENDING_PROVIDER_KEY = "pendingSocialProvider"
   const APPLE_REDIRECT_IN_PROGRESS_KEY = "appleRedirectInProgress"
+  const safeLocalSet = (key, value) => {
+    try {
+      if (typeof localStorage === "undefined") return
+      localStorage.setItem(key, value)
+    } catch {}
+  }
+  const safeLocalGet = (key) => {
+    try {
+      if (typeof localStorage === "undefined") return null
+      return localStorage.getItem(key)
+    } catch {
+      return null
+    }
+  }
+  const safeLocalRemove = (key) => {
+    try {
+      if (typeof localStorage === "undefined") return
+      localStorage.removeItem(key)
+    } catch {}
+  }
+  const safeSessionSet = (key, value) => {
+    try {
+      if (typeof sessionStorage === "undefined") return
+      sessionStorage.setItem(key, value)
+    } catch {}
+  }
+  const safeSessionGet = (key) => {
+    try {
+      if (typeof sessionStorage === "undefined") return null
+      return sessionStorage.getItem(key)
+    } catch {
+      return null
+    }
+  }
+  const safeSessionRemove = (key) => {
+    try {
+      if (typeof sessionStorage === "undefined") return
+      sessionStorage.removeItem(key)
+    } catch {}
+  }
   const setPendingProvider = (provider) => {
-    if (typeof sessionStorage === "undefined" || !provider) return
-    sessionStorage.setItem(
-      PENDING_PROVIDER_KEY,
-      JSON.stringify({ provider, startedAt: Date.now() }),
-    )
+    if (!provider) return
+    const payload = JSON.stringify({ provider, startedAt: Date.now() })
+    safeSessionSet(PENDING_PROVIDER_KEY, payload)
+    safeLocalSet(PENDING_PROVIDER_KEY, payload)
   }
   const getPendingProvider = () => {
-    if (typeof sessionStorage === "undefined") return null
-    const stored = sessionStorage.getItem(PENDING_PROVIDER_KEY)
+    const stored = safeSessionGet(PENDING_PROVIDER_KEY) || safeLocalGet(PENDING_PROVIDER_KEY)
     if (!stored) return null
 
     try {
@@ -86,9 +124,10 @@ export default function SignIn() {
     }
   }
   const clearPendingProvider = () => {
-    if (typeof sessionStorage === "undefined") return
-    sessionStorage.removeItem(PENDING_PROVIDER_KEY)
-    sessionStorage.removeItem(APPLE_REDIRECT_IN_PROGRESS_KEY)
+    safeSessionRemove(PENDING_PROVIDER_KEY)
+    safeSessionRemove(APPLE_REDIRECT_IN_PROGRESS_KEY)
+    safeLocalRemove(PENDING_PROVIDER_KEY)
+    safeLocalRemove(APPLE_REDIRECT_IN_PROGRESS_KEY)
   }
 
   const [authMethod, setAuthMethod] = useState("phone") // "phone" or "email"
@@ -114,12 +153,16 @@ export default function SignIn() {
   const isIOSBrowser = /iPad|iPhone|iPod/i.test(
     typeof navigator !== "undefined" ? navigator.userAgent : "",
   )
+  const firebaseUserSession = useFirebaseUserSession()
 
   useEffect(() => {
     if (typeof sessionStorage === "undefined") return
     if (
       getPendingProvider() === "apple" &&
-      sessionStorage.getItem(APPLE_REDIRECT_IN_PROGRESS_KEY) === "true"
+      (
+        safeSessionGet(APPLE_REDIRECT_IN_PROGRESS_KEY) === "true" ||
+        safeLocalGet(APPLE_REDIRECT_IN_PROGRESS_KEY) === "true"
+      )
     ) {
       setIsAppleLoading(true)
     }
@@ -139,6 +182,41 @@ export default function SignIn() {
       document.removeEventListener("visibilitychange", syncAppleLogs)
     }
   }, [])
+
+  useEffect(() => {
+    const pendingProvider = getPendingProvider()
+    if (!pendingProvider) return
+
+    console.log("[SocialAuth] Observed Firebase restore status", {
+      provider: pendingProvider,
+      path: window.location.pathname,
+      search: window.location.search,
+      isRestoring: firebaseUserSession.isRestoring,
+      hasCurrentUser: !!firebaseUserSession.currentUser,
+      hasRedirectUser: !!firebaseUserSession.redirectResultUser,
+      authDomain: firebaseUserSession.authDomain || null,
+      hostname: firebaseUserSession.hostname || null,
+      domainMatches: firebaseUserSession.domainMatches,
+      error: firebaseUserSession.lastError?.message || null,
+    })
+
+    if (!firebaseUserSession.isRestoring) {
+      setIsAppleLoading(false)
+    }
+
+    if (pendingProvider === "apple" && firebaseUserSession.lastError) {
+      setAppleError(firebaseUserSession.lastError.message || "Apple sign-in restore failed.")
+      setAppleDebugEntries(getAppleDebugLog())
+    }
+  }, [
+    firebaseUserSession.authDomain,
+    firebaseUserSession.currentUser,
+    firebaseUserSession.domainMatches,
+    firebaseUserSession.hostname,
+    firebaseUserSession.isRestoring,
+    firebaseUserSession.lastError,
+    firebaseUserSession.redirectResultUser,
+  ])
 
   // Prefill phone when user comes back from OTP screen
   useEffect(() => {
@@ -319,6 +397,9 @@ export default function SignIn() {
 
   // Handle Firebase redirect result on component mount and URL changes
   useEffect(() => {
+    // Redirect restoration is handled globally by firebaseUserSession bootstrap.
+    return undefined
+
     let unsubscribe = null
 
     const handleRedirectResult = async () => {
@@ -579,6 +660,8 @@ export default function SignIn() {
     setApiError("")
     setIsLoading(true)
     setPendingProvider("google")
+    safeSessionSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
+    safeLocalSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
     redirectHandledRef.current = false // Reset flag when starting new sign-in
 
     try {
@@ -650,13 +733,21 @@ export default function SignIn() {
       // Log current origin for debugging
       console.log("🚀 Starting Google sign-in popup...")
 
+      console.log("[GoogleAuth] Starting Google sign-in", {
+        path: window.location.pathname,
+        origin: window.location.origin,
+        isIOSBrowser,
+      })
       await setPersistence(firebaseAuth, browserLocalPersistence)
+      console.log("[GoogleAuth] Configured Firebase persistence for Google sign-in", {
+        persistence: "browserLocalPersistence",
+      })
 
-      // iOS browsers often block popup-based auth; redirect flow is more reliable there.
-      if (isIOSBrowser) {
-        await signInWithRedirect(firebaseAuth, googleProvider)
-        return
-      }
+      console.log("[GoogleAuth] Using Google redirect flow", {
+        reason: "Firebase Hosting auth flow standardized on redirect",
+      })
+      await signInWithRedirect(firebaseAuth, googleProvider)
+      return
 
       // Use popup for better UX and error handling
       const result = await signInWithPopup(firebaseAuth, googleProvider)
@@ -714,9 +805,8 @@ export default function SignIn() {
     setAppleError("")
     setIsAppleLoading(true)
     setPendingProvider("apple")
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.setItem(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
-    }
+    safeSessionSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
+    safeLocalSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
     logAppleDebug("Starting Apple sign-in", {
       path: window.location.pathname,
       origin: window.location.origin,
@@ -748,26 +838,11 @@ export default function SignIn() {
         persistence: "browserLocalPersistence",
       })
 
-      if (isIOSBrowser) {
-        logAppleDebug("Using Apple redirect flow", {
-          reason: "iOS browser detected",
-        })
-        await signInWithRedirect(firebaseAuth, appleProvider)
-        return
-      }
-
-      logAppleDebug("Using Apple popup flow")
-      const result = await signInWithPopup(firebaseAuth, appleProvider)
-      if (result?.user) {
-        logAppleDebug("Apple popup returned Firebase user", {
-          uid: result.user.uid,
-          email: result.user.email || null,
-        })
-        await processSignedInUser(result.user, "apple-popup-result", "apple")
-        return
-      }
-
-      throw new Error("Apple sign-in did not return a Firebase user.")
+      logAppleDebug("Using Apple redirect flow", {
+        reason: "Firebase Hosting auth flow standardized on redirect",
+      })
+      await signInWithRedirect(firebaseAuth, appleProvider)
+      return
     } catch (error) {
       console.error("Apple sign-in failed:", error)
       logAppleDebug("Apple sign-in entry flow failed", {

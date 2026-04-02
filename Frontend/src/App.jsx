@@ -2,8 +2,9 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import AuthRedirect from "@/components/AuthRedirect"
 
-import { Suspense, lazy } from "react"
+import { Suspense, lazy, useEffect } from "react"
 import Loader from "@/components/Loader"
+import { startFirebaseUserSessionBootstrap } from "@/lib/firebaseUserSession"
 
 // App routes stay lazy-loaded to keep the initial bundle lean.
 // Lazy Loading Components
@@ -136,6 +137,12 @@ function UserPathRedirect() {
 }
 
 export default function App() {
+  useEffect(() => {
+    startFirebaseUserSessionBootstrap().catch((error) => {
+      console.error("[App] Firebase user session bootstrap failed", error)
+    })
+  }, [])
+
   return (
     <Suspense fallback={<Loader />}>
       <Routes>

@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "tifunbox"
+  },
+  "targets": {
+    "tifunbox": {
+      "hosting": {
+        "app": [
+          "tifunbox"
+        ]
+      }
+    }
+  }
+}
