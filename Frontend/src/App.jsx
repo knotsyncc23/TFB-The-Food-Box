@@ -5,6 +5,7 @@ import AuthRedirect from "@/components/AuthRedirect"
 import { Suspense, lazy } from "react"
 import Loader from "@/components/Loader"
 
+// App routes stay lazy-loaded to keep the initial bundle lean.
 // Lazy Loading Components
 const UserRouter = lazy(() => import("@/module/user/components/UserRouter"))
 // User main pages - mapped to existing user module pages
