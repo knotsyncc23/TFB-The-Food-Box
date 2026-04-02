@@ -5,6 +5,22 @@ import { adminAPI, authAPI, deliveryAPI, restaurantAPI } from "@/lib/api";
 const FCM_SW_PATH = "/firebase-messaging-sw.js";
 const FCM_SW_SCOPE = "/firebase-cloud-messaging-push-scope/";
 
+/** Dispatched on `window` when an FCM message arrives in the foreground (single Firebase listener). */
+export const TFB_FCM_FOREGROUND_EVENT = "tfb-fcm-foreground";
+
+let foregroundMessageInitialized = false;
+
+function detectFcmPlatform() {
+  try {
+    const ua = navigator?.userAgent || "";
+    if (/iPad|iPhone|iPod/i.test(ua)) return "ios";
+    if (/Android/i.test(ua)) return "android";
+    return "web";
+  } catch {
+    return "web";
+  }
+}
+
 export function getWebNotificationPermission() {
   try {
     if (typeof Notification === "undefined") return "unsupported";
@@ -100,28 +116,101 @@ async function getBrowserFcmToken({ forcePrompt = false } = {}) {
   return token;
 }
 
-export async function subscribeToForegroundFcmMessages(onPayload) {
-  const app = await ensureFirebaseInitialized();
-  if (!app) return () => {};
-  const supported = await isSupported().catch(() => false);
-  if (!supported) return () => {};
-
-  const messaging = getMessaging(app);
-  const unsubscribe = onMessage(messaging, (payload) => {
+/**
+ * Subscribe to foreground FCM payloads without registering another Firebase `onMessage` listener.
+ * Requires `initializePushNotifications()` to be run once at app startup (see main.jsx).
+ */
+export function subscribeToForegroundFcmMessages(onPayload) {
+  const handler = (event) => {
     try {
-      onPayload?.(payload);
-    } catch {}
-  });
-  return unsubscribe;
+      onPayload?.(event.detail);
+    } catch {
+      // ignore consumer errors
+    }
+  };
+  window.addEventListener(TFB_FCM_FOREGROUND_EVENT, handler);
+  return () => window.removeEventListener(TFB_FCM_FOREGROUND_EVENT, handler);
+}
+
+/**
+ * Initialize a single global foreground FCM handler (bakalacart-style: OS notification + event for toasts).
+ * Safe to call multiple times; only registers once.
+ */
+export async function initializePushNotifications() {
+  try {
+    const app = await ensureFirebaseInitialized();
+    if (!app) return;
+
+    const supported = await isSupported().catch(() => false);
+    if (!supported) return;
+
+    if (foregroundMessageInitialized) return;
+
+    const messaging = getMessaging(app);
+    onMessage(messaging, (payload) => {
+      try {
+        window.dispatchEvent(
+          new CustomEvent(TFB_FCM_FOREGROUND_EVENT, { detail: payload }),
+        );
+      } catch {
+        // ignore
+      }
+
+      if (typeof Notification === "undefined") return;
+      if (Notification.permission !== "granted") return;
+
+      const title =
+        payload.notification?.title ||
+        payload.data?.title ||
+        "The Food Box";
+      const body =
+        payload.notification?.body || payload.data?.body || "";
+      const icon =
+        payload.notification?.icon || payload.data?.icon || "/favicon.ico";
+      const tag =
+        payload.data?.tag || payload.data?.orderId || title;
+
+      // Cross-tab dedupe (same as bakalacart push flow)
+      const debounceKey = `fcm_notif_shown_${tag}`;
+      const lastShown = localStorage.getItem(debounceKey);
+      if (lastShown && Date.now() - parseInt(lastShown, 10) < 5000) {
+        return;
+      }
+      localStorage.setItem(debounceKey, Date.now().toString());
+
+      try {
+        new Notification(title, {
+          body,
+          icon,
+          data: payload.data,
+          tag,
+        });
+      } catch (error) {
+        console.warn(
+          "[FCM] Foreground notification failed:",
+          error?.message || error,
+        );
+      }
+    });
+
+    foregroundMessageInitialized = true;
+    console.log("[FCM] Global foreground handler initialized");
+  } catch (error) {
+    console.warn(
+      "[FCM] initializePushNotifications failed:",
+      error?.message || error,
+    );
+  }
 }
 
 export async function registerFcmTokenForLoggedInUser({ forcePrompt = false } = {}) {
   try {
     const token = await getBrowserFcmToken({ forcePrompt });
     if (!token) return;
+    const platform = detectFcmPlatform();
 
-    console.log("[FCM] Token to send (user):", token.substring(0, 30) + "...");
-    const res = await authAPI.registerFcmToken("web", token);
+    console.log("[FCM] Token to send (user):", token.substring(0, 30) + "...", "platform:", platform);
+    const res = await authAPI.registerFcmToken(platform, token);
     const saved =
       res?.data?.data?.fcmTokenWeb ?? res?.data?.data?.fcmtokenWeb;
     console.log(
@@ -147,12 +236,15 @@ export async function registerFcmTokenForRestaurant({ forcePrompt = false } = {}
   try {
     const token = await getBrowserFcmToken({ forcePrompt });
     if (!token) return;
+    const platform = detectFcmPlatform();
 
     console.log(
       "[FCM][Restaurant] Token to send:",
       token.substring(0, 30) + "...",
+      "platform:",
+      platform,
     );
-    const res = await restaurantAPI.registerFcmToken("web", token);
+    const res = await restaurantAPI.registerFcmToken(platform, token);
     const saved =
       res?.data?.data?.fcmTokenWeb ?? res?.data?.data?.fcmtokenWeb;
     console.log(
@@ -171,7 +263,8 @@ export async function registerFcmTokenForDelivery({ forcePrompt = false } = {}) 
   try {
     const token = await getBrowserFcmToken({ forcePrompt });
     if (!token) return;
-    const res = await deliveryAPI.registerFcmToken?.("web", token);
+    const platform = detectFcmPlatform();
+    const res = await deliveryAPI.registerFcmToken?.(platform, token);
     return res?.data;
   } catch (error) {
     console.error("[FCM][Delivery] Error during web FCM registration:", error?.message || error);
@@ -182,7 +275,8 @@ export async function registerFcmTokenForAdmin({ forcePrompt = false } = {}) {
   try {
     const token = await getBrowserFcmToken({ forcePrompt });
     if (!token) return;
-    const res = await adminAPI.registerFcmToken?.("web", token);
+    const platform = detectFcmPlatform();
+    const res = await adminAPI.registerFcmToken?.(platform, token);
     return res?.data;
   } catch (error) {
     console.error("[FCM][Admin] Error during web FCM registration:", error?.message || error);

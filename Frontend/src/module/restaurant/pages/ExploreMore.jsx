@@ -36,6 +36,7 @@ import { DateRangeCalendar } from "@/components/ui/date-range-calendar"
 import { clearModuleAuth, clearAuthData } from "@/lib/utils/auth"
 import { restaurantAPI } from "@/lib/api"
 import { firebaseAuth } from "@/lib/firebase"
+import { removeFcmTokenForRestaurant } from "@/lib/notifications/fcmWeb"
 
 // Time Picker Wheel Component
 function TimePickerWheel({
@@ -430,6 +431,12 @@ export default function ExploreMore() {
     setProfileOpen(false)
 
     try {
+      try {
+        await removeFcmTokenForRestaurant()
+      } catch (fcmError) {
+        console.warn("Restaurant FCM token removal failed:", fcmError)
+      }
+
       // Call backend logout API to invalidate refresh token
       try {
         await restaurantAPI.logout()
@@ -492,6 +499,12 @@ export default function ExploreMore() {
     setProfileOpen(false)
 
     try {
+      try {
+        await removeFcmTokenForRestaurant()
+      } catch (fcmError) {
+        console.warn("Restaurant FCM token removal failed:", fcmError)
+      }
+
       // Call backend logout API to invalidate refresh token
       try {
         await restaurantAPI.logout()
@@ -680,6 +693,7 @@ export default function ExploreMore() {
   ]
 
   const settingsItems = [
+    { id: 2, label: "Settings", icon: Settings, route: "/restaurant/settings" },
     { id: 3, label: "Delivery settings", icon: Truck, route: "/restaurant/delivery-settings" },
     { id: 4, label: "Zone Setup", icon: MapPin, route: "/restaurant/zone-setup" },
   ]

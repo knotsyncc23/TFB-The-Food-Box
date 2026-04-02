@@ -351,6 +351,15 @@ export const rejectOrder = asyncHandler(async (req, res) => {
       });
       return errorResponse(res, 404, 'Order not found');
     }
+    // If the order is already cancelled, treat this as a successful no-op.
+    // This avoids showing a hard error when the UI is slightly stale or
+    // another actor already cancelled the order.
+    if (order.status === 'cancelled') {
+      return successResponse(res, 200, 'Order already cancelled', {
+        order,
+      });
+    }
+
     // Allow rejecting/cancelling orders with status 'pending', 'confirmed', or 'preparing'
     if (!['pending', 'confirmed', 'preparing'].includes(order.status)) {
       return errorResponse(res, 400, `Order cannot be cancelled. Current status: ${order.status}`);

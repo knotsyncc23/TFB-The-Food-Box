@@ -26,9 +26,9 @@ export default function Checkout() {
   const defaultAddress = addresses.find(addr => addr.id === selectedAddress) || getDefaultAddress()
   const defaultPayment = paymentMethods.find(pm => pm.id === selectedPayment) || getDefaultPaymentMethod()
 
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity * 83, 0)
-  const deliveryFee = 2.99 * 83
-  const tax = subtotal * 0.08
+  const subtotal = cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1), 0)
+  const deliveryFee = subtotal >= 149 ? 0 : 25
+  const tax = Math.round(subtotal * 0.05)
   const total = subtotal + deliveryFee + tax
 
   const handlePlaceOrder = async () => {
@@ -155,7 +155,7 @@ export default function Checkout() {
                   ) : (
                     <div className="text-center py-8">
                       <p className="text-muted-foreground mb-4">No addresses saved</p>
-                      <Link to="/user/profile/addresses/new">
+                      <Link to="/user/profile/addresses">
                         <Button>Add Address</Button>
                       </Link>
                     </div>
@@ -249,11 +249,11 @@ export default function Checkout() {
                         <div className="flex-1">
                           <p className="font-medium text-sm md:text-base dark:text-gray-200">{item.name}</p>
                           <p className="text-xs md:text-sm text-muted-foreground">
-                            ₹{(item.price * 83).toFixed(0)} × {item.quantity}
+                            ₹{Number(item.price || 0).toFixed(0)} × {Number(item.quantity || 1)}
                           </p>
                         </div>
                         <p className="font-semibold text-sm md:text-base dark:text-gray-200">
-                          ₹{(item.price * 83 * item.quantity).toFixed(0)}
+                          ₹{(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(0)}
                         </p>
                       </div>
                     ))}
@@ -266,7 +266,7 @@ export default function Checkout() {
                     </div>
                     <div className="flex justify-between text-sm md:text-base">
                       <span className="text-muted-foreground">Delivery Fee</span>
-                      <span className="dark:text-gray-200">₹{deliveryFee.toFixed(0)}</span>
+                      <span className="dark:text-gray-200">{deliveryFee === 0 ? "FREE" : `₹${deliveryFee.toFixed(0)}`}</span>
                     </div>
                     <div className="flex justify-between text-sm md:text-base">
                       <span className="text-muted-foreground">Tax</span>

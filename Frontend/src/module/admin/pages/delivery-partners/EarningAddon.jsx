@@ -541,7 +541,6 @@ export default function EarningAddon() {
                   Earning Amount (₹) <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
                   <input
                     type="number"
                     required
@@ -549,7 +548,7 @@ export default function EarningAddon() {
                     step="0.01"
                     value={formData.earningAmount}
                     onChange={(e) => setFormData({ ...formData, earningAmount: e.target.value })}
-                    className="w-full pl-9 pr-3 py-2.5 border-2 border-slate-200 rounded-lg bg-white focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all text-sm"
+                    className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg bg-white focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 transition-all text-sm"
                     placeholder="e.g., 500.00"
                   />
                 </div>

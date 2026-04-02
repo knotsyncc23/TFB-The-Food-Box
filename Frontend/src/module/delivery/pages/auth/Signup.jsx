@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/select"
 import loginBg from "@/assets/deliveryloginbanner.png"
 import { useCompanyName } from "@/lib/hooks/useCompanyName"
+import { deliveryAPI } from "@/lib/api"
+import { validateDeliveryPhone } from "@/lib/utils/deliveryPhoneValidation"
 
 // Common country codes
 const countryCodes = [
@@ -61,17 +63,8 @@ export default function DeliverySignup() {
     }
   }, [navigate])
 
-  const validatePhone = (phone) => {
-    if (!phone.trim()) {
-      return "Phone number is required"
-    }
-    const cleanPhone = phone.replace(/[\s\-\(\)]/g, "")
-    const phoneRegex = /^\d{7,15}$/
-    if (!phoneRegex.test(cleanPhone)) {
-      return "Phone number must be 7-15 digits"
-    }
-    return ""
-  }
+  const validatePhone = (phone) =>
+    validateDeliveryPhone(phone, formData.countryCode)
 
   const validateName = (name) => {
     if (!name.trim()) {
@@ -92,16 +85,17 @@ export default function DeliverySignup() {
 
   const handleChange = (e) => {
     const { name, value } = e.target
+    const sanitizedValue = name === "phone" ? value.replace(/\D/g, "").slice(0, 15) : value
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: sanitizedValue,
     })
 
     // Real-time validation
     if (name === "phone") {
-      setErrors({ ...errors, phone: validatePhone(value) })
+      setErrors({ ...errors, phone: validatePhone(sanitizedValue) })
     } else if (name === "name") {
-      setErrors({ ...errors, name: validateName(value) })
+      setErrors({ ...errors, name: validateName(sanitizedValue) })
     }
   }
 
@@ -135,25 +129,33 @@ export default function DeliverySignup() {
       return
     }
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const fullPhone = `${formData.countryCode} ${formData.phone}`.trim()
+      await deliveryAPI.sendOTP(fullPhone, "register")
 
-    // Store auth data in sessionStorage for OTP page
-    const authData = {
-      method: "phone",
-      phone: `${formData.countryCode} ${formData.phone}`,
-      name: formData.name,
-      isSignUp: true,
-      module: "delivery",
+      const authData = {
+        method: "phone",
+        phone: fullPhone,
+        name: formData.name.trim(),
+        isSignUp: true,
+        module: "delivery",
+      }
+      sessionStorage.setItem("deliveryAuthData", JSON.stringify(authData))
+      navigate("/delivery/otp")
+    } catch (err) {
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Failed to send OTP. Please try again."
+      setErrors((prev) => ({ ...prev, phone: message }))
+    } finally {
+      setIsLoading(false)
     }
-    sessionStorage.setItem("deliveryAuthData", JSON.stringify(authData))
-
-    setIsLoading(false)
-    navigate("/delivery/otp")
   }
 
   return (
-    <div className="h-screen w-full flex bg-white overflow-hidden">
+    <div className="min-h-screen w-full flex bg-white overflow-y-auto lg:overflow-hidden">
       {/* Left image section */}
       <div className="hidden lg:flex lg:w-1/2 relative">
         <img
@@ -180,7 +182,7 @@ export default function DeliverySignup() {
       </div>
 
       {/* Right form section */}
-      <div className="w-full lg:w-1/2 h-full flex flex-col">
+      <div className="w-full lg:w-1/2 min-h-screen flex flex-col">
         {/* Top logo and version */}
         <div className="relative flex items-center justify-center px-6 sm:px-10 lg:px-16 pt-6 pb-4">
           <div
@@ -199,7 +201,7 @@ export default function DeliverySignup() {
               </span>
             </div>
           </div>
-          <div className="absolute right-6 sm:right-10 lg:right-16 top-6 px-3 py-1 rounded-full bg-red-50 border border-red-200 text-[11px] font-medium text-red-700 shadow-sm">
+          <div className="hidden sm:block absolute right-6 sm:right-10 lg:right-16 top-6 px-3 py-1 rounded-full bg-red-50 border border-red-200 text-[11px] font-medium text-red-700 shadow-sm">
             Software Version : 1.0.0
           </div>
         </div>

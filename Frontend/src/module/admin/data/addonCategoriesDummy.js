@@ -16,7 +16,6 @@ export const addonCategoriesDummy = [
   {
     sl: 3,
     id: 3,
-    name: "Spice Level",
     status: true,
   },
   {

@@ -256,40 +256,46 @@ export default function Feedback() {
         let fromDate = null
         let toDate = null
 
+        // Helper to get end of day for a date
+        const endOfDay = (date) => {
+          const d = new Date(date)
+          d.setHours(23, 59, 59, 999)
+          return d
+        }
+
         switch (selectedDateRange) {
           case 'today':
             fromDate = dateRanges.today
-            toDate = new Date()
+            toDate = endOfDay(new Date())
             break
           case 'yesterday':
             fromDate = dateRanges.yesterday
-            toDate = new Date(dateRanges.yesterday)
-            toDate.setHours(23, 59, 59, 999)
+            toDate = endOfDay(dateRanges.yesterday)
             break
           case 'thisWeek':
             fromDate = dateRanges.thisWeekStart
-            toDate = dateRanges.thisWeekEnd
+            toDate = endOfDay(new Date())
             break
           case 'lastWeek':
             fromDate = dateRanges.lastWeekStart
-            toDate = dateRanges.lastWeekEnd
+            toDate = endOfDay(dateRanges.lastWeekEnd)
             break
           case 'thisMonth':
             fromDate = dateRanges.thisMonthStart
-            toDate = dateRanges.thisMonthEnd
+            toDate = endOfDay(new Date())
             break
           case 'lastMonth':
             fromDate = dateRanges.lastMonthStart
-            toDate = dateRanges.lastMonthEnd
+            toDate = endOfDay(dateRanges.lastMonthEnd)
             break
           case 'last5days':
             fromDate = dateRanges.last5DaysStart
-            toDate = dateRanges.last5DaysEnd
+            toDate = endOfDay(new Date())
             break
           case 'custom':
             if (customDateRange.start && customDateRange.end) {
               fromDate = customDateRange.start
-              toDate = customDateRange.end
+              toDate = endOfDay(customDateRange.end)
             }
             break
         }
@@ -767,9 +773,6 @@ export default function Feedback() {
         {/* Top row - restaurant label + icons */}
         <div className="sticky bg-white top-0 z-40 px-4 py-3 border-b border-gray-200 flex items-center justify-between mb-2">
           <div>
-            <p className="text-[10px] tracking-[0.12em] text-gray-500 uppercase">
-              Showing data for
-            </p>
             <p className="text-md font-semibold text-gray-900 mt-0.5">
               {isLoadingRestaurant ? "Loading..." : (restaurantData?.name || "Restaurant")}
             </p>

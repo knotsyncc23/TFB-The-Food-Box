@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import io from 'socket.io-client';
 import { API_BASE_URL } from '@/lib/api/config';
 import bikeLogo from '@/assets/bikelogo.png';
@@ -46,6 +46,7 @@ const DeliveryTrackingMap = ({
   const isProgrammaticChangeRef = useRef(false);
   const mapInitializedRef = useRef(false);
   const lastDrawnPolylineRef = useRef(null);
+  const shouldShowTrackingRef = useRef(false);
 
   const backendUrl = API_BASE_URL.replace('/api', '');
 
@@ -104,20 +105,18 @@ const DeliveryTrackingMap = ({
   }, []);
 
   // Check if delivery partner is assigned
-  const hasDeliveryPartner = useMemo(() => {
-    const deliveryStateStatus = order?.deliveryState?.status;
-    const currentPhase = order?.deliveryState?.currentPhase;
-    const hasAccepted = deliveryStateStatus === 'accepted';
-    return !!(order?.deliveryPartnerId ||
-      order?.deliveryPartner ||
-      order?.assignmentInfo?.deliveryPartnerId ||
-      hasAccepted ||
-      (deliveryStateStatus && deliveryStateStatus !== 'pending') ||
-      (currentPhase && currentPhase !== 'assigned' && currentPhase !== 'pending') ||
-      (currentPhase === 'en_route_to_pickup') ||
-      (currentPhase === 'at_pickup') ||
-      (currentPhase === 'en_route_to_delivery'));
-  }, [order?.deliveryPartnerId, order?.deliveryPartner, order?.assignmentInfo?.deliveryPartnerId, order?.deliveryState?.status, order?.deliveryState?.currentPhase]);
+  const orderStatus = order?.status;
+  const currentPhase = order?.deliveryState?.currentPhase;
+  const isDelivered = orderStatus === 'delivered' || orderStatus === 'completed' || currentPhase === 'completed';
+  const hasPickedUp = orderStatus === 'out_for_delivery' ||
+    currentPhase === 'en_route_to_delivery' ||
+    currentPhase === 'at_delivery' ||
+    order?.tracking?.out_for_delivery?.status === true;
+  const shouldShowTracking = hasPickedUp && !isDelivered;
+
+  useEffect(() => {
+    shouldShowTrackingRef.current = shouldShowTracking;
+  }, [shouldShowTracking]);
 
   // Move bike smoothly with rotation
   const moveBikeSmoothly = useCallback((lat, lng, heading) => {
@@ -417,12 +416,14 @@ const DeliveryTrackingMap = ({
     socketRef.current.on('connect', () => {
       console.log('✅ Socket connected for order:', orderId);
       socketRef.current.emit('join-order-tracking', orderId);
-      socketRef.current.emit('request-current-location', orderId);
-      console.log('📡 Requested current location for order:', orderId);
+      if (shouldShowTrackingRef.current) {
+        socketRef.current.emit('request-current-location', orderId);
+        console.log('📡 Requested current location for order:', orderId);
+      }
 
       // Also request location updates periodically
       const locationRequestInterval = setInterval(() => {
-        if (socketRef.current && socketRef.current.connected) {
+        if (socketRef.current && socketRef.current.connected && shouldShowTrackingRef.current) {
           socketRef.current.emit('request-current-location', orderId);
         }
       }, 5000); // Request every 5 seconds
@@ -436,6 +437,7 @@ const DeliveryTrackingMap = ({
     });
 
     socketRef.current.on(`location-receive-${orderId}`, (data) => {
+      if (!shouldShowTrackingRef.current) return;
       console.log('📍📍📍 Received REAL-TIME location update via socket:', data);
       if (data && typeof data.lat === 'number' && typeof data.lng === 'number') {
         const location = { lat: data.lat, lng: data.lng, heading: data.heading || data.bearing || 0 };
@@ -465,6 +467,7 @@ const DeliveryTrackingMap = ({
     });
 
     socketRef.current.on(`current-location-${orderId}`, (data) => {
+      if (!shouldShowTrackingRef.current) return;
       console.log('📍📍📍 Received CURRENT location via socket:', data);
       if (data && typeof data.lat === 'number' && typeof data.lng === 'number') {
         const location = { lat: data.lat, lng: data.lng, heading: data.heading || data.bearing || 0 };
@@ -495,6 +498,7 @@ const DeliveryTrackingMap = ({
 
     // Listen for route initialization from backend
     socketRef.current.on(`route-initialized-${orderId}`, (data) => {
+      if (!shouldShowTrackingRef.current) return;
       console.log('🛣️ Route initialized from backend:', data);
       if (data.points && Array.isArray(data.points) && data.points.length > 0) {
         routePolylinePointsRef.current = data.points;
@@ -555,6 +559,7 @@ const DeliveryTrackingMap = ({
     if (!orderId) return;
 
     const unsubscribe = subscribeToActiveOrderLocation(orderId, (loc) => {
+      if (!shouldShowTrackingRef.current) return;
       const location = {
         lat: loc.lat,
         lng: loc.lng,
@@ -873,17 +878,11 @@ const DeliveryTrackingMap = ({
           setTimeout(() => clearInterval(footerHideInterval), 5000);
 
           // Check if delivery partner is assigned and show bike immediately
-          const currentPhase = order?.deliveryState?.currentPhase;
-          const deliveryStateStatus = order?.deliveryState?.status;
-          const hasDeliveryPartnerOnLoad = currentPhase === 'en_route_to_pickup' ||
-            currentPhase === 'at_pickup' ||
-            currentPhase === 'en_route_to_delivery' ||
-            deliveryStateStatus === 'accepted' ||
-            (deliveryStateStatus && deliveryStateStatus !== 'pending');
+          const hasDeliveryPartnerOnLoad = shouldShowTrackingRef.current;
 
           console.log('🚴 Map tiles loaded - Checking for delivery partner:', {
-            currentPhase,
-            deliveryStateStatus,
+            currentPhase: order?.deliveryState?.currentPhase,
+            deliveryStateStatus: order?.deliveryState?.status,
             hasDeliveryPartnerOnLoad,
             hasBikeMarker: !!bikeMarkerRef.current
           });
@@ -923,13 +922,7 @@ const DeliveryTrackingMap = ({
   useEffect(() => {
     if (!isMapLoaded) return;
 
-    // If delivery partner is assigned but bike marker doesn't exist, request real location
-    const currentPhase = order?.deliveryState?.currentPhase;
-    const hasDeliveryPartnerByPhase = currentPhase === 'en_route_to_pickup' ||
-      currentPhase === 'at_pickup' ||
-      currentPhase === 'en_route_to_delivery';
-
-    if (hasDeliveryPartnerByPhase && !bikeMarkerRef.current && mapInstance.current) {
+    if (shouldShowTracking && !bikeMarkerRef.current && mapInstance.current) {
       if (deliveryBoyLat && deliveryBoyLng) {
         moveBikeSmoothly(deliveryBoyLat, deliveryBoyLng, deliveryBoyHeading || 0);
       } else if (socketRef.current && socketRef.current.connected) {
@@ -937,15 +930,18 @@ const DeliveryTrackingMap = ({
       }
     }
 
-    // Clear route if no delivery partner
-    if (!hasDeliveryPartnerByPhase && !hasDeliveryPartner) {
+    if (!shouldShowTracking) {
       if (routePolylineRef.current) {
         routePolylineRef.current.setMap(null);
         routePolylineRef.current = null;
         lastDrawnPolylineRef.current = null;
       }
+      if (bikeMarkerRef.current) {
+        bikeMarkerRef.current.setMap(null);
+        bikeMarkerRef.current = null;
+      }
     }
-  }, [isMapLoaded, deliveryBoyLat, deliveryBoyLng, order?.deliveryState?.currentPhase, order?.deliveryState?.status, moveBikeSmoothly, hasDeliveryPartner]);
+  }, [isMapLoaded, shouldShowTracking, deliveryBoyLat, deliveryBoyLng, deliveryBoyHeading, moveBikeSmoothly, orderId]);
 
   // Update bike when REAL location changes (from socket)
   useEffect(() => {
@@ -968,29 +964,28 @@ const DeliveryTrackingMap = ({
   useEffect(() => {
     if (!isMapLoaded || !mapInstance.current) return;
 
-    const currentPhase = order?.deliveryState?.currentPhase;
-    const deliveryStateStatus = order?.deliveryState?.status;
-    const shouldShowBike = hasDeliveryPartner ||
-      deliveryStateStatus === 'accepted' ||
-      currentPhase === 'en_route_to_pickup' ||
-      currentPhase === 'at_pickup' ||
-      currentPhase === 'en_route_to_delivery';
-
-    if (shouldShowBike && !bikeMarkerRef.current) {
+    if (shouldShowTracking && !bikeMarkerRef.current) {
       if (deliveryBoyLat && deliveryBoyLng) {
         moveBikeSmoothly(deliveryBoyLat, deliveryBoyLng, deliveryBoyHeading || 0);
       } else if (socketRef.current && socketRef.current.connected) {
         socketRef.current.emit('request-current-location', orderId);
       }
-    } else if (shouldShowBike && bikeMarkerRef.current) {
+    } else if (shouldShowTracking && bikeMarkerRef.current) {
       if (deliveryBoyLat && deliveryBoyLng) {
         moveBikeSmoothly(deliveryBoyLat, deliveryBoyLng, deliveryBoyHeading || 0);
       }
-    } else if (!shouldShowBike && bikeMarkerRef.current) {
+    } else if (!shouldShowTracking && bikeMarkerRef.current) {
       bikeMarkerRef.current.setMap(null);
       bikeMarkerRef.current = null;
     }
-  }, [isMapLoaded, hasDeliveryPartner, deliveryBoyLat, deliveryBoyLng, deliveryBoyHeading, moveBikeSmoothly, order]);
+  }, [isMapLoaded, shouldShowTracking, deliveryBoyLat, deliveryBoyLng, deliveryBoyHeading, moveBikeSmoothly, orderId]);
+
+  // Request current location when pickup happens
+  useEffect(() => {
+    if (shouldShowTracking && socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('request-current-location', orderId);
+    }
+  }, [shouldShowTracking, orderId]);
 
   // Update user's live location marker and circle when location changes
   useEffect(() => {

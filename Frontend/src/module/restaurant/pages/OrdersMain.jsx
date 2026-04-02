@@ -27,6 +27,32 @@ const filterTabs = [
   { id: "cancelled", label: "Cancelled" },
 ]
 
+const getDeliveryPhaseFlags = (order) => {
+  const status = (order?.status || "").toLowerCase()
+  const phase = (order?.deliveryState?.currentPhase || "").toLowerCase()
+  const trackingOut =
+    order?.tracking?.out_for_delivery?.status === true ||
+    order?.tracking?.outForDelivery?.status === true ||
+    order?.tracking?.outForDelivery?.timestamp
+
+  const isDelivered =
+    status === "delivered" ||
+    status === "completed" ||
+    phase === "completed" ||
+    phase === "delivered"
+
+  const isOutForDelivery =
+    status === "out_for_delivery" ||
+    status === "out-for-delivery" ||
+    phase === "en_route_to_delivery" ||
+    phase === "at_delivery" ||
+    phase === "picked_up" ||
+    phase === "pickedup" ||
+    trackingOut
+
+  return { isDelivered, isOutForDelivery }
+}
+
 // Completed Orders List Component
 function CompletedOrders({ onSelectOrder }) {
   const [orders, setOrders] = useState([])
@@ -43,9 +69,11 @@ function CompletedOrders({ onSelectOrder }) {
         if (!isMounted) return
 
         if (response.data?.success && response.data.data?.orders) {
-          const completedOrders = response.data.data.orders.filter(
-            order => order.status === 'delivered' || order.status === 'completed'
-          )
+          const completedOrders = response.data.data.orders.filter(order => {
+            const { isDelivered } = getDeliveryPhaseFlags(order)
+            const status = (order.status || "").toLowerCase()
+            return isDelivered || status === 'delivered' || status === 'completed'
+          })
 
           const transformedOrders = completedOrders.map(order => ({
             orderId: order.orderId || order._id,
@@ -146,7 +174,7 @@ function CompletedOrders({ onSelectOrder }) {
               : 'N/A'
 
             return (
-              <div key={order.orderId || order.mongoId} className="w-full bg-white rounded-2xl p-4 mb-3 border border-gray-200">
+              <div key={order.orderId || order.mongoId} className="w-full bg-white rounded-2xl p-4 mb-3 border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all">
                 <button
                   type="button"
                   onClick={() =>
@@ -160,7 +188,7 @@ function CompletedOrders({ onSelectOrder }) {
                       itemsSummary: order.itemsSummary,
                     })
                   }
-                  className="w-full text-left flex gap-3 items-stretch"
+                  className="w-full text-left flex gap-3 items-start"
                 >
                   <div className="h-20 w-20 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center flex-shrink-0 my-auto">
                     {order.photoUrl ? (
@@ -391,38 +419,38 @@ function CancelledOrders({ onSelectOrder }) {
                   </div>
 
                   <div className="flex-1 flex flex-col justify-between min-h-[80px]">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-black leading-tight">
+                    <div className="flex flex-col gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-black leading-tight truncate">
                           Order #{order.orderId}
                         </p>
-                        <p className="text-[11px] text-gray-500 mt-1">
+                        <p className="text-[11px] text-gray-500 mt-1 truncate">
                           {order.customerName}
                         </p>
                       </div>
 
-                      <div className="flex flex-col items-end gap-1">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium border ${order.cancelledBy === 'user'
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${order.cancelledBy === 'user'
                           ? 'border-orange-500 text-orange-600'
                           : 'border-red-500 text-red-600'
                           }`}>
                           <span className={`h-1.5 w-1.5 rounded-full ${order.cancelledBy === 'user' ? 'bg-orange-500' : 'bg-red-500'
                             }`} />
-                          {cancelledByText}
+                          <span className="truncate max-w-[110px]">{cancelledByText}</span>
                         </span>
-                        <span className="text-[11px] text-gray-500 text-right">
+                        <span className="text-[10px] text-gray-500 leading-tight whitespace-nowrap">
                           {cancelledDate}
                         </span>
                       </div>
                     </div>
 
                     <div className="mt-2">
-                      <p className="text-xs text-gray-600 line-clamp-1">
+                      <p className="text-xs text-gray-600 line-clamp-2">
                         {order.itemsSummary}
                       </p>
                       {order.cancellationReason && (
-                        <p className="text-[10px] text-red-600 mt-1 line-clamp-1">
-                          Reason: {order.cancellationReason}
+                        <p className="text-[10px] text-red-600/90 mt-1 line-clamp-2">
+                          {order.cancellationReason}
                         </p>
                       )}
                     </div>
@@ -1711,6 +1739,17 @@ export default function OrdersMain() {
                     </div>
                   )}
 
+                  {(popupOrder || newOrder)?.note && (
+                    <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                        Customer note
+                      </p>
+                      <p className="mt-1 text-sm text-amber-900 break-words">
+                        {(popupOrder || newOrder)?.note}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Total bill */}
                   <div className="mb-4 flex items-center justify-between py-3 border-y border-gray-200">
                     <div className="flex items-center gap-2">
@@ -1794,7 +1833,18 @@ export default function OrdersMain() {
 
                 {/* Footer */}
                 <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
-                  <button className="text-sm text-gray-600 hover:text-gray-900 transition-colors underline mx-auto block">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate("/restaurant/help-centre", {
+                        state: {
+                          orderId: (popupOrder || newOrder)?.orderId || null,
+                          source: "order-popup",
+                        },
+                      })
+                    }
+                    className="text-sm text-gray-600 hover:text-gray-900 transition-colors underline mx-auto block"
+                  >
                     Need help with this order?
                   </button>
                 </div>
@@ -2216,38 +2266,28 @@ function OrderCard({
   onMarkReadySuccess,
 }) {
   const isReady = status === "Ready"
+  const showCancel = status === 'preparing' && onCancel
+  const orderPayload = {
+    orderId,
+    mongoId,
+    status,
+    customerName,
+    type,
+    tableOrToken,
+    timePlaced,
+    eta,
+    itemsSummary,
+    items,
+  }
 
   return (
     <div className="w-full bg-white rounded-2xl p-4 mb-3 border border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
       {/* Cancel button - only show for preparing orders */}
-      {status === 'preparing' && onCancel && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onCancel({ orderId, mongoId, customerName });
-          }}
-          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white border border-red-100 text-red-600 shadow-md hover:bg-red-50 transition-colors z-10"
-          title="Cancel Order"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      )}
       <div
         onClick={() =>
-          onSelect?.({
-            orderId,
-            status,
-            customerName,
-            type,
-            tableOrToken,
-            timePlaced,
-            eta,
-            itemsSummary,
-            items,
-          })
+          onSelect?.(orderPayload)
         }
-        className="w-full text-left flex gap-3 items-stretch cursor-pointer"
+        className="w-full text-left flex gap-3 items-start cursor-pointer"
       >
         {/* Photo */}
         <div className="h-20 w-20 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center flex-shrink-0 my-auto">
@@ -2279,19 +2319,7 @@ function OrderCard({
               </p>
             </div>
 
-            <div className="flex flex-col items-end gap-1 min-w-0 flex-shrink">
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium border flex-wrap break-words ${isReady
-                  ? "border-red-500 text-red-600"
-                  : "border-gray-800 text-gray-900"
-                  }`}
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${isReady ? "bg-red-500" : "bg-gray-800"
-                    }`}
-                />
-                <span className="whitespace-nowrap">{status}</span>
-              </span>
+            <div className="flex flex-col items-end gap-1 min-w-0 shrink-0 max-w-[120px]">
               <span className="text-[11px] text-gray-500 text-right break-words">
                 {timePlaced}
               </span>
@@ -2300,7 +2328,7 @@ function OrderCard({
 
           {/* Middle row */}
           <div className="mt-2">
-            <p className="text-xs text-gray-600 line-clamp-1">
+            <p className="text-xs text-gray-600 line-clamp-2">
               {itemsSummary}
             </p>
           </div>
@@ -2314,7 +2342,7 @@ function OrderCard({
               </p>
               {/* Delivery Assignment Status - Only show for preparing orders */}
               {status === 'preparing' && (
-                <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${deliveryPartnerId
                     ? 'bg-red-100 text-red-700 border border-red-300'
                     : 'bg-orange-100 text-orange-700 border border-orange-300'
@@ -2330,15 +2358,29 @@ function OrderCard({
                 </div>
               )}
             </div>
-            {/* Hide ETA for ready orders */}
-            {status !== 'ready' && eta && (
-              <div className="flex items-baseline gap-1 shrink-0">
-                <span className="text-[11px] text-gray-500 whitespace-nowrap">ETA</span>
-                <span className="text-xs font-medium text-black whitespace-nowrap">
-                  {eta}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {showCancel && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onCancel(orderPayload)
+                  }}
+                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[11px] font-semibold text-red-600 transition-colors hover:border-red-300 hover:bg-red-100"
+                >
+                  Cancel Order
+                </button>
+              )}
+              {/* Hide ETA for ready orders */}
+              {status !== 'ready' && eta && (
+                <div className="flex items-baseline gap-1 shrink-0 pr-2">
+                  <span className="text-[11px] text-gray-500 whitespace-nowrap">ETA</span>
+                  <span className="text-xs font-medium text-black whitespace-nowrap">
+                    {eta}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2359,9 +2401,11 @@ function PreparingOrders({ onSelectOrder, onCancel }) {
       if (!isMountedRef.current) return
 
       if (response.data?.success && response.data.data?.orders) {
-        const preparingOrders = response.data.data.orders.filter(
-          order => order.status === 'preparing'
-        )
+        const preparingOrders = response.data.data.orders.filter(order => {
+          const { isDelivered, isOutForDelivery } = getDeliveryPhaseFlags(order)
+          const status = (order.status || "").toLowerCase()
+          return status === 'preparing' && !isOutForDelivery && !isDelivered
+        })
         const transformedOrders = preparingOrders.map(order => {
           const initialETA = order.estimatedDeliveryTime || 30
           const preparingTimestamp = order.tracking?.preparing?.timestamp
@@ -2420,77 +2464,6 @@ function PreparingOrders({ onSelectOrder, onCancel }) {
       clearInterval(countdownIntervalId)
     }
   }, [fetchOrders])
-
-  // Track which orders have been marked as ready to avoid duplicate API calls
-  const markedReadyOrdersRef = useRef(new Set())
-
-  // Auto-mark orders as ready when ETA reaches 0
-  useEffect(() => {
-    if (!currentTime || orders.length === 0) return
-
-    const checkAndMarkReady = async () => {
-      for (const order of orders) {
-        const orderKey = order.mongoId || order.orderId
-
-        // Skip if already marked as ready
-        if (markedReadyOrdersRef.current.has(orderKey)) {
-          continue
-        }
-
-        // Calculate remaining ETA
-        const elapsedMs = currentTime - order.preparingTimestamp
-        const elapsedMinutes = Math.floor(elapsedMs / 60000)
-        const remainingMinutes = Math.max(0, order.initialETA - elapsedMinutes)
-
-        // If ETA has reached 0 (or slightly past), mark as ready
-        if (remainingMinutes <= 0 && order.status === 'preparing') {
-          const elapsedSeconds = Math.floor(elapsedMs / 1000)
-          const totalETASeconds = order.initialETA * 60
-
-          // Mark as ready when ETA time has elapsed (with 2 second buffer)
-          if (elapsedSeconds >= totalETASeconds - 2) {
-            try {
-              console.log(`🔄 Auto-marking order ${order.orderId} as ready (ETA reached 0)`)
-              markedReadyOrdersRef.current.add(orderKey) // Mark as processing
-              await restaurantAPI.markOrderReady(order.mongoId || order.orderId)
-              console.log(`✅ Order ${order.orderId} marked as ready`)
-              // Order will be removed from preparing list on next fetch
-            } catch (error) {
-              const status = error.response?.status
-              const msg = (error.response?.data?.message || error.message || '').toLowerCase()
-              // If 400 and message says order cannot be marked ready (e.g. already ready),
-              // treat as idempotent - backend cron or another client already marked it.
-              if (status === 400 && (msg.includes('cannot be marked as ready') || msg.includes('current status'))) {
-                // Keep in markedReadyOrdersRef so we don't retry; order will disappear on next fetch
-              } else {
-                console.error(`❌ Failed to auto-mark order ${order.orderId} as ready:`, error)
-                markedReadyOrdersRef.current.delete(orderKey)
-              }
-              // Don't show error toast - it will retry on next check (for non-idempotent errors)
-            }
-          }
-        }
-      }
-    }
-
-    // Check every 2 seconds for orders that need to be marked ready
-    const readyCheckInterval = setInterval(checkAndMarkReady, 2000)
-
-    return () => {
-      clearInterval(readyCheckInterval)
-    }
-  }, [currentTime, orders])
-
-  // Clear marked orders when orders list changes (orders moved to ready)
-  useEffect(() => {
-    const currentOrderKeys = new Set(orders.map(o => o.mongoId || o.orderId))
-    // Remove keys that are no longer in the preparing orders list
-    for (const key of markedReadyOrdersRef.current) {
-      if (!currentOrderKeys.has(key)) {
-        markedReadyOrdersRef.current.delete(key)
-      }
-    }
-  }, [orders])
 
   if (loading) {
     return (
@@ -2582,9 +2555,11 @@ function ReadyOrders({ onSelectOrder }) {
 
         if (response.data?.success && response.data.data?.orders) {
           // Filter orders with 'ready' status
-          const readyOrders = response.data.data.orders.filter(
-            order => order.status === 'ready'
-          )
+          const readyOrders = response.data.data.orders.filter(order => {
+            const { isDelivered, isOutForDelivery } = getDeliveryPhaseFlags(order)
+            const status = (order.status || "").toLowerCase()
+            return status === 'ready' && !isOutForDelivery && !isDelivered
+          })
 
           const transformedOrders = readyOrders.map(order => ({
             orderId: order.orderId || order._id,
@@ -2701,9 +2676,10 @@ const OutForDeliveryOrders = ({ onSelectOrder }) => {
 
         if (response.data?.success && response.data.data?.orders) {
           // Filter orders with 'out_for_delivery' status
-          const outForDeliveryOrders = response.data.data.orders.filter(
-            order => order.status === 'out_for_delivery'
-          )
+          const outForDeliveryOrders = response.data.data.orders.filter(order => {
+            const { isDelivered, isOutForDelivery } = getDeliveryPhaseFlags(order)
+            return !isDelivered && isOutForDelivery
+          })
 
           const transformedOrders = outForDeliveryOrders.map(order => ({
             orderId: order.orderId || order._id,

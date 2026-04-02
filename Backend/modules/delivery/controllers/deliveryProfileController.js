@@ -4,6 +4,7 @@ import {
   errorResponse,
 } from "../../../shared/utils/response.js";
 import Delivery from "../models/Delivery.js";
+import { deleteFromCloudinary } from "../../../shared/utils/cloudinaryService.js";
 import { validate } from "../../../shared/middleware/validate.js";
 import Joi from "joi";
 import winston from "winston";
@@ -212,5 +213,46 @@ export const reverify = asyncHandler(async (req, res) => {
   } catch (error) {
     logger.error(`Error reverifying delivery partner: ${error.message}`);
     return errorResponse(res, 500, "Failed to resubmit for verification");
+  }
+});
+
+/**
+ * Delete Delivery Partner Account
+ * DELETE /api/delivery/profile
+ */
+export const deleteProfile = asyncHandler(async (req, res) => {
+  try {
+    const delivery = await Delivery.findById(req.delivery._id);
+
+    if (!delivery) {
+      return errorResponse(res, 404, "Delivery partner not found");
+    }
+
+    if (delivery.profileImage?.publicId) {
+      try {
+        await deleteFromCloudinary(delivery.profileImage.publicId);
+      } catch (cloudinaryError) {
+        logger.warn(
+          `Failed to delete delivery profile image from Cloudinary: ${cloudinaryError.message}`,
+        );
+      }
+    }
+
+    await Delivery.findByIdAndDelete(delivery._id);
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    });
+
+    logger.info(`Delivery account deleted: ${delivery._id}`, {
+      deliveryId: delivery.deliveryId,
+    });
+
+    return successResponse(res, 200, "Delivery account deleted successfully");
+  } catch (error) {
+    logger.error(`Error deleting delivery account: ${error.message}`);
+    return errorResponse(res, 500, "Failed to delete delivery account");
   }
 });

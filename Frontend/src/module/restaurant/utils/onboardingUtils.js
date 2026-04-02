@@ -1,6 +1,7 @@
 import { api } from "@/lib/api"
 
 const ONBOARDING_STORAGE_KEY = "restaurant_onboarding_data"
+const TOTAL_VISIBLE_ONBOARDING_STEPS = 3
 
 // Helper function to check if a step is complete
 const isStepComplete = (stepData, stepNumber) => {
@@ -26,18 +27,12 @@ const isStepComplete = (stepData, stepNumber) => {
       stepData.deliveryTimings?.closingTime &&
       Array.isArray(stepData.openDays) &&
       stepData.openDays.length > 0 &&
-      // Check for menu images (must have at least one)
-      Array.isArray(stepData.menuImageUrls) &&
-      stepData.menuImageUrls.length > 0 &&
-      // Check for profile image
       stepData.profileImageUrl &&
       (stepData.profileImageUrl.url || typeof stepData.profileImageUrl === 'string')
     )
   }
 
   if (stepNumber === 3) {
-    const hasPanImage = stepData.pan?.image && 
-      (stepData.pan.image.url || typeof stepData.pan.image === 'string')
     const hasFssaiImage = stepData.fssai?.image && 
       (stepData.fssai.image.url || typeof stepData.fssai.image === 'string')
     // GST image is required only if GST is registered
@@ -45,16 +40,9 @@ const isStepComplete = (stepData, stepNumber) => {
       (stepData.gst?.image && (stepData.gst.image.url || typeof stepData.gst.image === 'string'))
     
     return (
-      stepData.pan?.panNumber &&
-      stepData.pan?.nameOnPan &&
-      hasPanImage &&
       stepData.fssai?.registrationNumber &&
       hasFssaiImage &&
-      hasGstImage &&
-      stepData.bank?.accountNumber &&
-      stepData.bank?.ifscCode &&
-      stepData.bank?.accountHolderName &&
-      stepData.bank?.accountType
+      hasGstImage
     )
   }
 
@@ -82,11 +70,11 @@ export const determineStepToShow = (data) => {
 
   // Check step 3
   if (!isStepComplete(data.step3, 3)) {
-    return 3
+    return TOTAL_VISIBLE_ONBOARDING_STEPS
   }
 
-  // All steps complete
-  return null
+  // Step 4 is now merged into the final visible step.
+  return TOTAL_VISIBLE_ONBOARDING_STEPS
 }
 
 // Check onboarding status from API and return the step to navigate to
@@ -100,13 +88,14 @@ export const checkOnboardingStatus = async () => {
     }
     // No onboarding data, start from step 1
     return 1
-  } catch (err) {
+  } catch {
     // If API call fails, check localStorage
     try {
       const localData = localStorage.getItem(ONBOARDING_STORAGE_KEY)
       if (localData) {
         const parsed = JSON.parse(localData)
-        return parsed.currentStep || 1
+        const rawStep = parsed.currentStep || 1
+        return Math.min(rawStep, TOTAL_VISIBLE_ONBOARDING_STEPS)
       }
     } catch (localErr) {
       console.error("Failed to check localStorage:", localErr)

@@ -48,6 +48,10 @@ export default function DeliveryRouter() {
   return (
     <Suspense fallback={<Loader />}>
       <Routes>
+        {/* Public legal pages */}
+        <Route path="/terms" element={<TermsAndConditions />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+
         {/* Protected routes - require authentication */}
         <Route
           path="/"

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate, useSearchParams, Link } from "react-router-dom"
-import { Mail, Phone, AlertCircle, Loader2 } from "lucide-react"
+import { Mail, Phone, AlertCircle, Loader2, Apple } from "lucide-react"
 import AnimatedPage from "../../components/AnimatedPage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,8 @@ import { firebaseAuth, googleProvider, ensureFirebaseInitialized } from "@/lib/f
 import { hasFlutterGoogleBridge, nativeGoogleSignIn } from "@/lib/utils/flutterGoogleAuthBridge"
 import { setAuthData } from "@/lib/utils/auth"
 import { registerFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
+import { resolveFirebaseRedirectUser } from "@/lib/utils/firebaseRedirectRecovery"
+import { appendAppleDebugLog, clearAppleDebugLog, getAppleDebugLog } from "@/lib/utils/appleDebugLog"
 import loginBanner from "@/assets/loginbanner.jpg"
 import tifunboxLogo from "@/assets/tifunboxlogo.png"
 
@@ -44,10 +46,50 @@ const countryCodes = [
   { code: "+46", country: "SE", flag: "🇸🇪" },
 ]
 
+const redirectToUserHome = () => {
+  window.location.replace("/")
+}
+
+const logAppleDebug = (message, details = null) => {
+  appendAppleDebugLog(message, details)
+  if (details) {
+    console.log(`[AppleAuth] ${message}`, details)
+    return
+  }
+  console.log(`[AppleAuth] ${message}`)
+}
+
 export default function SignIn() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const isSignUp = searchParams.get("mode") === "signup"
+
+  const PENDING_PROVIDER_KEY = "pendingSocialProvider"
+  const APPLE_REDIRECT_IN_PROGRESS_KEY = "appleRedirectInProgress"
+  const setPendingProvider = (provider) => {
+    if (typeof sessionStorage === "undefined" || !provider) return
+    sessionStorage.setItem(
+      PENDING_PROVIDER_KEY,
+      JSON.stringify({ provider, startedAt: Date.now() }),
+    )
+  }
+  const getPendingProvider = () => {
+    if (typeof sessionStorage === "undefined") return null
+    const stored = sessionStorage.getItem(PENDING_PROVIDER_KEY)
+    if (!stored) return null
+
+    try {
+      const parsed = JSON.parse(stored)
+      return typeof parsed?.provider === "string" ? parsed.provider : stored
+    } catch {
+      return stored
+    }
+  }
+  const clearPendingProvider = () => {
+    if (typeof sessionStorage === "undefined") return
+    sessionStorage.removeItem(PENDING_PROVIDER_KEY)
+    sessionStorage.removeItem(APPLE_REDIRECT_IN_PROGRESS_KEY)
+  }
 
   const [authMethod, setAuthMethod] = useState("phone") // "phone" or "email"
   const [formData, setFormData] = useState({
@@ -66,6 +108,37 @@ export default function SignIn() {
   const [isLoading, setIsLoading] = useState(false)
   const [apiError, setApiError] = useState("")
   const redirectHandledRef = useRef(false)
+  const [isAppleLoading, setIsAppleLoading] = useState(false)
+  const [appleError, setAppleError] = useState("")
+  const [appleDebugEntries, setAppleDebugEntries] = useState(() => getAppleDebugLog())
+  const isIOSBrowser = /iPad|iPhone|iPod/i.test(
+    typeof navigator !== "undefined" ? navigator.userAgent : "",
+  )
+
+  useEffect(() => {
+    if (typeof sessionStorage === "undefined") return
+    if (
+      getPendingProvider() === "apple" &&
+      sessionStorage.getItem(APPLE_REDIRECT_IN_PROGRESS_KEY) === "true"
+    ) {
+      setIsAppleLoading(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    const syncAppleLogs = () => {
+      setAppleDebugEntries(getAppleDebugLog())
+    }
+
+    syncAppleLogs()
+    window.addEventListener("focus", syncAppleLogs)
+    document.addEventListener("visibilitychange", syncAppleLogs)
+
+    return () => {
+      window.removeEventListener("focus", syncAppleLogs)
+      document.removeEventListener("visibilitychange", syncAppleLogs)
+    }
+  }, [])
 
   // Prefill phone when user comes back from OTP screen
   useEffect(() => {
@@ -88,7 +161,7 @@ export default function SignIn() {
   }, [])
 
   // Helper function to process signed-in user
-  const processSignedInUser = async (user, source = "unknown") => {
+  const processSignedInUser = async (user, source = "unknown", providerOverride = null) => {
     if (redirectHandledRef.current) {
       console.log(`ℹ️ User already being processed, skipping (source: ${source})`)
       return
@@ -99,6 +172,13 @@ export default function SignIn() {
       uid: user.uid,
       displayName: user.displayName
     })
+    if (providerOverride === "apple" || source.includes("apple")) {
+      logAppleDebug(`Processing signed-in Firebase user from ${source}`, {
+        uid: user.uid,
+        email: user.email || null,
+        providerData: (user.providerData || []).map((item) => item?.providerId).filter(Boolean),
+      })
+    }
 
     redirectHandledRef.current = true
     setIsLoading(true)
@@ -107,10 +187,36 @@ export default function SignIn() {
     try {
       // Force refresh so backend always gets a valid token (avoids expired/stale token 400)
       const idToken = await user.getIdToken(true)
+      const pendingProvider = getPendingProvider()
+      const socialProvider =
+        providerOverride ||
+        pendingProvider ||
+        (user.providerData || []).find((providerData) =>
+          ["google.com", "apple.com"].includes(providerData?.providerId),
+        )?.providerId?.replace(".com", "") ||
+        "google"
+      if (socialProvider === "apple") {
+        logAppleDebug("Prepared backend social login payload", {
+          source,
+          pendingProvider,
+          resolvedProvider: socialProvider,
+          hasIdToken: !!idToken,
+          idTokenLength: idToken?.length || 0,
+        })
+      }
       console.log(`✅ Got fresh ID token from ${source}, calling backend...`)
 
-      const response = await authAPI.firebaseGoogleLogin(idToken, "user")
+      const response = await authAPI.firebaseSocialLogin(idToken, "user", socialProvider)
       const data = response?.data?.data || {}
+      if (socialProvider === "apple") {
+        logAppleDebug("Received backend social login response", {
+          source,
+          hasAccessToken: !!data.accessToken,
+          hasUser: !!data.user,
+          role: data.user?.role || null,
+          signupMethod: data.user?.signupMethod || null,
+        })
+      }
 
       console.log(`✅ Backend response from ${source}:`, {
         hasAccessToken: !!data.accessToken,
@@ -122,7 +228,16 @@ export default function SignIn() {
       const appUser = data.user
 
       if (accessToken && appUser) {
+        clearPendingProvider()
         setAuthData("user", accessToken, appUser)
+        if (socialProvider === "apple") {
+          logAppleDebug("Stored app auth token after backend login", {
+            source,
+            localToken: !!localStorage.getItem("user_accessToken"),
+            sessionToken: !!sessionStorage.getItem("user_accessToken"),
+            redirectPath: window.location.pathname,
+          })
+        }
         window.dispatchEvent(new Event("userAuthChanged"))
 
         // Register FCM token for push notifications (fire-and-forget)
@@ -136,7 +251,13 @@ export default function SignIn() {
         }
 
         console.log(`✅ Navigating to user dashboard from ${source}...`)
-        navigate("/user", { replace: true })
+        if (socialProvider === "apple") {
+          logAppleDebug("Redirecting to home after successful Apple login", {
+            source,
+            destination: "/",
+          })
+        }
+        redirectToUserHome()
       } else {
         console.error(`❌ Invalid backend response from ${source}`)
         redirectHandledRef.current = false
@@ -145,6 +266,14 @@ export default function SignIn() {
       }
     } catch (error) {
       console.error(`❌ Error processing user from ${source}:`, error)
+      if (providerOverride === "apple" || source.includes("apple")) {
+        logAppleDebug("Failed while processing Apple user", {
+          source,
+          status: error?.response?.status || null,
+          message: error?.response?.data?.message || error?.message || "Unknown error",
+          responseData: error?.response?.data || null,
+        })
+      }
       redirectHandledRef.current = false
       setIsLoading(false)
 
@@ -166,6 +295,28 @@ export default function SignIn() {
     }
   }
 
+  const finalizeSocialLogin = async (payload, source = "social-login") => {
+    const accessToken = payload?.accessToken
+    const appUser = payload?.user
+
+    if (!accessToken || !appUser) {
+      throw new Error("Invalid response from server while processing social login")
+    }
+
+    setAuthData("user", accessToken, appUser)
+    window.dispatchEvent(new Event("userAuthChanged"))
+
+    registerFcmTokenForLoggedInUser().catch(() => {})
+
+    const hasHash = window.location.hash.length > 0
+    const hasQueryParams = window.location.search.length > 0
+    if (hasHash || hasQueryParams) {
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+
+    redirectToUserHome()
+  }
+
   // Handle Firebase redirect result on component mount and URL changes
   useEffect(() => {
     let unsubscribe = null
@@ -180,30 +331,55 @@ export default function SignIn() {
           return
         }
 
-        // Check if we're coming back from a redirect
-        let result = null
-        try {
-          result = await Promise.race([
-            getRedirectResult(firebaseAuth),
-            new Promise((resolve) =>
-              setTimeout(() => resolve(null), 3000)
-            )
-          ])
-        } catch (redirectError) {
-          console.log("ℹ️ getRedirectResult error:", redirectError?.code)
-          result = null
+        if (getPendingProvider() === "apple") {
+          logAppleDebug("Checking redirect result on mount", {
+            path: window.location.pathname,
+            search: window.location.search,
+            hasCurrentUser: !!firebaseAuth?.currentUser,
+          })
         }
 
-        if (result?.user) {
-          await processSignedInUser(result.user, "redirect-result")
-        } else {
-          const currentUser = firebaseAuth?.currentUser
-          if (currentUser && !redirectHandledRef.current) {
-            await processSignedInUser(currentUser, "current-user-check")
+        // Check if we're coming back from a redirect
+        const redirectResolution = await resolveFirebaseRedirectUser(
+          firebaseAuth,
+          getRedirectResult,
+          {
+            timeoutMs: getPendingProvider() === "apple" ? 25000 : 12000,
+            pollIntervalMs: 600,
+            shouldLog: getPendingProvider() === "apple",
+            logLabel: "AppleAuth",
           }
+        )
+
+        if (redirectResolution?.user) {
+          if (getPendingProvider() === "apple") {
+            logAppleDebug("Firebase redirect result returned a user", {
+              uid: redirectResolution.user.uid,
+              email: redirectResolution.user.email || null,
+              source: redirectResolution.source,
+            })
+          }
+          await processSignedInUser(
+            redirectResolution.user,
+            redirectResolution.source || "redirect-result"
+          )
+        } else if (getPendingProvider() === "apple") {
+          logAppleDebug("No redirect result and no current user after waiting", {
+            hasRedirectResult: false,
+            hasCurrentUser: !!firebaseAuth?.currentUser,
+            redirectHandled: redirectHandledRef.current,
+            error: redirectResolution?.error?.message || null,
+          })
+          setIsAppleLoading(false)
         }
       } catch (error) {
         console.error("❌ Google sign-in check error:", error)
+        if (getPendingProvider() === "apple") {
+          logAppleDebug("Redirect result check failed", {
+            message: error?.message || "Unknown error",
+            code: error?.code || null,
+          })
+        }
         setApiError("Failed to check authentication status. Please try refreshing.")
         setIsLoading(false)
       }
@@ -218,6 +394,12 @@ export default function SignIn() {
 
         unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
           if (user && !redirectHandledRef.current) {
+            if (getPendingProvider() === "apple") {
+              logAppleDebug("Auth state listener received user", {
+                uid: user.uid,
+                email: user.email || null,
+              })
+            }
             await processSignedInUser(user, "auth-state-listener")
           }
         })
@@ -396,6 +578,7 @@ export default function SignIn() {
   const handleGoogleSignIn = async () => {
     setApiError("")
     setIsLoading(true)
+    setPendingProvider("google")
     redirectHandledRef.current = false // Reset flag when starting new sign-in
 
     try {
@@ -443,27 +626,12 @@ export default function SignIn() {
             credentialError?.message || credentialError,
           )
 
-          const response = await authAPI.firebaseGoogleLogin(idToken, "user")
+          const response = await authAPI.firebaseSocialLogin(idToken, "user", "google")
           const data = response?.data?.data || {}
 
-          const accessToken = data.accessToken
-          const appUser = data.user
-
-          if (accessToken && appUser) {
+          if (data.accessToken && data.user) {
             redirectHandledRef.current = true
-            setAuthData("user", accessToken, appUser)
-            window.dispatchEvent(new Event("userAuthChanged"))
-
-            registerFcmTokenForLoggedInUser().catch(() => {})
-
-            // Clear any URL hash or params
-            const hasHash = window.location.hash.length > 0
-            const hasQueryParams = window.location.search.length > 0
-            if (hasHash || hasQueryParams) {
-              window.history.replaceState({}, document.title, window.location.pathname)
-            }
-
-            navigate("/user", { replace: true })
+            await finalizeSocialLogin(data, "flutter-google")
             return
           }
 
@@ -472,10 +640,23 @@ export default function SignIn() {
       }
 
       // 4) Normal browser path
-      const { signInWithPopup } = await import("firebase/auth")
+      const {
+        browserLocalPersistence,
+        setPersistence,
+        signInWithPopup,
+        signInWithRedirect,
+      } = await import("firebase/auth")
 
       // Log current origin for debugging
       console.log("🚀 Starting Google sign-in popup...")
+
+      await setPersistence(firebaseAuth, browserLocalPersistence)
+
+      // iOS browsers often block popup-based auth; redirect flow is more reliable there.
+      if (isIOSBrowser) {
+        await signInWithRedirect(firebaseAuth, googleProvider)
+        return
+      }
 
       // Use popup for better UX and error handling
       const result = await signInWithPopup(firebaseAuth, googleProvider)
@@ -505,6 +686,11 @@ export default function SignIn() {
       } else if (errorCode === "auth/operation-not-allowed") {
         message = "This sign-in method is disabled. Please enable it in the Firebase Console."
       } else if (errorCode === "auth/popup-blocked") {
+        try {
+          const { signInWithRedirect } = await import("firebase/auth")
+          await signInWithRedirect(firebaseAuth, googleProvider)
+          return
+        } catch (_) {}
         message = "Popup was blocked. Please allow popups and try again."
       } else if (errorCode === "auth/popup-closed-by-user") {
         message = "Sign-in was cancelled. Please try again."
@@ -519,6 +705,110 @@ export default function SignIn() {
       }
 
       setApiError(message)
+    }
+  }
+
+  const handleAppleSignIn = async () => {
+    clearAppleDebugLog()
+    setAppleDebugEntries([])
+    setAppleError("")
+    setIsAppleLoading(true)
+    setPendingProvider("apple")
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
+    }
+    logAppleDebug("Starting Apple sign-in", {
+      path: window.location.pathname,
+      origin: window.location.origin,
+      isIOSBrowser,
+    })
+
+    try {
+      await ensureFirebaseInitialized()
+
+      if (!firebaseAuth) {
+        throw new Error("Firebase Auth is not initialized. Please check your Firebase configuration.")
+      }
+
+      const {
+        OAuthProvider,
+        browserLocalPersistence,
+        setPersistence,
+        signInWithPopup,
+        signInWithRedirect,
+      } = await import("firebase/auth")
+      const appleProvider = new OAuthProvider("apple.com")
+      appleProvider.addScope("email")
+      appleProvider.addScope("name")
+
+      // Apple often falls back to a full-page redirect on mobile/Safari, so we
+      // force persistent auth storage before starting the OAuth flow.
+      await setPersistence(firebaseAuth, browserLocalPersistence)
+      logAppleDebug("Configured Firebase persistence for Apple sign-in", {
+        persistence: "browserLocalPersistence",
+      })
+
+      if (isIOSBrowser) {
+        logAppleDebug("Using Apple redirect flow", {
+          reason: "iOS browser detected",
+        })
+        await signInWithRedirect(firebaseAuth, appleProvider)
+        return
+      }
+
+      logAppleDebug("Using Apple popup flow")
+      const result = await signInWithPopup(firebaseAuth, appleProvider)
+      if (result?.user) {
+        logAppleDebug("Apple popup returned Firebase user", {
+          uid: result.user.uid,
+          email: result.user.email || null,
+        })
+        await processSignedInUser(result.user, "apple-popup-result", "apple")
+        return
+      }
+
+      throw new Error("Apple sign-in did not return a Firebase user.")
+    } catch (error) {
+      console.error("Apple sign-in failed:", error)
+      logAppleDebug("Apple sign-in entry flow failed", {
+        code: error?.code || error?.error || null,
+        message: error?.response?.data?.message || error?.message || "Unknown error",
+      })
+      let message = "Apple sign-in failed. Please try again."
+
+      if (error?.code === "auth/configuration-not-found") {
+        message = "Firebase Apple sign-in is not configured for this domain. Enable Apple in Firebase Console and authorize this domain."
+      } else if (error?.code === "auth/operation-not-allowed") {
+        message = "Apple sign-in is disabled in Firebase Console."
+      } else if (error?.code === "auth/popup-blocked") {
+        try {
+          const {
+            OAuthProvider,
+            browserLocalPersistence,
+            setPersistence,
+            signInWithRedirect,
+          } = await import("firebase/auth")
+          const appleProvider = new OAuthProvider("apple.com")
+          appleProvider.addScope("email")
+          appleProvider.addScope("name")
+          await setPersistence(firebaseAuth, browserLocalPersistence)
+          await signInWithRedirect(firebaseAuth, appleProvider)
+          return
+        } catch (_) {}
+        message = "Popup was blocked. Please allow popups and try again."
+      } else if (error?.error === "popup_closed_by_user" || error?.code === "popup_closed_by_user" || error?.code === "auth/popup-closed-by-user") {
+        message = "Apple sign-in was cancelled."
+      } else if (error?.response?.data?.message) {
+        message = error.response.data.message
+      } else if (error?.message) {
+        message = error.message
+      }
+
+      setAppleError(message)
+      setAppleDebugEntries(getAppleDebugLog())
+    } finally {
+      setIsAppleLoading(false)
+      setAppleDebugEntries(getAppleDebugLog())
     }
   }
 
@@ -697,9 +987,9 @@ export default function SignIn() {
                 id="rememberMe"
                 checked={formData.rememberMe}
                 onCheckedChange={(checked) =>
-                  setFormData({ ...formData, rememberMe: checked })
+                  setFormData({ ...formData, rememberMe: checked === true })
                 }
-                className="w-4 h-4 border-2 border-gray-300 rounded data-[state=checked]:bg-[#671E1F] data-[state=checked]:border-[#671E1F] flex items-center justify-center"
+                className="w-4 h-4 border-2 border-gray-300 rounded data-[state=checked]:bg-[#671E1F] data-[state=checked]:border-[#671E1F] flex items-center justify-center text-white"
               />
               <label
                 htmlFor="rememberMe"
@@ -739,45 +1029,108 @@ export default function SignIn() {
             </div>
           </div>
 
-          {/* Social Login Icons */}
-          <div className="flex justify-center gap-4 md:gap-6">
-            {/* Google Login */}
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              className="w-12 h-12 md:w-14 md:h-14 rounded-full border border-gray-300 dark:border-gray-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-all hover:shadow-md active:scale-95"
-              aria-label="Sign in with Google"
-            >
-              <svg className="h-6 w-6" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                />
-              </svg>
-            </button>
+          {/* Social Login Controls */}
+            <div className="flex justify-center items-center gap-4 md:gap-6">
+              {/* Apple Login */}
+              <div className="relative group">
+                <button
+                  type="button"
+                  onClick={handleAppleSignIn}
+                  disabled={isAppleLoading}
+                  className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-black flex items-center justify-center hover:bg-gray-900 transition-all hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Sign in with Apple"
+                  aria-busy={isAppleLoading ? "true" : undefined}
+                >
+                  {isAppleLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-white" />
+                  ) : (
+                    <Apple className="h-6 w-6 text-white" />
+                  )}
+                </button>
+              </div>
 
-            {/* Email Login */}
-            <button
-              type="button"
-              onClick={handleLoginMethodChange}
-              className="w-12 h-12 md:w-14 md:h-14 rounded-full border border-[#671E1F] flex items-center justify-center hover:opacity-90 transition-all hover:shadow-md active:scale-95 bg-[#671E1F]"
-              aria-label="Sign in with Email"
-            >
-              {authMethod == "phone" ? <Mail className="h-5 w-5 md:h-6 md:w-6 text-white" /> : <Phone className="h-5 w-5 md:h-6 md:w-6 text-white" />}
-            </button>
-          </div>
+              {/* Google Login */}
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                className="w-12 h-12 md:w-14 md:h-14 rounded-full border border-gray-300 dark:border-gray-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-all hover:shadow-md active:scale-95"
+                aria-label="Sign in with Google"
+              >
+                <svg className="h-6 w-6" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  />
+                </svg>
+              </button>
+
+              {/* Email/Phone Toggle Login */}
+              <button
+                type="button"
+                onClick={handleLoginMethodChange}
+                className="w-12 h-12 md:w-14 md:h-14 rounded-full border border-[#671E1F] flex items-center justify-center hover:opacity-90 transition-all hover:shadow-md active:scale-95 bg-[#671E1F]"
+                aria-label="Sign in with Email"
+              >
+                {authMethod === "phone" ? (
+                  <Mail className="h-5 w-5 md:h-6 md:w-6 text-white" />
+                ) : (
+                  <Phone className="h-5 w-5 md:h-6 md:w-6 text-white" />
+                )}
+              </button>
+            </div>
+
+            {/* Social Login Error Messages */}
+            <div className="text-center space-y-1">
+              {appleError && <p className="text-xs text-red-600 font-medium">{appleError}</p>}
+            </div>
+
+          {(appleDebugEntries.length > 0 || isAppleLoading) && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                  Apple Debug
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearAppleDebugLog()
+                    setAppleDebugEntries([])
+                  }}
+                  className="text-[11px] font-medium text-amber-700 underline"
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="max-h-40 space-y-1 overflow-y-auto rounded bg-white/70 p-2">
+                {appleDebugEntries.length === 0 ? (
+                  <p className="text-[11px] text-amber-700">Waiting for Apple sign-in logs...</p>
+                ) : (
+                  appleDebugEntries.map((entry, index) => (
+                    <div key={`${entry.timestamp}-${index}`} className="text-[11px] text-gray-700">
+                      <p className="font-medium">{entry.message}</p>
+                      {entry.details && (
+                        <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] text-gray-600">
+                          {JSON.stringify(entry.details, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Legal Disclaimer */}
           <div className="text-center text-xs md:text-sm text-gray-500 dark:text-gray-400 pt-4 md:pt-6">

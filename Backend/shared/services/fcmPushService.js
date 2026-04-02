@@ -25,13 +25,15 @@ async function getFcmTokens(sendTo, zone) {
     if (entity?.fcmTokenIos) tokens.add(entity.fcmTokenIos);
   };
 
-  if (sendTo === "Customer") {
+  const collectCustomers = async () => {
     const query = { role: "user" };
     const users = await User.find(query)
       .select("fcmTokenWeb fcmTokenAndroid fcmTokenIos")
       .lean();
     users.forEach(addTokens);
-  } else if (sendTo === "Delivery Man") {
+  };
+
+  const collectDeliveryMen = async () => {
     let query = { status: "approved" };
     if (zone && zone !== "All") {
       const zoneDoc = await Zone.findOne({ name: zone }).select("_id").lean();
@@ -43,12 +45,28 @@ async function getFcmTokens(sendTo, zone) {
       .select("fcmTokenWeb fcmTokenAndroid fcmTokenIos")
       .lean();
     deliveries.forEach(addTokens);
-  } else if (sendTo === "Restaurant") {
+  };
+
+  const collectRestaurants = async () => {
     const query = { status: "approved" };
     const restaurants = await Restaurant.find(query)
       .select("fcmTokenWeb fcmTokenAndroid fcmTokenIos")
       .lean();
     restaurants.forEach(addTokens);
+  };
+
+  if (sendTo === "All") {
+    await Promise.all([
+      collectCustomers(),
+      collectDeliveryMen(),
+      collectRestaurants(),
+    ]);
+  } else if (sendTo === "Customer") {
+    await collectCustomers();
+  } else if (sendTo === "Delivery Man") {
+    await collectDeliveryMen();
+  } else if (sendTo === "Restaurant") {
+    await collectRestaurants();
   }
 
   return [...tokens].filter(Boolean);
@@ -116,6 +134,73 @@ async function sendToToken(token, payload) {
     }
     return { success: false, error: errMsg };
   }
+}
+
+/**
+ * Send push notification to a single delivery partner by delivery ID.
+ * This is used for targeted events like bonus credits or account updates.
+ * @param {string|ObjectId} deliveryPartnerId
+ * @param {Object} payload
+ * @returns {Promise<{sent: number, failed: number, total: number, errors: string[]}>}
+ */
+export async function sendPushNotificationToDeliveryPartner(
+  deliveryPartnerId,
+  { title, description, image },
+) {
+  const result = { sent: 0, failed: 0, total: 0, errors: [] };
+
+  if (!deliveryPartnerId) {
+    result.errors.push("deliveryPartnerId is required");
+    return result;
+  }
+
+  const ok = await ensureFirebaseAdminInitialized();
+  if (!ok || !admin.apps.length) {
+    result.errors.push("Firebase Admin not initialized");
+    return result;
+  }
+
+  const delivery = await Delivery.findById(deliveryPartnerId)
+    .select("fcmTokenWeb fcmTokenAndroid fcmTokenIos")
+    .lean();
+
+  if (!delivery) {
+    result.errors.push("delivery_partner_not_found");
+    return result;
+  }
+
+  const tokens = [
+    delivery.fcmTokenWeb,
+    delivery.fcmTokenAndroid,
+    delivery.fcmTokenIos,
+  ].filter(Boolean);
+
+  const uniqueTokens = [...new Set(tokens)];
+
+  result.total = uniqueTokens.length;
+  if (uniqueTokens.length === 0) {
+    return result;
+  }
+
+  const payload = {
+    title: title || "Notification",
+    body: description || "",
+    image: image || undefined,
+  };
+
+  for (const token of uniqueTokens) {
+    const res = await sendToToken(token, payload);
+    if (res.success) {
+      result.sent++;
+    } else {
+      result.failed++;
+      if (res.error && res.error !== "invalid_token") {
+        result.errors.push(res.error);
+      }
+    }
+  }
+
+  return result;
 }
 
 /**

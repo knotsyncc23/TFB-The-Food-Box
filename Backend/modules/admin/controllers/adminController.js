@@ -388,15 +388,39 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     // Completed orders (delivered orders)
     const completedOrders = orderStatusMap.delivered || 0;
 
-    // Get recent activity (last 24 hours)
+    // Filter for recent activity (last 24 hours) - used for "Live signals"
     const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const recentOrders = await Order.countDocuments({
-      createdAt: { $gte: last24Hours },
-    });
-    const recentRestaurants = await Restaurant.countDocuments({
-      createdAt: { $gte: last24Hours },
-      isActive: true,
-    });
+
+    const recentOrdersMatch = { createdAt: { $gte: last24Hours } };
+    if (Object.keys(zoneMatch).length > 0) {
+      Object.assign(recentOrdersMatch, zoneMatch);
+    }
+    const recentOrders = await Order.countDocuments(recentOrdersMatch);
+
+    // For service readiness, count restaurants that were modified in the last 24h
+    const recentRestaurantsMatch = { updatedAt: { $gte: last24Hours } };
+    if (zoneIdFilter) {
+      // Assuming restaurants have a zoneId or location based zone filtering
+      // Adding it if restaurant model has zoneId or area/city mapping
+      // For now, if zone filter is active, only count those in the selected zone if field exists
+      // Check if zoneId exists in model first, or fallback to name/area filtering if needed
+      // (Using zoneId as it's the most common mapping)
+      recentRestaurantsMatch.$or = [
+        { zoneId: zoneIdFilter },
+        { "location.zoneId": zoneIdFilter }, // Alternative mapping
+        { "location.area": new RegExp(`^${zoneIdFilter}$`, "i") } // Fallback
+      ];
+    }
+    const recentRestaurantsUpdated = await Restaurant.countDocuments(
+      recentRestaurantsMatch,
+    );
+
+    // Also get pending orders for the signals
+    const pendingOrdersMatch = { status: "pending" };
+    if (Object.keys(zoneMatch).length > 0) {
+      Object.assign(pendingOrdersMatch, zoneMatch);
+    }
+    const pendingOrdersCount = await Order.countDocuments(pendingOrdersMatch);
 
     // Get monthly data for last 12 months
     // Use aggregation to match orders with settlements by orderId and use order's deliveredAt
@@ -536,7 +560,8 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       },
       recentActivity: {
         orders: recentOrders,
-        restaurants: recentRestaurants,
+        restaurants: recentRestaurantsUpdated,
+        pendingOrders: pendingOrdersCount,
         period: "last24Hours",
       },
       monthlyData: monthlyData, // Add monthly data for graphs
@@ -1337,18 +1362,9 @@ export const getRestaurantJoinRequests = asyncHandler(async (req, res) => {
       // This handles both cases: restaurants with proper tracking AND restaurants that completed onboarding before tracking was added
       const completionCheck = {
         $or: [
-          { "onboarding.completedSteps": 4 },
-          // Fallback: If completedSteps is not 4 (or doesn't exist), check if restaurant has all main fields filled
-          // This matches restaurants that have completed onboarding even if completedSteps field wasn't set to 4
-          {
-            $and: [
-              { name: { $exists: true, $ne: null, $ne: "" } }, // Has restaurant name
-              { cuisines: { $exists: true, $ne: null, $not: { $size: 0 } } }, // Has cuisines (array with items)
-              { openDays: { $exists: true, $ne: null, $not: { $size: 0 } } }, // Has open days (array with items)
-              { estimatedDeliveryTime: { $exists: true, $ne: null, $ne: "" } }, // Has delivery time (from step 4)
-              { featuredDish: { $exists: true, $ne: null, $ne: "" } }, // Has featured dish (from step 4)
-            ],
-          },
+          { "onboarding.completedSteps": { $gte: 0 } },
+          // Check for at least a restaurant name - this catches almost all new registrations
+          { name: { $exists: true, $ne: null, $ne: "" } },
         ],
       };
 
@@ -1356,15 +1372,10 @@ export const getRestaurantJoinRequests = asyncHandler(async (req, res) => {
       query.$and = conditions;
     } else if (status === "rejected") {
       query["rejectionReason"] = { $exists: true, $ne: null };
-      // For rejected, also check if onboarding is complete
+      // For rejected, also check if onboarding has started (has name)
       query.$or = [
-        { "onboarding.completedSteps": 4 },
-        {
-          $and: [
-            { name: { $exists: true, $ne: null, $ne: "" } },
-            { estimatedDeliveryTime: { $exists: true, $ne: null, $ne: "" } },
-          ],
-        },
+        { "onboarding.completedSteps": { $gte: 0 } },
+        { name: { $exists: true, $ne: null, $ne: "" } },
       ];
     }
 
@@ -1565,36 +1576,81 @@ export const updateRestaurantDiningSettings = asyncHandler(async (req, res) => {
       return errorResponse(res, 404, "Restaurant not found");
     }
 
-    // Ensure container exists
-    if (!restaurant.diningSettings) {
-      restaurant.diningSettings = {};
-    }
+    const updateData = {};
 
-    // Shallow-merge existing settings
-    restaurant.diningSettings = {
-      ...restaurant.diningSettings,
-      ...diningSettings,
-    };
-
-    // If admin explicitly updates isEnabled, clear any pending request and record decision metadata
     if (Object.prototype.hasOwnProperty.call(diningSettings, "isEnabled")) {
-      restaurant.diningSettings.isEnabled = !!diningSettings.isEnabled;
-      restaurant.diningSettings.requestStatus = "none";
-      restaurant.diningSettings.lastDecisionAt = new Date();
-      restaurant.diningSettings.lastDecisionBy = req.user._id;
+      updateData["diningSettings.isEnabled"] = !!diningSettings.isEnabled;
+      updateData["diningSettings.requestStatus"] = "none";
+      updateData["diningSettings.lastDecisionAt"] = new Date();
+      updateData["diningSettings.lastDecisionBy"] = req.user._id;
     }
 
-    await restaurant.save();
+    if (Object.prototype.hasOwnProperty.call(diningSettings, "maxGuests")) {
+      const maxGuests = Number(diningSettings.maxGuests);
+      if (!Number.isFinite(maxGuests) || maxGuests < 1) {
+        return errorResponse(res, 400, "Max guests must be a number greater than 0");
+      }
+      updateData["diningSettings.maxGuests"] = Math.max(1, Math.floor(maxGuests));
+    }
+
+    if (Object.prototype.hasOwnProperty.call(diningSettings, "diningType")) {
+      const diningType =
+        typeof diningSettings.diningType === "string"
+          ? diningSettings.diningType.trim()
+          : "";
+      if (diningType) {
+        updateData["diningSettings.diningType"] = diningType;
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(diningSettings, "requestStatus")) {
+      updateData["diningSettings.requestStatus"] =
+        diningSettings.requestStatus === "pending" ? "pending" : "none";
+    }
+
+    if (Object.prototype.hasOwnProperty.call(diningSettings, "lastRequestAt")) {
+      const parsedDate = new Date(diningSettings.lastRequestAt);
+      if (!Number.isNaN(parsedDate.getTime())) {
+        updateData["diningSettings.lastRequestAt"] = parsedDate;
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(diningSettings, "lastDecisionAt")) {
+      const parsedDate = new Date(diningSettings.lastDecisionAt);
+      if (!Number.isNaN(parsedDate.getTime())) {
+        updateData["diningSettings.lastDecisionAt"] = parsedDate;
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(diningSettings, "lastDecisionBy")) {
+      if (mongoose.Types.ObjectId.isValid(diningSettings.lastDecisionBy)) {
+        updateData["diningSettings.lastDecisionBy"] = diningSettings.lastDecisionBy;
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return errorResponse(res, 400, "No valid dining settings were provided");
+    }
+
+    const updatedRestaurant = await Restaurant.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true },
+    ).select("-password");
+
+    if (!updatedRestaurant) {
+      return errorResponse(res, 404, "Restaurant not found");
+    }
 
     logger.info(`Restaurant dining settings updated: ${id}`, {
       updatedBy: req.user._id,
-      diningSettings: restaurant.diningSettings,
+      diningSettings: updateData,
     });
 
     return successResponse(res, 200, "Dining settings updated successfully", {
       restaurant: {
-        id: restaurant._id,
-        diningSettings: restaurant.diningSettings,
+        id: updatedRestaurant._id,
+        diningSettings: updatedRestaurant.diningSettings,
       },
     });
   } catch (error) {

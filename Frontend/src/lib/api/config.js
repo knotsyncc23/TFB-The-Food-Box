@@ -3,10 +3,21 @@
  * Centralized configuration for API base URL and endpoints
  */
 
-// Get API base URL from environment variable or use default
-// IMPORTANT: Backend runs on port 5000, frontend on port 5173
-let rawApiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+// Get API base URL from environment variable or use default.
+// IMPORTANT: in production on app.tifunbox.com, prefer backend.tifunbox.com to avoid
+// frontend SPA rewrite/proxy conflicts on /api paths.
+const PROD_BACKEND_FALLBACK = "https://backend.tifunbox.com/api";
+const DEV_BACKEND_FALLBACK = "http://localhost:5000/api";
+const isProd =
+  import.meta.env.MODE === "production" ||
+  (typeof window !== "undefined" && !/localhost|127\.0\.0\.1/.test(window.location.hostname));
+const hostLooksLikeAppDomain =
+  typeof window !== "undefined" && /(^|\.)app\.tifunbox\.com$/i.test(window.location.hostname);
+
+let rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+if (!rawApiBaseUrl || String(rawApiBaseUrl).trim() === "") {
+  rawApiBaseUrl = isProd && hostLooksLikeAppDomain ? PROD_BACKEND_FALLBACK : DEV_BACKEND_FALLBACK;
+}
 
 // Normalize URL - fix common issues like double slashes, missing protocols
 if (rawApiBaseUrl && typeof rawApiBaseUrl === "string") {
@@ -50,7 +61,17 @@ if (rawApiBaseUrl && typeof rawApiBaseUrl === "string") {
   }
 }
 
-export const API_BASE_URL = rawApiBaseUrl;
+export let API_BASE_URL = rawApiBaseUrl;
+
+// Safety override for production app domain if env accidentally points to app-domain /api or localhost.
+if (isProd && hostLooksLikeAppDomain) {
+  const isLocalhostTarget = /localhost|127\.0\.0\.1/.test(API_BASE_URL);
+  const pointsToAppDomainApi = /^https?:\/\/app\.tifunbox\.com\/api/i.test(API_BASE_URL);
+  if (isLocalhostTarget || pointsToAppDomainApi) {
+    console.warn("⚠️ Overriding API base URL to production backend fallback:", PROD_BACKEND_FALLBACK);
+    API_BASE_URL = PROD_BACKEND_FALLBACK;
+  }
+}
 
 // Validate URL format - catch malformed URLs like "https:/" or "https://https://"
 try {
@@ -136,6 +157,9 @@ export const API_ENDPOINTS = {
     REGISTER: "/auth/register",
     LOGIN: "/auth/login",
     FIREBASE_GOOGLE_LOGIN: "/auth/firebase/google-login",
+    FIREBASE_SOCIAL_LOGIN: "/auth/firebase/social-login",
+    APPLE_CONFIG: "/auth/apple/config",
+    APPLE_LOGIN: "/auth/apple",
     REFRESH_TOKEN: "/auth/refresh-token",
     LOGOUT: "/auth/logout",
     ME: "/auth/me",
@@ -149,6 +173,7 @@ export const API_ENDPOINTS = {
     PREFERENCES: "/user/preferences",
     WALLET: "/user/wallet",
     ORDERS: "/user/orders",
+    NOTIFICATIONS: "/user/notifications",
     ORDER_CHAT: "/order/:orderId/chat",
     ORDER_CHAT_MESSAGES: "/order/:orderId/chat/messages",
     LOCATION: "/user/location",
@@ -163,6 +188,7 @@ export const API_ENDPOINTS = {
   // Zone endpoints
   ZONE: {
     DETECT: "/zones/detect", // Public endpoint for zone detection
+    ACTIVE: "/zones/active", // Public endpoint to list active zones
   },
   // Restaurant endpoints
   RESTAURANT: {
@@ -264,6 +290,7 @@ export const API_ENDPOINTS = {
     ORDERS: "/delivery/orders",
     ORDER_BY_ID: "/delivery/orders/:orderId",
     ORDER_ACCEPT: "/delivery/orders/:orderId/accept",
+    ORDER_REJECT: "/delivery/orders/:orderId/reject",
     ORDER_REACHED_PICKUP: "/delivery/orders/:orderId/reached-pickup",
     ORDER_CONFIRM_ID: "/delivery/orders/:orderId/confirm-order-id",
     ORDER_REACHED_DROP: "/delivery/orders/:orderId/reached-drop",
@@ -338,6 +365,8 @@ export const API_ENDPOINTS = {
     TERMS_PUBLIC: "/terms/public",
     PRIVACY: "/admin/privacy",
     PRIVACY_PUBLIC: "/privacy/public",
+    CONTACT_US: "/admin/contact-us",
+    CONTACT_US_PUBLIC: "/contact-us/public",
     REFUND: "/admin/refund",
     REFUND_PUBLIC: "/refund/public",
     SHIPPING: "/admin/shipping",

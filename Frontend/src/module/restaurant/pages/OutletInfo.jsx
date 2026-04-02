@@ -47,6 +47,10 @@ export default function OutletInfo() {
   const [editNameValue, setEditNameValue] = useState("")
   const [restaurantId, setRestaurantId] = useState("")
   const [restaurantMongoId, setRestaurantMongoId] = useState("")
+  const [reviewStats, setReviewStats] = useState({
+    averageRating: 0,
+    totalReviews: 0,
+  })
   const [uploadingImage, setUploadingImage] = useState(false)
   const [imageType, setImageType] = useState(null) // 'profile' or 'menu'
   const [uploadingCount, setUploadingCount] = useState(0) // Track how many images are being uploaded
@@ -140,6 +144,19 @@ export default function OutletInfo() {
           } else {
             setCoverImages([])
           }
+        }
+
+        try {
+          const reviewsResponse = await restaurantAPI.getReviews({ limit: 1 })
+          const stats = reviewsResponse?.data?.data?.statistics
+          if (stats) {
+            setReviewStats({
+              averageRating: Number(stats.averageRating) || 0,
+              totalReviews: Number(stats.totalReviews) || 0,
+            })
+          }
+        } catch (reviewError) {
+          console.warn("Error fetching restaurant review stats:", reviewError)
         }
       } catch (error) {
         // Only log error if it's not a network/timeout error (backend might be down/slow)
@@ -771,12 +788,12 @@ export default function OutletInfo() {
             >
               <div className="bg-red-700 px-2.5 py-1.5 rounded flex items-center gap-1 shrink-0">
                 <span className="text-white text-sm font-bold">
-                  {restaurantData?.rating?.toFixed(1) || "0.0"}
+                  {(reviewStats.averageRating || restaurantData?.rating || 0).toFixed(1)}
                 </span>
                 <Star className="w-3.5 h-3.5 text-white fill-white" />
               </div>
               <span className="text-gray-800 text-sm font-normal">
-                {restaurantData?.totalRatings || 0} DELIVERY REVIEWS
+                {reviewStats.totalReviews || restaurantData?.totalRatings || 0} DELIVERY REVIEWS
               </span>
               <ChevronRight className="w-4 h-4 text-gray-400 shrink-0 ml-auto" />
             </button>

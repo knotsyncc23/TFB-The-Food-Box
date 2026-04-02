@@ -8,6 +8,7 @@ import DiningStory from "../models/DiningStory.js";
 import TableBooking from "../models/TableBooking.js";
 import DiningReview from "../models/DiningReview.js";
 import DiningCoupon from "../models/DiningCoupon.js";
+import mongoose from "mongoose";
 import Restaurant from "../../restaurant/models/Restaurant.js";
 import RestaurantDiningOffer from "../../restaurant/models/RestaurantDiningOffer.js";
 import RestaurantWallet from "../../restaurant/models/RestaurantWallet.js";
@@ -47,34 +48,49 @@ export const getRestaurants = async (req, res) => {
 // Get single restaurant by slug
 export const getRestaurantBySlug = async (req, res) => {
   try {
-    const restaurant = await DiningRestaurant.findOne({
-      slug: req.params.slug,
-    });
+    const slug = req.params.slug;
+    const oid =
+      typeof slug === "string" && /^[0-9a-fA-F]{24}$/.test(slug)
+        ? new mongoose.Types.ObjectId(slug)
+        : null;
 
-    // If not found in DiningRestaurant, check regular Restaurant
-    let actualRestaurant = restaurant;
-    if (!actualRestaurant) {
-      actualRestaurant = await Restaurant.findOne({ slug: req.params.slug });
+    // Menus/inventory always hang off Restaurant, not DiningRestaurant
+    const menuRestaurant = await Restaurant.findOne({
+      $or: [
+        { slug },
+        ...(oid ? [{ _id: oid }] : []),
+      ],
+    })
+      .select("_id")
+      .lean();
+
+    // Prefer Restaurant for profile (richer delivery fields); else dining-only row
+    let entity = await Restaurant.findOne({ slug }).lean();
+    if (!entity && oid) {
+      entity = await Restaurant.findById(oid).lean();
+    }
+    if (!entity) {
+      entity = await DiningRestaurant.findOne({ slug }).lean();
+    }
+    if (!entity && oid) {
+      entity = await DiningRestaurant.findById(oid).lean();
     }
 
-    // Failsafe: if slug is an ObjectId, try finding by ID
-    if (!actualRestaurant && req.params.slug.match(/^[0-9a-fA-F]{24}$/)) {
-      actualRestaurant = await DiningRestaurant.findById(req.params.slug);
-      if (!actualRestaurant) {
-        actualRestaurant = await Restaurant.findById(req.params.slug);
-      }
-    }
-
-    if (!actualRestaurant) {
+    if (!entity) {
       return res.status(404).json({
         success: false,
         message: "Restaurant not found",
       });
     }
 
+    const data = { ...entity };
+    if (menuRestaurant?._id) {
+      data.menuRestaurantId = String(menuRestaurant._id);
+    }
+
     res.status(200).json({
       success: true,
-      data: actualRestaurant,
+      data,
     });
   } catch (error) {
     res.status(500).json({

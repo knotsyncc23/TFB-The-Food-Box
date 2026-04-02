@@ -18,6 +18,7 @@ function Checkbox({
     >
       <CheckboxPrimitive.Indicator
         data-slot="checkbox-indicator"
+        className="text-white"
       >
         <CheckIcon className="size-3.5" />
       </CheckboxPrimitive.Indicator>

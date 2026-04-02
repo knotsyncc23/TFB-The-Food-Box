@@ -129,13 +129,60 @@ export const getNearbyRestaurants = async (req, res) => {
       .skip(parseInt(offset))
       .lean();
 
+    // Visibility filter: only show restaurants that have at least one dish
+    // (approved + currently available). Otherwise empty restaurants appear
+    // in the user UI.
+    let filteredNearby = nearby;
+    if (nearby.length > 0) {
+      const restaurantIds = nearby.map((r) => r._id).filter(Boolean);
+
+      const restaurantsWithDishes = await Menu.find({
+        restaurant: { $in: restaurantIds },
+        isActive: true,
+        $or: [
+          {
+            sections: {
+              $elemMatch: {
+                items: {
+                  $elemMatch: { isAvailable: true, approvalStatus: "approved" },
+                },
+              },
+            },
+          },
+          {
+            sections: {
+              $elemMatch: {
+                subsections: {
+                  $elemMatch: {
+                    items: {
+                      $elemMatch: { isAvailable: true, approvalStatus: "approved" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      })
+        .select("restaurant")
+        .lean();
+
+      const hasDishesSet = new Set(
+        (restaurantsWithDishes || [])
+          .map((m) => m.restaurant?.toString())
+          .filter(Boolean),
+      );
+
+      filteredNearby = nearby.filter((r) => hasDishesSet.has(r._id?.toString()));
+    }
+
     return successResponse(
       res,
       200,
       "Nearby restaurants retrieved successfully",
       {
-        restaurants: nearby,
-        total: nearby.length,
+        restaurants: filteredNearby,
+        total: filteredNearby.length,
         center: { lat: latNum, lng: lngNum },
         radiusKm: radiusMeters / 1000,
       },
@@ -174,11 +221,61 @@ function getRestaurantZoneId(restaurantLat, restaurantLng, activeZones) {
   return null;
 }
 
+function isRestaurantInUserZone(restaurant, userZone) {
+  if (!userZone?.coordinates || userZone.coordinates.length < 3) return false;
+
+  const coords = restaurant?.location?.coordinates;
+  const restaurantLng = Array.isArray(coords) ? Number(coords[0]) : null;
+  const restaurantLat = Array.isArray(coords) ? Number(coords[1]) : null;
+
+  if (!restaurantLat || !restaurantLng) return false;
+
+  return isPointInZone(restaurantLat, restaurantLng, userZone.coordinates);
+}
+
+async function resolveUserZone({ zoneId, latitude, longitude }) {
+  const parsedLatitude = Number(latitude);
+  const parsedLongitude = Number(longitude);
+
+  if (Number.isFinite(parsedLatitude) && Number.isFinite(parsedLongitude)) {
+    const activeZones = await Zone.find({ isActive: true }).lean();
+    const matchedZone =
+      activeZones.find((zone) =>
+        isPointInZone(parsedLatitude, parsedLongitude, zone.coordinates),
+      ) || null;
+
+    return {
+      zone: matchedZone,
+      source: "coordinates",
+    };
+  }
+
+  if (zoneId) {
+    const zone = await Zone.findById(zoneId).lean();
+    if (!zone || !zone.isActive) {
+      return {
+        zone: null,
+        error: "Invalid or inactive zone. Please detect your zone again.",
+      };
+    }
+
+    return {
+      zone,
+      source: "zoneId",
+    };
+  }
+
+  return {
+    zone: null,
+    source: null,
+  };
+}
+
 // Get all restaurants (for user module)
 export const getRestaurants = async (req, res) => {
   try {
     const {
-      limit = 50,
+      limit = 100,
       offset = 0,
       sortBy,
       cuisine,
@@ -188,25 +285,40 @@ export const getRestaurants = async (req, res) => {
       maxPrice,
       hasOffers,
       zoneId, // User's zone ID (optional - if provided, filters by zone)
+      latitude,
+      longitude,
       diningCategory, // Dining category slug (optional)
     } = req.query;
 
-    // Optional: Zone-based filtering - if zoneId is provided, validate and filter by zone
-    let userZone = null;
-    if (zoneId) {
-      // Validate zone exists and is active
-      userZone = await Zone.findById(zoneId).lean();
-      if (!userZone || !userZone.isActive) {
-        return errorResponse(
-          res,
-          400,
-          "Invalid or inactive zone. Please detect your zone again.",
-        );
-      }
+    const { zone: userZone, error: zoneError, source: zoneSource } =
+      await resolveUserZone({
+        zoneId,
+        latitude,
+        longitude,
+      });
+
+    if (zoneError) {
+      return errorResponse(res, 400, zoneError);
+    }
+
+    if (zoneSource === "coordinates" && !userZone) {
+      return successResponse(res, 200, "Restaurants retrieved successfully", {
+        restaurants: [],
+        total: 0,
+        filters: {
+          sortBy,
+          cuisine,
+          minRating,
+          maxDeliveryTime,
+          maxDistance,
+          maxPrice,
+          hasOffers,
+        },
+      });
     }
 
     // Build query
-    const query = { isActive: true };
+    const query = { isActive: true, isAcceptingOrders: true };
 
     // Cuisine filter
     if (cuisine) {
@@ -299,7 +411,9 @@ export const getRestaurants = async (req, res) => {
     }
 
     // Build sort object
-    let sortObj = { createdAt: -1 }; // Default: Latest first
+    // Default: recently updated first so admin-approved outlets (save() bumps updatedAt) surface on home
+    // even when createdAt is old — avoids hiding them behind limit when sorting only by createdAt.
+    let sortObj = { updatedAt: -1, createdAt: -1 };
 
     if (sortBy) {
       switch (sortBy) {
@@ -322,16 +436,65 @@ export const getRestaurants = async (req, res) => {
       }
     }
 
-    // Fetch restaurants - Show ALL restaurants regardless of zone
+    // Fetch candidate restaurants first. Zone membership is derived from polygon
+    // containment, so we filter after fetch instead of querying by a stored zoneId.
     let restaurants = await Restaurant.find(query)
       .select("-owner -createdAt -updatedAt -password")
       .sort(sortObj)
-      .limit(parseInt(limit))
-      .skip(parseInt(offset))
       .lean();
 
-    // Note: We show all restaurants regardless of zone. Zone-based filtering is removed.
-    // Users in any zone will see all restaurants.
+    if (userZone) {
+      restaurants = restaurants.filter((restaurant) =>
+        isRestaurantInUserZone(restaurant, userZone),
+      );
+    }
+
+    // Visibility filter: only show restaurants that have at least one dish
+    // (approved + currently available).
+    if (restaurants.length > 0) {
+      const restaurantIds = restaurants.map((r) => r._id).filter(Boolean);
+
+      const restaurantsWithDishes = await Menu.find({
+        restaurant: { $in: restaurantIds },
+        isActive: true,
+        $or: [
+          {
+            sections: {
+              $elemMatch: {
+                items: {
+                  $elemMatch: { isAvailable: true, approvalStatus: "approved" },
+                },
+              },
+            },
+          },
+          {
+            sections: {
+              $elemMatch: {
+                subsections: {
+                  $elemMatch: {
+                    items: {
+                      $elemMatch: { isAvailable: true, approvalStatus: "approved" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      })
+        .select("restaurant")
+        .lean();
+
+      const hasDishesSet = new Set(
+        (restaurantsWithDishes || [])
+          .map((m) => m.restaurant?.toString())
+          .filter(Boolean),
+      );
+
+      restaurants = restaurants.filter((r) =>
+        hasDishesSet.has(r._id?.toString()),
+      );
+    }
 
     // Apply string-based filters that can't be done in MongoDB query
     if (maxDeliveryTime) {
@@ -352,13 +515,13 @@ export const getRestaurants = async (req, res) => {
       });
     }
 
-    // Get total count (before filtering by string fields)
-    const totalQuery = { ...query };
-    delete totalQuery.$or; // Remove $or for count
-    const total = await Restaurant.countDocuments(totalQuery);
+    const total = restaurants.length;
+    const parsedOffset = parseInt(offset);
+    const parsedLimit = parseInt(limit);
+    restaurants = restaurants.slice(parsedOffset, parsedOffset + parsedLimit);
     return successResponse(res, 200, "Restaurants retrieved successfully", {
       restaurants,
-      total: restaurants.length,
+      total,
       filters: {
         sortBy,
         cuisine,
@@ -383,6 +546,7 @@ export const getRestaurantById = async (req, res) => {
     // Build query conditions - only include _id if it's a valid ObjectId
     const queryConditions = {
       isActive: true,
+      isAcceptingOrders: true,
     };
 
     const orConditions = [{ restaurantId: id }, { slug: id }];
@@ -664,6 +828,32 @@ export const updateRestaurantProfile = asyncHandler(async (req, res) => {
         if (!location.latitude) location.latitude = location.coordinates[1];
       }
 
+      const locationLat = parseFloat(location.latitude);
+      const locationLng = parseFloat(location.longitude);
+      if (!Number.isNaN(locationLat) && !Number.isNaN(locationLng)) {
+        const activeZones = await Zone.find({ isActive: true }).lean();
+        if (!activeZones || activeZones.length === 0) {
+          return errorResponse(
+            res,
+            400,
+            "No active delivery zones are available. Please contact administrator.",
+          );
+        }
+
+        const isInAnyZone = isRestaurantInAnyZone(
+          locationLat,
+          locationLng,
+          activeZones,
+        );
+        if (!isInAnyZone) {
+          return errorResponse(
+            res,
+            400,
+            "Selected location is outside all active zones. Please choose a location within a delivery zone.",
+          );
+        }
+      }
+
       updateData.location = location;
     }
 
@@ -887,6 +1077,25 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
       );
     }
 
+    // Verification guard: prevent unverified restaurants from turning
+    // "online/accepting orders" on.
+    if (isAcceptingOrders === true) {
+      const currentRestaurant = await Restaurant.findById(restaurantId).select(
+        "approvedAt phoneVerified",
+      );
+      if (!currentRestaurant) {
+        return errorResponse(res, 404, "Restaurant not found");
+      }
+
+      if (!currentRestaurant.approvedAt) {
+        return errorResponse(
+          res,
+          403,
+          "You cannot take orders until your restaurant is verified by admin.",
+        );
+      }
+    }
+
     const restaurant = await Restaurant.findByIdAndUpdate(
       restaurantId,
       { isAcceptingOrders },
@@ -967,20 +1176,29 @@ export const deleteRestaurantAccount = asyncHandler(async (req, res) => {
 // Get restaurants with dishes under ₹250
 export const getRestaurantsWithDishesUnder250 = async (req, res) => {
   try {
-    const { zoneId } = req.query; // User's zone ID (optional - if provided, filters by zone)
+    const { zoneId, latitude, longitude } = req.query; // User zone or selected coordinates
 
-    // Optional: Zone-based filtering - if zoneId is provided, validate and filter by zone
-    let userZone = null;
-    if (zoneId) {
-      // Validate zone exists and is active
-      userZone = await Zone.findById(zoneId).lean();
-      if (!userZone || !userZone.isActive) {
-        return errorResponse(
-          res,
-          400,
-          "Invalid or inactive zone. Please detect your zone again.",
-        );
-      }
+    const { zone: userZone, error: zoneError, source: zoneSource } =
+      await resolveUserZone({
+        zoneId,
+        latitude,
+        longitude,
+      });
+
+    if (zoneError) {
+      return errorResponse(res, 400, zoneError);
+    }
+
+    if (zoneSource === "coordinates" && !userZone) {
+      return successResponse(
+        res,
+        200,
+        "Restaurants with dishes under ₹250 retrieved successfully",
+        {
+          restaurants: [],
+          total: 0,
+        },
+      );
     }
 
     const MAX_PRICE = 250;
@@ -1109,14 +1327,17 @@ export const getRestaurantsWithDishesUnder250 = async (req, res) => {
       }
     };
 
-    // Get all active restaurants - Show ALL restaurants regardless of zone
+    // Get active restaurants first, then apply polygon-based zone filtering when needed.
     let restaurants = await Restaurant.find({ isActive: true })
       .select("-owner -createdAt -updatedAt")
       .lean()
       .limit(100); // Limit to first 100 restaurants for performance
 
-    // Note: We show all restaurants regardless of zone. Zone-based filtering is removed.
-    // Users in any zone will see all restaurants.
+    if (userZone) {
+      restaurants = restaurants.filter((restaurant) =>
+        isRestaurantInUserZone(restaurant, userZone),
+      );
+    }
 
     // Process restaurants in parallel (batch processing for better performance)
     const batchSize = 10; // Process 10 restaurants at a time

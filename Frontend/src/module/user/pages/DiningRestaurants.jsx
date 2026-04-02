@@ -418,7 +418,7 @@ export default function DiningRestaurants() {
                               {restaurant.name}
                             </h3>
                           </div>
-                          <div className="flex-shrink-0 bg-red-600 text-white px-2 py-1 rounded-lg flex items-center gap-1">
+                          <div className="flex-shrink-0 bg-green-600 text-white px-2 py-1 rounded-lg flex items-center gap-1">
                             <span className="text-sm font-bold">{restaurant.rating}</span>
                             <Star className="h-3 w-3 fill-white text-white" />
                           </div>
@@ -469,7 +469,7 @@ export default function DiningRestaurants() {
                   setSortBy(null)
                   setSelectedCuisine(null)
                 }}
-                className="text-red-600 font-medium text-sm"
+                className="text-green-600 font-medium text-sm"
               >
                 Clear all
               </button>
@@ -493,11 +493,11 @@ export default function DiningRestaurants() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveFilterTab(tab.id)}
-                      className={`flex flex-col items-center gap-1 py-4 px-2 text-center relative transition-colors ${isActive ? 'bg-white text-red-600' : 'text-gray-500 hover:bg-gray-100'
+                      className={`flex flex-col items-center gap-1 py-4 px-2 text-center relative transition-colors ${isActive ? 'bg-white text-green-600' : 'text-gray-500 hover:bg-gray-100'
                         }`}
                     >
                       {isActive && (
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-600 rounded-r" />
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-600 rounded-r" />
                       )}
                       <Icon className="h-5 w-5" strokeWidth={1.5} />
                       <span className="text-xs font-medium leading-tight">{tab.label}</span>
@@ -522,11 +522,11 @@ export default function DiningRestaurants() {
                           key={option.id || 'relevance'}
                           onClick={() => setSortBy(option.id)}
                           className={`px-4 py-3 rounded-xl border text-left transition-colors ${sortBy === option.id
-                              ? 'border-red-500 bg-red-50'
-                              : 'border-gray-200 hover:border-red-500'
+                              ? 'border-green-500 bg-green-50'
+                              : 'border-gray-200 hover:border-green-500'
                             }`}
                         >
-                          <span className={`text-sm font-medium ${sortBy === option.id ? 'text-red-600' : 'text-gray-700'}`}>
+                          <span className={`text-sm font-medium ${sortBy === option.id ? 'text-green-600' : 'text-gray-700'}`}>
                             {option.label}
                           </span>
                         </button>

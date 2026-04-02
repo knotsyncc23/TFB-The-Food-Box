@@ -15,9 +15,9 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      // Phone is required only if email and googleId are not provided
+      // Phone is required only if email and social provider IDs are not provided
       required: function () {
-        return !this.email && !this.googleId;
+        return !this.email && !this.googleId && !this.appleId;
       },
       trim: true,
     },
@@ -36,6 +36,9 @@ const userSchema = new mongoose.Schema(
       type: String,
       sparse: true,
     },
+    appleId: {
+      type: String,
+    },
     role: {
       type: String,
       enum: ["user", "restaurant", "delivery", "admin"],
@@ -43,8 +46,13 @@ const userSchema = new mongoose.Schema(
     },
     signupMethod: {
       type: String,
-      enum: ["google", "phone", "email"],
+      enum: ["google", "phone", "email", "apple"],
       default: null,
+    },
+    authProvider: {
+      type: String,
+      enum: ["email", "phone", "google", "apple"],
+      default: "email",
     },
     profileImage: {
       type: String,
@@ -246,6 +254,7 @@ userSchema.index(
   },
 );
 userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
+userSchema.index({ appleId: 1 }, { unique: true, sparse: true });
 userSchema.index({ "addresses.location": "2dsphere" });
 userSchema.index({ "currentLocation.location": "2dsphere" }); // GeoJSON index for current location queries
 // Note: Single-field indexes on email/phone removed - compound indexes {email:1,role:1} and {phone:1,role:1} can serve as prefixes

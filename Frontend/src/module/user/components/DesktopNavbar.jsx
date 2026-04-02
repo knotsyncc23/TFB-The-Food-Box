@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom"
 import { useEffect, useState, useRef } from "react"
-import { ChevronDown, ShoppingCart, Wallet } from "lucide-react"
+import { ChevronDown, ShoppingCart, Wallet, Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useLocation as useLocationHook } from "../hooks/useLocation"
 import { useCart } from "../context/CartContext"
@@ -16,17 +16,14 @@ export default function DesktopNavbar() {
   const [isVisible, setIsVisible] = useState(true)
   const lastScrollY = useRef(0)
 
-  // Show area if available, otherwise show city
-  // Priority: area > city > "Select"
-  const areaName = userLocation?.area && userLocation?.area.trim() ? userLocation.area.trim() : null
-  const cityName = userLocation?.city || null
-  const stateName = userLocation?.state || null
-  // Main location name: Show area if available, otherwise show city, otherwise "Select"
-  const mainLocationName = areaName || cityName || "Select"
-  // Secondary location: Show only city when area is available (as per design image)
-  const secondaryLocation = areaName
-    ? (cityName || "")  // Show only city when area is available
-    : (cityName && stateName ? `${cityName}, ${stateName}` : cityName || stateName || "")
+  const fullLocationText =
+    userLocation?.formattedAddress ||
+    userLocation?.address ||
+    [userLocation?.area, userLocation?.city, userLocation?.state].filter(Boolean).join(", ") ||
+    "Select location"
+  const locationParts = fullLocationText.split(",").map((part) => part.trim()).filter(Boolean)
+  const mainLocationName = locationParts.slice(0, 2).join(", ") || "Select location"
+  const secondaryLocation = locationParts.slice(2).join(", ")
 
   const handleLocationClick = () => {
     // Open location selector overlay
@@ -96,32 +93,32 @@ export default function DesktopNavbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Left: Location */}
-            <div className="flex items-center gap-3 lg:gap-4 min-w-0">
+            <div className="flex items-center gap-3 lg:gap-4 min-w-0 flex-1 max-w-[320px] lg:max-w-[420px]">
               <Button
                 variant="ghost"
                 onClick={handleLocationClick}
                 disabled={locationLoading}
-                className="h-auto px-0 py-0 hover:bg-transparent transition-colors flex-shrink-0"
+                className="h-auto min-w-0 max-w-full justify-start px-0 py-0 hover:bg-transparent transition-colors"
               >
                 {locationLoading ? (
                   <span className="text-sm font-bold text-black">
                     Loading...
                   </span>
                 ) : (
-                  <div className="flex flex-col items-start min-w-0">
-                    <div className="flex items-center gap-1.5 lg:gap-2">
+                  <div className="flex flex-col items-start min-w-0 max-w-full">
+                    <div className="flex items-center gap-1.5 lg:gap-2 min-w-0 max-w-full">
                       <FaLocationDot
                         className="h-5 w-5 lg:h-6 lg:w-6 text-black flex-shrink-0"
                         fill="black"
                         strokeWidth={2}
                       />
-                      <span className="text-sm lg:text-base font-bold text-black whitespace-nowrap">
+                      <span className="text-sm lg:text-base font-bold text-black truncate min-w-0">
                         {mainLocationName}
                       </span>
                       <ChevronDown className="h-4 w-4 lg:h-5 lg:w-5 text-black flex-shrink-0" strokeWidth={2.5} />
                     </div>
                     {secondaryLocation && (
-                      <span className="text-xs lg:text-sm font-bold text-black mt-0.5 whitespace-nowrap">
+                      <span className="text-xs lg:text-sm font-bold text-black mt-0.5 truncate w-full">
                         {secondaryLocation}
                       </span>
                     )}
@@ -200,6 +197,18 @@ export default function DesktopNavbar() {
 
             {/* Right: Wallet and Cart Icons */}
             <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
+              {/* Notifications Icon */}
+              <Link to="/notifications">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative h-9 w-9 lg:h-10 lg:w-10 rounded-full p-0 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  title="Notifications"
+                >
+                  <Bell className="h-5 w-5 lg:h-6 lg:w-6 text-gray-700 dark:text-gray-300" strokeWidth={2} />
+                </Button>
+              </Link>
+
               {/* Wallet Icon */}
               <Link to="/user/wallet">
                 <Button

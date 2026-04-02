@@ -290,21 +290,37 @@ export function useLocationSimple() {
       setLoading(false)
     }
 
-    // Request fresh location in background
-    getCurrentLocation()
-      .then((locationData) => {
-        setLocation(locationData)
-        setPermissionGranted(true)
-        setError(null)
-      })
-      .catch((err) => {
-        // Only set error if we don't have cached location
-        if (!cached) {
-          setError(err.message)
-          setPermissionGranted(false)
+    // Request fresh location only if permission is already granted to avoid prompting on page load
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+        if (result.state === 'granted') {
+          getCurrentLocation()
+            .then((locationData) => {
+              setLocation(locationData)
+              setPermissionGranted(true)
+              setError(null)
+            })
+            .catch((err) => {
+              if (!cached) {
+                setError(err.message)
+                setPermissionGranted(false)
+              }
+            })
+        } else {
+          // If not granted, we set error if we don't have a cache
+          if (!cached) {
+            setError("Location permission not granted. Please allow location access.")
+            setPermissionGranted(false)
+          }
         }
-        // If we have cached location, silently fail (background request)
       })
+    } else {
+      // For browsers without permissions API, do not prompt automatically unless there's an explicit call.
+      if (!cached) {
+        setError("Location permission not granted. Please allow location access.")
+        setPermissionGranted(false)
+      }
+    }
   }, [])
 
   return {

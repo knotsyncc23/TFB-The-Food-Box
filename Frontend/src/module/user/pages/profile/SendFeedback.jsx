@@ -25,8 +25,12 @@ export default function SendFeedback() {
       const response = await api.post(API_ENDPOINTS.ADMIN.FEEDBACK_CREATE, {
         message: feedback.trim()
       })
-      
-      if (response.data.success) {
+
+      const ok =
+        response?.data?.success === true ||
+        response?.status === 201 ||
+        response?.status === 200
+      if (ok) {
         setIsSubmitted(true)
         setFeedback("")
         toast.success('Feedback submitted successfully!')
@@ -36,7 +40,11 @@ export default function SendFeedback() {
       }
     } catch (error) {
       console.error('Error submitting feedback:', error)
-      toast.error(error.response?.data?.message || 'Failed to submit feedback. Please try again.')
+      if (error?.response?.status === 401) {
+        toast.error('Please log in to send feedback.')
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to submit feedback. Please try again.')
+      }
     } finally {
       setIsSubmitting(false)
     }

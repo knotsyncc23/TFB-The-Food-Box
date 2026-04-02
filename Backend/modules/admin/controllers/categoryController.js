@@ -14,6 +14,27 @@ const logger = winston.createLogger({
   ]
 });
 
+const normalizeFoodPreference = (value) => {
+  if (!value) return 'all';
+
+  const normalized = String(value).trim().toLowerCase();
+
+  if (normalized === 'veg' || normalized === 'vegetarian') {
+    return 'veg';
+  }
+
+  if (
+    normalized === 'non-veg' ||
+    normalized === 'non veg' ||
+    normalized === 'nonveg' ||
+    normalized === 'non_veg'
+  ) {
+    return 'non-veg';
+  }
+
+  return 'all';
+};
+
 /**
  * Get All Categories (Public - for user frontend)
  * GET /api/categories/public
@@ -22,7 +43,7 @@ export const getPublicCategories = asyncHandler(async (req, res) => {
   try {
     // Only get active categories for public access
     const categories = await AdminCategoryManagement.find({ status: true })
-      .select('name image _id type')
+      .select('name image _id type foodPreference')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -31,6 +52,7 @@ export const getPublicCategories = asyncHandler(async (req, res) => {
       name: category.name,
       image: category.image,
       type: category.type || null,
+      foodPreference: normalizeFoodPreference(category.foodPreference),
       slug: category.name.toLowerCase().replace(/\s+/g, '-')
     }));
 
@@ -133,7 +155,7 @@ export const getCategoryById = asyncHandler(async (req, res) => {
  */
 export const createCategory = asyncHandler(async (req, res) => {
   try {
-    const { name, image, status, type } = req.body;
+    const { name, image, status, type, foodPreference } = req.body;
 
     // Validation
     if (!name || !name.trim()) {
@@ -179,6 +201,7 @@ export const createCategory = asyncHandler(async (req, res) => {
       name: name.trim(),
       image: imageUrl,
       type: type && type.trim() ? type.trim() : undefined,
+      foodPreference: normalizeFoodPreference(foodPreference),
       priority: 'Normal', // Default priority
       status: status !== undefined ? status : true,
       description: '',
@@ -217,7 +240,7 @@ export const createCategory = asyncHandler(async (req, res) => {
 export const updateCategory = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, image, status, type } = req.body;
+    const { name, image, status, type, foodPreference } = req.body;
 
     const category = await AdminCategoryManagement.findById(id);
 
@@ -266,6 +289,7 @@ export const updateCategory = asyncHandler(async (req, res) => {
     if (name !== undefined) category.name = name.trim();
     if (imageUrl !== undefined) category.image = imageUrl;
     if (type !== undefined) category.type = type && type.trim() ? type.trim() : undefined;
+    if (foodPreference !== undefined) category.foodPreference = normalizeFoodPreference(foodPreference);
     if (status !== undefined) category.status = status;
     category.updatedBy = req.user._id;
 

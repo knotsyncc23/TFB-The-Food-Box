@@ -4,6 +4,7 @@ import { motion } from "framer-motion"
 import { ArrowLeft, ArrowRight, CheckCircle, Contact } from "lucide-react"
 import BottomPopup from "../components/BottomPopup"
 import { getCompanyNameAsync } from "@/lib/utils/businessSettings"
+import { toast } from "sonner"
 
 const STORAGE_KEY = "appzeto_food_referrals"
 
@@ -32,6 +33,32 @@ export default function ReferAndEarn() {
   const isValidMobile = /^\d{10}$/.test(mobileNumber)
   const isFormValid = friendName.trim().length > 0 && isValidMobile
 
+  const handlePickContact = async () => {
+    if (!navigator.contacts?.select) {
+      toast.error("Contact picker is not available on this device")
+      return
+    }
+
+    try {
+      const [contact] = await navigator.contacts.select(["name", "tel"], { multiple: false })
+      const pickedName = Array.isArray(contact?.name) ? contact.name[0] : contact?.name
+      const pickedPhone = Array.isArray(contact?.tel) ? contact.tel[0] : contact?.tel
+
+      if (pickedName) {
+        setFriendName(String(pickedName).trim())
+      }
+
+      if (pickedPhone) {
+        setMobileNumber(String(pickedPhone).replace(/\D/g, "").slice(-10))
+      }
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        console.error("Error selecting contact:", error)
+        toast.error("Could not read contact details")
+      }
+    }
+  }
+
   const handleRefer = () => {
     if (isFormValid) {
       // Get existing referrals from localStorage
@@ -54,6 +81,9 @@ export default function ReferAndEarn() {
       const newReferral = {
         name: friendName.trim(),
         mobile: mobileNumber,
+        phone: mobileNumber,
+        mobileNumber,
+        completed: false,
         timestamp: new Date().toISOString()
       }
       
@@ -132,7 +162,12 @@ export default function ReferAndEarn() {
                 placeholder="Name"
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#ff8100] focus:border-transparent"
               />
-              <button className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <button
+                type="button"
+                onClick={handlePickContact}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Pick from contacts"
+              >
                 <Contact className="w-5 h-5 text-gray-600" />
               </button>
             </div>

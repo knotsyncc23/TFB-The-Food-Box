@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import {
   loadBusinessSettings,
   getCachedSettings,
-  getCompanyName,
 } from "../utils/businessSettings";
 
 /**
@@ -33,8 +32,6 @@ export const useCompanyName = () => {
     const cached = getCachedSettings();
     if (!cached?.companyName) {
       loadCompanyName();
-    } else {
-      setCompanyName(cached.companyName);
     }
 
     // Listen for business settings updates

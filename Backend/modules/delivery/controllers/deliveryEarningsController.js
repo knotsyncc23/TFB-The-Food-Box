@@ -191,6 +191,44 @@ export const getActiveEarningAddons = asyncHandler(async (req, res) => {
     const delivery = req.delivery;
     const now = new Date();
 
+    // Count delivered orders for an offer window.
+    // Important: some historical orders may not have `deliveredAt` populated.
+    // In that case we fall back to `tracking.delivered.timestamp`, then `createdAt`.
+    const countDeliveredOrdersInRange = async (deliveryId, start, end) => {
+      const pipeline = [
+        {
+          $match: {
+            deliveryPartnerId: deliveryId,
+            status: "delivered",
+          },
+        },
+        {
+          $project: {
+            ts: {
+              $ifNull: [
+                "$deliveredAt",
+                { $ifNull: ["$tracking.delivered.timestamp", "$createdAt"] },
+              ],
+            },
+          },
+        },
+        {
+          $match: {
+            $expr: {
+              $and: [
+                { $gte: ["$ts", start] },
+                { $lte: ["$ts", end] },
+              ],
+            },
+          },
+        },
+        { $count: "count" },
+      ]
+
+      const result = await Order.aggregate(pipeline);
+      return result?.[0]?.count || 0;
+    };
+
     // Get ALL active earning addons (not just those currently valid)
     // This includes offers that haven't started yet but are active
     const activeAddons = await EarningAddon.find({
@@ -221,14 +259,12 @@ export const getActiveEarningAddons = asyncHandler(async (req, res) => {
           // Calculate delivery partner's order count AFTER offer creation
           // Count orders from offer creation/start date to now (or end date if offer hasn't started)
           const countStartDate = now > countFromDate ? countFromDate : now;
-          const orderCount = await Order.countDocuments({
-            deliveryPartnerId: delivery._id,
-            status: 'delivered',
-            deliveredAt: {
-              $gte: countStartDate,
-              $lte: now > endDate ? endDate : now
-            }
-          }).catch(err => {
+          const endBound = now > endDate ? endDate : now;
+          const orderCount = await countDeliveredOrdersInRange(
+            delivery._id,
+            countStartDate,
+            endBound
+          ).catch((err) => {
             logger.error(`Error counting orders for addon ${addon._id}:`, err);
             return 0;
           });

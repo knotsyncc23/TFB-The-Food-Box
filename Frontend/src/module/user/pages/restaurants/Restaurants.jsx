@@ -139,9 +139,9 @@ export default function Restaurants() {
                                 </p>
                                 <div className="flex items-center gap-2 flex-wrap">
                                   {typeof restaurant.rating === "number" && restaurant.rating > 0 ? (
-                                    <div className="flex items-center gap-1 bg-yellow-50 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded-full">
-                                      <Star className="h-3 w-3 sm:h-3.5 sm:w-3.5 fill-yellow-400 text-yellow-400" />
-                                      <span className="font-bold text-xs sm:text-sm text-yellow-700 dark:text-yellow-400">
+                                    <div className="flex items-center gap-1 bg-green-600 text-white px-1.5 py-0.5 rounded-full">
+                                      <Star className="h-3 w-3 sm:h-3.5 sm:w-3.5 fill-white text-white" />
+                                      <span className="font-bold text-xs sm:text-sm">
                                         {restaurant.rating.toFixed(1)}
                                       </span>
                                     </div>

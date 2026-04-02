@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { motion } from 'framer-motion'
 
 // Build optimized URL - Cloudinary uses path transforms, others use query params
 const buildOptimizedUrl = (imageSrc, width, useWebP = false) => {
@@ -144,17 +143,16 @@ const OptimizedImage = React.memo(({
     <div className={`relative overflow-hidden ${className}`} ref={imgRef}>
       {/* Blur Placeholder */}
       {placeholder === 'blur' && !isLoaded && (
-        <motion.div
+        <div
           className="absolute inset-0"
-          initial={{ opacity: 1 }}
-          animate={{ opacity: isLoaded ? 0 : 1 }}
-          transition={{ duration: 0.3 }}
           style={{
             backgroundImage: `url(${defaultBlurDataURL})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             filter: 'blur(20px)',
             transform: 'scale(1.1)',
+            opacity: isLoaded ? 0 : 1,
+            transition: 'opacity 0.3s ease',
           }}
         />
       )}
@@ -177,7 +175,7 @@ const OptimizedImage = React.memo(({
           )}
 
           {/* Fallback to original format */}
-          <motion.img
+          <img
             src={imageSrc}
             srcSet={srcSet}
             sizes={supportsOptimization(imageSrc) ? sizes : undefined}

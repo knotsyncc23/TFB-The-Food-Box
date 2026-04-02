@@ -15,11 +15,14 @@ export const getDiningCoupons = asyncHandler(async (req, res) => {
   const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10)));
 
   const query = {};
+  const normalizedSearch = typeof search === "string"
+    ? search.replace(/\s+/g, "").trim()
+    : "";
   if (isActive !== undefined && isActive !== "") {
     query.isActive = isActive === "true" || isActive === true;
   }
-  if (search && String(search).trim()) {
-    query.code = { $regex: String(search).trim(), $options: "i" };
+  if (normalizedSearch) {
+    query.code = { $regex: normalizedSearch, $options: "i" };
   }
 
   const [list, total] = await Promise.all([

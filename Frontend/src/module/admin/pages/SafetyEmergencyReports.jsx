@@ -352,7 +352,7 @@ export default function SafetyEmergencyReports() {
                             <Settings className="w-4 h-4" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="bg-white shadow-md border border-slate-200 rounded-md">
                           <DropdownMenuItem onClick={() => handleViewReport(report)}>
                             <Eye className="w-4 h-4 mr-2" />
                             View Details

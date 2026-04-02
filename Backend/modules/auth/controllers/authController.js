@@ -2,12 +2,18 @@ import User from "../models/User.js";
 import otpService from "../services/otpService.js";
 import jwtService from "../services/jwtService.js";
 import googleAuthService from "../services/googleAuthService.js";
+import appleAuthService from "../services/appleAuthService.js";
 import firebaseAuthService from "../services/firebaseAuthService.js";
 import {
   successResponse,
   errorResponse,
 } from "../../../shared/utils/response.js";
 import { asyncHandler } from "../../../shared/middleware/asyncHandler.js";
+import {
+  getRefreshTokenCookieOptions,
+  getClearRefreshTokenCookieOptions,
+} from "../../../config/refreshCookie.js";
+import { getEnvVar } from "../../../shared/utils/envService.js";
 import winston from "winston";
 
 const logger = winston.createLogger({
@@ -304,12 +310,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     });
 
     // Set refresh token in httpOnly cookie
-    res.cookie("refreshToken", tokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+    res.cookie("refreshToken", tokens.refreshToken, getRefreshTokenCookieOptions());
 
     // Return access token and user info
     return successResponse(res, 200, "Authentication successful", {
@@ -476,11 +477,7 @@ export const refreshToken = asyncHandler(async (req, res) => {
  */
 export const logout = asyncHandler(async (req, res) => {
   // Clear refresh token cookie
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-  });
+  res.clearCookie("refreshToken", getClearRefreshTokenCookieOptions());
 
   return successResponse(res, 200, "Logged out successfully");
 });
@@ -551,12 +548,7 @@ export const register = asyncHandler(async (req, res) => {
   });
 
   // Set refresh token in httpOnly cookie
-  res.cookie("refreshToken", tokens.refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  });
+  res.cookie("refreshToken", tokens.refreshToken, getRefreshTokenCookieOptions());
 
   logger.info(`New user registered via email: ${user._id}`, {
     email,
@@ -653,12 +645,7 @@ export const login = asyncHandler(async (req, res) => {
   });
 
   // Set refresh token in httpOnly cookie
-  res.cookie("refreshToken", tokens.refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  });
+  res.cookie("refreshToken", tokens.refreshToken, getRefreshTokenCookieOptions());
 
   logger.info(`User logged in via email: ${user._id}`, {
     email,
@@ -776,20 +763,37 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * Login / register using Firebase Google ID token
- * POST /api/auth/firebase/google-login
- */
-export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
-  const { idToken, role = "restaurant" } = req.body;
+const FIREBASE_PROVIDER_CONFIG = {
+  google: {
+    tokenProviderId: "google.com",
+    uidField: "googleId",
+    emailField: "googleEmail",
+    defaultName: "Google User",
+    displayName: "Google",
+  },
+  apple: {
+    tokenProviderId: "apple.com",
+    uidField: "appleId",
+    emailField: null,
+    defaultName: "Apple User",
+    displayName: "Apple",
+  },
+};
+
+async function handleFirebaseSocialLogin(
+  req,
+  res,
+  fallbackProvider = "google",
+  defaultRole = "user",
+) {
+  const { idToken, role = defaultRole, provider = fallbackProvider } = req.body;
 
   if (!idToken) {
     return errorResponse(res, 400, "Firebase ID token is required");
   }
 
-  // Validate role - admin cannot be authenticated through this endpoint
   const allowedRoles = ["user", "restaurant", "delivery"];
-  const userRole = role || "restaurant";
+  const userRole = role || "user";
   if (!allowedRoles.includes(userRole)) {
     return errorResponse(
       res,
@@ -798,7 +802,16 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
     );
   }
 
-  // Ensure Firebase Admin is configured
+  const providerKey = String(provider || fallbackProvider).toLowerCase();
+  const providerConfig = FIREBASE_PROVIDER_CONFIG[providerKey];
+  if (!providerConfig) {
+    return errorResponse(
+      res,
+      400,
+      "Invalid Firebase provider. Allowed providers: google, apple",
+    );
+  }
+
   const firebaseReady = await firebaseAuthService.ensureInitialized();
   if (!firebaseReady) {
     return errorResponse(
@@ -809,74 +822,33 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
   }
 
   try {
-    // Verify Firebase ID token
     const decoded = await firebaseAuthService.verifyIdToken(idToken);
+    const tokenProviderId = decoded?.firebase?.sign_in_provider || "";
+
+    if (tokenProviderId && tokenProviderId !== providerConfig.tokenProviderId) {
+      return errorResponse(
+        res,
+        400,
+        `This Firebase token was issued for ${tokenProviderId}, not ${providerConfig.tokenProviderId}.`,
+      );
+    }
 
     const firebaseUid = decoded.uid;
-    const email = decoded.email || null;
-    const name = decoded.name || decoded.display_name || "Google User";
+    const email = decoded.email ? decoded.email.toLowerCase().trim() : null;
+    const name =
+      decoded.name?.trim() ||
+      decoded.display_name?.trim() ||
+      providerConfig.defaultName;
     const picture = decoded.picture || decoded.photo_url || null;
-    const emailVerified = !!decoded.email_verified;
 
-    // Validate email is present
-    if (!email) {
-      logger.error("Firebase Google login failed: Email not found in token", {
-        uid: firebaseUid,
-      });
-      return errorResponse(
-        res,
-        400,
-        "Email not found in Firebase user. Please ensure email is available in your Google account.",
-      );
+    const lookupConditions = [{ [providerConfig.uidField]: firebaseUid }];
+    if (email) {
+      lookupConditions.push({ email, role: userRole });
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      logger.error("Firebase Google login failed: Invalid email format", {
-        email,
-      });
-      return errorResponse(
-        res,
-        400,
-        "Invalid email format received from Google.",
-      );
-    }
-
-    // Find existing user by firebase UID (stored in googleId) or email with same role
-    let user = await User.findOne({
-      $or: [{ googleId: firebaseUid }, { email, role: userRole }],
-    });
+    let user = await User.findOne({ $or: lookupConditions });
 
     if (user) {
-      // If user exists but googleId not linked yet, link it
-      if (!user.googleId) {
-        user.googleId = firebaseUid;
-        user.googleEmail = email;
-        if (!user.profileImage && picture) {
-          user.profileImage = picture;
-        }
-        // Update signupMethod if not already set
-        if (!user.signupMethod) {
-          user.signupMethod = "google";
-        }
-        await user.save();
-        logger.info("Linked Google account to existing user", {
-          userId: user._id,
-          email,
-        });
-      }
-
-      // If this is a restaurant login, make sure role matches
-      if (userRole === "restaurant" && user.role !== "restaurant") {
-        return errorResponse(
-          res,
-          403,
-          "This account is not registered as a restaurant partner",
-        );
-      }
-
-      // If user role doesn't match requested role, return error
       if (user.role !== userRole) {
         return errorResponse(
           res,
@@ -885,73 +857,97 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
         );
       }
 
-      logger.info("Existing user logged in via Firebase Google", {
-        userId: user._id,
-        email,
-        role: user.role,
-      });
+      let shouldSave = false;
+
+      if (!user[providerConfig.uidField]) {
+        user[providerConfig.uidField] = firebaseUid;
+        shouldSave = true;
+      }
+      if (providerConfig.emailField && email && !user[providerConfig.emailField]) {
+        user[providerConfig.emailField] = email;
+        shouldSave = true;
+      }
+      if (email && !user.email) {
+        user.email = email;
+        shouldSave = true;
+      }
+      if (!user.name && name) {
+        user.name = name;
+        shouldSave = true;
+      }
+      if (!user.profileImage && picture) {
+        user.profileImage = picture;
+        shouldSave = true;
+      }
+      if (user.signupMethod !== providerKey) {
+        user.signupMethod = providerKey;
+        shouldSave = true;
+      }
+      if (user.authProvider !== providerKey) {
+        user.authProvider = providerKey;
+        shouldSave = true;
+      }
+
+      if (shouldSave) {
+        await user.save();
+      }
     } else {
-      // Auto-register new user based on Firebase data
       const userData = {
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        googleId: firebaseUid,
-        googleEmail: email.toLowerCase().trim(),
+        name,
         role: userRole,
-        signupMethod: "google",
+        signupMethod: providerKey,
+        authProvider: providerKey,
         profileImage: picture || null,
         isActive: true,
+        [providerConfig.uidField]: firebaseUid,
       };
+
+      if (email) {
+        userData.email = email;
+      }
+      if (providerConfig.emailField && email) {
+        userData[providerConfig.emailField] = email;
+      }
 
       try {
         user = await User.create(userData);
-
-        logger.info("New user registered via Firebase Google login", {
-          firebaseUid,
-          email,
-          userId: user._id,
-          role: userRole,
-          name: user.name,
-        });
       } catch (createError) {
-        // Handle duplicate key error - user might have been created between findOne and create
-        if (createError.code === 11000) {
-          logger.warn(
-            "Duplicate key error during user creation, retrying find",
-            { email, role: userRole },
-          );
+        if (createError.code === 11000 && email) {
           user = await User.findOne({ email, role: userRole });
           if (!user) {
-            logger.error("User not found after duplicate key error", {
-              email,
-              role: userRole,
-            });
             throw createError;
           }
-          // Link Google ID if not already linked
-          if (!user.googleId) {
-            user.googleId = firebaseUid;
-            user.googleEmail = email;
-            if (!user.profileImage && picture) {
-              user.profileImage = picture;
-            }
-            if (!user.signupMethod) {
-              user.signupMethod = "google";
-            }
+
+          let shouldSave = false;
+          if (!user[providerConfig.uidField]) {
+            user[providerConfig.uidField] = firebaseUid;
+            shouldSave = true;
+          }
+          if (providerConfig.emailField && !user[providerConfig.emailField]) {
+            user[providerConfig.emailField] = email;
+            shouldSave = true;
+          }
+          if (!user.signupMethod) {
+            user.signupMethod = providerKey;
+            shouldSave = true;
+          }
+          if (user.authProvider !== providerKey) {
+            user.authProvider = providerKey;
+            shouldSave = true;
+          }
+          if (!user.profileImage && picture) {
+            user.profileImage = picture;
+            shouldSave = true;
+          }
+          if (shouldSave) {
             await user.save();
           }
         } else {
-          logger.error("Error creating user via Firebase Google login", {
-            error: createError.message,
-            email,
-            role: userRole,
-          });
           throw createError;
         }
       }
     }
 
-    // Ensure user is active
     if (!user.isActive) {
       logger.warn("Inactive user attempted login", { userId: user._id, email });
       return errorResponse(
@@ -961,25 +957,18 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
       );
     }
 
-    // Generate JWT tokens for our app
     const tokens = jwtService.generateTokens({
       userId: user._id.toString(),
       role: user.role,
       email: user.email,
     });
 
-    // Set refresh token in httpOnly cookie
-    res.cookie("refreshToken", tokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+    res.cookie("refreshToken", tokens.refreshToken, getRefreshTokenCookieOptions());
 
     return successResponse(
       res,
       200,
-      "Firebase Google authentication successful",
+      `Firebase ${providerConfig.displayName} authentication successful`,
       {
         accessToken: tokens.accessToken,
         user: {
@@ -991,17 +980,266 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
           role: user.role,
           profileImage: user.profileImage,
           signupMethod: user.signupMethod,
+          authProvider: user.authProvider,
         },
       },
     );
   } catch (error) {
-    logger.error(`Error in Firebase Google login: ${error.message}`);
+    logger.error(`Error in Firebase ${providerConfig.displayName} login: ${error.message}`);
     return errorResponse(
       res,
       400,
-      error.message || "Firebase Google authentication failed",
+      error.message || `Firebase ${providerConfig.displayName} authentication failed`,
     );
   }
+}
+
+/**
+ * Login / register using Firebase Google ID token
+ * POST /api/auth/firebase/google-login
+ */
+export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
+  return handleFirebaseSocialLogin(req, res, "google", "restaurant");
+});
+
+/**
+ * Login / register using Firebase social ID token
+ * POST /api/auth/firebase/social-login
+ */
+export const firebaseSocialLogin = asyncHandler(async (req, res) => {
+  return handleFirebaseSocialLogin(req, res, "google", "user");
+});
+
+/**
+ * Login / register using Apple identity token
+ * POST /api/auth/apple
+ */
+export const appleLogin = asyncHandler(async (req, res) => {
+  const { identityToken, role = "user", name } = req.body;
+
+  if (!identityToken) {
+    return errorResponse(res, 400, "Apple identity token is required");
+  }
+
+  const allowedRoles = ["user", "restaurant", "delivery"];
+  const userRole = role || "user";
+  if (!allowedRoles.includes(userRole)) {
+    return errorResponse(
+      res,
+      400,
+      `Invalid role. Allowed roles: ${allowedRoles.join(", ")}`,
+    );
+  }
+
+  const clientId = (await getEnvVar("APPLE_CLIENT_ID")) || process.env.APPLE_CLIENT_ID;
+  if (!clientId) {
+    return errorResponse(
+      res,
+      500,
+      "Apple Sign-In is not configured. Please set APPLE_CLIENT_ID in backend .env",
+    );
+  }
+
+  let applePayload;
+  try {
+    applePayload = await appleAuthService.verifyIdentityToken(
+      identityToken,
+      clientId,
+    );
+  } catch (error) {
+    logger.error("Apple login failed during token verification", {
+      message: error.message,
+    });
+    return errorResponse(res, 400, error.message);
+  }
+
+  const appleId = applePayload?.sub;
+  if (!appleId) {
+    return errorResponse(
+      res,
+      400,
+      "Apple user identifier (sub) is missing from the identity token",
+    );
+  }
+
+  const normalizedEmail = applePayload?.email
+    ? applePayload.email.toLowerCase().trim()
+    : null;
+
+  const lookupConditions = [{ appleId }];
+  if (normalizedEmail) {
+    lookupConditions.push({ email: normalizedEmail, role: userRole });
+  }
+
+  let user = await User.findOne({ $or: lookupConditions });
+
+  if (user && user.role !== userRole) {
+    return errorResponse(
+      res,
+      403,
+      `This account is registered as ${user.role}, not ${userRole}`,
+    );
+  }
+
+  if (user) {
+    let shouldSave = false;
+    if (!user.appleId) {
+      user.appleId = appleId;
+      shouldSave = true;
+    }
+    if (normalizedEmail && !user.email) {
+      user.email = normalizedEmail;
+      shouldSave = true;
+    }
+    if (!user.signupMethod) {
+      user.signupMethod = "apple";
+      shouldSave = true;
+    }
+    if (user.authProvider !== "apple") {
+      user.authProvider = "apple";
+      shouldSave = true;
+    }
+    if (shouldSave) {
+      await user.save();
+      logger.info("Linked Apple account to existing user", {
+        userId: user._id,
+        email: user.email,
+      });
+    } else {
+      logger.info("Existing Apple user logged in", {
+        userId: user._id,
+        email: user.email,
+      });
+    }
+  } else {
+    const trimmedName = name?.trim();
+    const fallbackName =
+      trimmedName ||
+      normalizedEmail?.split("@")[0] ||
+      "Apple User";
+
+    const newUserData = {
+      name: fallbackName,
+      appleId,
+      role: userRole,
+      signupMethod: "apple",
+      authProvider: "apple",
+      isActive: true,
+    };
+    if (normalizedEmail) {
+      newUserData.email = normalizedEmail;
+    }
+
+    try {
+      user = await User.create(newUserData);
+      logger.info("New user registered via Apple login", {
+        userId: user._id,
+        email: user.email,
+        role: user.role,
+      });
+    } catch (createError) {
+      if (createError.code === 11000) {
+        logger.warn("Duplicate key during Apple registration, retrying lookup", {
+          error: createError.message,
+          email: normalizedEmail,
+        });
+        const fallbackQuery = { $or: [{ appleId }] };
+        if (normalizedEmail) {
+          fallbackQuery.$or.push({ email: normalizedEmail, role: userRole });
+        }
+        user = await User.findOne(fallbackQuery);
+        if (!user) {
+          logger.error(
+            "Apple user not found after duplicate key error",
+            { email: normalizedEmail, role: userRole },
+          );
+          throw createError;
+        }
+        let shouldSave = false;
+        if (!user.appleId) {
+          user.appleId = appleId;
+          shouldSave = true;
+        }
+        if (!user.signupMethod) {
+          user.signupMethod = "apple";
+          shouldSave = true;
+        }
+        if (user.authProvider !== "apple") {
+          user.authProvider = "apple";
+          shouldSave = true;
+        }
+        if (normalizedEmail && !user.email) {
+          user.email = normalizedEmail;
+          shouldSave = true;
+        }
+        if (shouldSave) {
+          await user.save();
+        }
+      } else {
+        throw createError;
+      }
+    }
+  }
+
+  if (!user) {
+    return errorResponse(res, 500, "Unable to process Apple user");
+  }
+
+  if (!user.isActive) {
+    logger.warn("Inactive user attempted Apple login", {
+      userId: user._id,
+    });
+    return errorResponse(
+      res,
+      403,
+      "Your account has been deactivated. Please contact support.",
+    );
+  }
+
+  const tokens = jwtService.generateTokens({
+    userId: user._id.toString(),
+    role: user.role,
+    email: user.email,
+  });
+
+  res.cookie("refreshToken", tokens.refreshToken, getRefreshTokenCookieOptions());
+
+  return successResponse(
+    res,
+    200,
+    "Apple authentication successful",
+    {
+      accessToken: tokens.accessToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        phoneVerified: user.phoneVerified,
+        role: user.role,
+        profileImage: user.profileImage,
+        signupMethod: user.signupMethod,
+        authProvider: user.authProvider,
+      },
+    },
+  );
+});
+
+/**
+ * GET /api/auth/apple/config
+ */
+export const getAppleConfig = asyncHandler(async (_req, res) => {
+  const clientId =
+    (await getEnvVar("APPLE_CLIENT_ID")) || process.env.APPLE_CLIENT_ID || "";
+  const redirectUri =
+    (await getEnvVar("APPLE_REDIRECT_URI")) ||
+    process.env.APPLE_REDIRECT_URI ||
+    "";
+
+  return successResponse(res, 200, "Apple config fetched successfully", {
+    clientId: clientId.trim(),
+    redirectUri: redirectUri.trim(),
+  });
 });
 
 /**
@@ -1161,12 +1399,11 @@ export const googleCallback = asyncHandler(async (req, res) => {
     });
 
     // Set refresh token in httpOnly cookie
-    res.cookie("refreshToken", jwtTokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+    res.cookie(
+      "refreshToken",
+      jwtTokens.refreshToken,
+      getRefreshTokenCookieOptions(),
+    );
 
     // Clear OAuth state cookie
     res.clearCookie("oauth_state");

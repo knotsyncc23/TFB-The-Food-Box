@@ -270,8 +270,8 @@ export function extractPolylineFromDirections(directionsResult) {
   // Method 3: Use overview_path if available (already decoded)
   if (route.overview_path && route.overview_path.length > 0) {
     return route.overview_path.map(point => ({
-      lat: point.lat(),
-      lng: point.lng()
+      lat: typeof point.lat === "function" ? point.lat() : point.lat,
+      lng: typeof point.lng === "function" ? point.lng() : point.lng
     }));
   }
 
@@ -314,4 +314,3 @@ export function animateMarker(startPos, endPos, duration, onUpdate) {
     }
   };
 }
-

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Menu,
   Search,
+  Bell,
   User,
   ChevronDown,
   UtensilsCrossed,
@@ -34,6 +35,43 @@ import { DEFAULT_LOGO_PLACEHOLDER } from "@/lib/constants/defaultLogo";
 import { adminAPI } from "@/lib/api";
 import { clearModuleAuth } from "@/lib/utils/auth";
 import { getCachedSettings, loadBusinessSettings } from "@/lib/utils/businessSettings";
+import { sidebarMenuData } from "../data/sidebarMenu";
+
+const flattenAdminNavigation = () => {
+  const items = [];
+
+  sidebarMenuData.forEach((section) => {
+    if (section.type === "link") {
+      items.push({
+        label: section.label,
+        path: section.path,
+        section: "Quick Access",
+      });
+      return;
+    }
+
+    section.items?.forEach((item) => {
+      if (item.type === "link") {
+        items.push({
+          label: item.label,
+          path: item.path,
+          section: section.label,
+        });
+        return;
+      }
+
+      item.subItems?.forEach((subItem) => {
+        items.push({
+          label: subItem.label,
+          path: subItem.path,
+          section: `${section.label} / ${item.label}`,
+        });
+      });
+    });
+  });
+
+  return items;
+};
 
 export default function AdminNavbar({ onMenuClick }) {
   const navigate = useNavigate();
@@ -42,6 +80,16 @@ export default function AdminNavbar({ onMenuClick }) {
   const [adminData, setAdminData] = useState(null);
   const [businessSettings, setBusinessSettings] = useState(null);
   const searchInputRef = useRef(null);
+  const searchResults = flattenAdminNavigation().filter((item) => {
+    if (!searchQuery.trim()) return false;
+
+    const query = searchQuery.toLowerCase().trim();
+    return (
+      item.label.toLowerCase().includes(query) ||
+      item.section.toLowerCase().includes(query) ||
+      item.path.toLowerCase().includes(query)
+    );
+  });
 
   // Load admin data from localStorage
   useEffect(() => {
@@ -126,31 +174,6 @@ export default function AdminNavbar({ onMenuClick }) {
       }, 100);
     }
   }, [searchOpen]);
-
-  // Mock search results - replace with actual search logic
-  const searchResults = [
-    { type: "Order", title: "Order #12345", description: "Pending delivery", icon: Package },
-    { type: "User", title: "Sumit Jaiswal", description: "Customer profile", icon: Users },
-    { type: "Product", title: "Chicken Biryani", description: "Food item", icon: UtensilsCrossed },
-    { type: "Report", title: "Sales Report", description: "Monthly analytics", icon: FileText },
-  ].filter((item) =>
-    searchQuery.trim() === "" ||
-    item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Mock data for dropdowns
-  const messages = [
-    { id: 1, sender: "Sarah Johnson", message: "Order #12345 needs attention", time: "2m ago", unread: true },
-    { id: 2, sender: "Mike Chen", message: "New restaurant registration", time: "15m ago", unread: true },
-    { id: 3, sender: "Emma Wilson", message: "Payment issue resolved", time: "1h ago", unread: false },
-  ];
-
-  const emails = [
-    { id: 1, subject: "Weekly Report Ready", from: "reports@appzeto.com", time: "5m ago", unread: true },
-    { id: 2, subject: "New Order Notification", from: "orders@appzeto.com", time: "1h ago", unread: true },
-    { id: 3, subject: "System Update", from: "admin@appzeto.com", time: "2h ago", unread: false },
-  ];
 
   // Handle logout
   const handleLogout = async () => {
@@ -245,6 +268,40 @@ export default function AdminNavbar({ onMenuClick }) {
 
           {/* Right: Notifications and User Profile */}
           <div className="flex items-center gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="relative flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 transition-colors"
+                  aria-label="Notifications"
+                >
+                  <Bell className="w-4 h-4" />
+                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rose-500" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-72 bg-white border border-neutral-200 rounded-lg shadow-lg z-50 text-neutral-900"
+              >
+                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="cursor-pointer hover:bg-neutral-100 focus:bg-neutral-100"
+                  onClick={() => navigate("/admin/push-notification")}
+                >
+                  <Bell className="mr-2 w-4 h-4" />
+                  <span>Push notifications</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer hover:bg-neutral-100 focus:bg-neutral-100"
+                  onClick={() => navigate("/admin/notification-channels")}
+                >
+                  <Settings className="mr-2 w-4 h-4" />
+                  <span>Notification channels</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {/* User Profile */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -257,13 +314,11 @@ export default function AdminNavbar({ onMenuClick }) {
                     <p className="text-xs text-neutral-500">
                       {adminData?.email
                         ? (() => {
-                          const [local, domain] = adminData.email.split("@");
-                          return (
-                            local[0] +
-                            "*".repeat(Math.min(local.length - 1, 5)) +
-                            "@" +
-                            domain
-                          );
+                          const [local = "", domain = ""] = String(adminData.email).split("@");
+                          if (!local || !domain) return adminData.email;
+                          const maskedCount = Math.max(0, Math.min(local.length - 1, 5));
+                          const firstChar = local.slice(0, 1);
+                          return `${firstChar}${"*".repeat(maskedCount)}@${domain}`;
                         })()
                         : "admin@example.com"}
                     </p>
@@ -304,13 +359,11 @@ export default function AdminNavbar({ onMenuClick }) {
                       <p className="text-xs text-neutral-500">
                         {adminData?.email
                           ? (() => {
-                            const [local, domain] = adminData.email.split("@");
-                            return (
-                              local[0] +
-                              "*".repeat(Math.min(local.length - 1, 5)) +
-                              "@" +
-                              domain
-                            );
+                            const [local = "", domain = ""] = String(adminData.email).split("@");
+                            if (!local || !domain) return adminData.email;
+                            const maskedCount = Math.max(0, Math.min(local.length - 1, 5));
+                            const firstChar = local.slice(0, 1);
+                            return `${firstChar}${"*".repeat(maskedCount)}@${domain}`;
                           })()
                           : "admin@example.com"}
                       </p>
@@ -425,24 +478,18 @@ export default function AdminNavbar({ onMenuClick }) {
                         key={idx}
                         onClick={() => {
                           setSearchOpen(false);
-                          const pathMap = {
-                            "Order": "/admin/orders/all",
-                            "User": "/admin/customers",
-                            "Product": "/admin/food/list",
-                            "Report": "/admin/transaction-report"
-                          };
-                          navigate(pathMap[result.type] || "/admin");
+                          navigate(result.path);
                         }}
                         className="w-full flex items-center gap-4 p-4 rounded-lg border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 transition-all text-left"
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-neutral-900">{result.title}</p>
+                            <p className="text-sm font-semibold text-neutral-900">{result.label}</p>
                             <span className="text-xs px-2 py-0.5 bg-neutral-100 text-neutral-700 rounded">
-                              {result.type}
+                              {result.section}
                             </span>
                           </div>
-                          <p className="text-xs text-neutral-600 mt-1">{result.description}</p>
+                          <p className="text-xs text-neutral-600 mt-1">{result.path}</p>
                         </div>
                         <ArrowRight className="w-4 h-4 text-neutral-400" />
                       </button>

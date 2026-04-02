@@ -29,7 +29,6 @@ export default function PushNotification() {
   })
   const [searchQuery, setSearchQuery] = useState("")
   const [notifications, setNotifications] = useState(pushNotificationsDummy)
-  const [editingNotification, setEditingNotification] = useState(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const fileInputRef = useRef(null)
   const [loading, setLoading] = useState(false)
@@ -93,11 +92,20 @@ export default function PushNotification() {
       alert("Please fill in title and description.")
       return
     }
+    const sendToMap = {
+      Customer: "Customer",
+      "Delivery Man": "Delivery Man",
+      Restaurant: "Restaurant",
+      All: "All",
+    }
+    const normalizedSendTo = sendToMap[formData.sendTo] || "Customer"
+
     try {
       const res = await adminAPI.sendPushNotification({
         title: formData.title.trim(),
         description: formData.description.trim(),
-        sendTo: formData.sendTo,
+        sendTo: normalizedSendTo,
+        target: normalizedSendTo,
         zone: formData.zone,
       })
       if (res?.data?.success) {
@@ -158,11 +166,10 @@ export default function PushNotification() {
   }
 
   const handleEditNotification = (notification) => {
-    setEditingNotification(notification)
     setFormData({
       title: notification.title || "",
       zone: notification.zone || "All",
-      sendTo: notification.target || "Customer",
+      sendTo: notification.sendTo || notification.target || "Customer",
       description: notification.description || "",
     })
   }
@@ -248,6 +255,7 @@ export default function PushNotification() {
                   onChange={(e) => handleInputChange("sendTo", e.target.value)}
                   className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
+                  <option value="All">All</option>
                   <option value="Customer">Customer</option>
                   <option value="Delivery Man">Delivery Man</option>
                   <option value="Restaurant">Restaurant</option>

@@ -37,11 +37,12 @@ export default function EditRestaurantDetails() {
   }
 
   const renderStars = (rating) => {
-    const r = Number(rating) || 0
+    let r = Number(rating) || 0;
+    r = Math.max(0, Math.min(5, r)); // Clamp between 0 and 5
     const full = Math.floor(r)
     const half = r % 1 >= 0.5 ? 1 : 0
-    const empty = 5 - full - half
-    return "★".repeat(full) + (half ? "½" : "") + "☆".repeat(empty) + ` ${r.toFixed(1)}`
+    const empty = Math.max(0, 5 - full - half)
+    return "★".repeat(full) + (half ? "½" : "") + "☆".repeat(empty) + ` ${(Number(rating) || 0).toFixed(1)}`
   }
 
   useEffect(() => {

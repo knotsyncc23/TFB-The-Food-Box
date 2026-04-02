@@ -25,8 +25,12 @@ export default function ReportSafetyEmergency() {
       const response = await api.post(API_ENDPOINTS.ADMIN.SAFETY_EMERGENCY_CREATE, {
         message: report.trim()
       })
-      
-      if (response.data.success) {
+
+      const ok =
+        response?.data?.success === true ||
+        response?.status === 201 ||
+        response?.status === 200
+      if (ok) {
         setIsSubmitted(true)
         setReport("")
         toast.success('Safety emergency report submitted successfully!')
@@ -36,7 +40,11 @@ export default function ReportSafetyEmergency() {
       }
     } catch (error) {
       console.error('Error submitting safety emergency report:', error)
-      toast.error(error.response?.data?.message || 'Failed to submit safety emergency report. Please try again.')
+      if (error?.response?.status === 401) {
+        toast.error('Please log in to submit a safety report.')
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to submit safety emergency report. Please try again.')
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -111,14 +119,16 @@ export default function ReportSafetyEmergency() {
                   placeholder="Please provide details about the safety issue..."
                   value={report}
                   onChange={(e) => setReport(e.target.value)}
-                  className="min-h-[150px] md:min-h-[200px] lg:min-h-[250px] w-full resize-y text-sm md:text-base leading-relaxed"
+                  className="min-h-[150px] md:min-h-[200px] lg:min-h-[250px] w-full resize-y text-sm md:text-base leading-relaxed border border-gray-200 dark:border-gray-700 rounded-lg"
                   dir="ltr"
                   style={{
                     direction: 'ltr',
                     textAlign: 'left',
                     unicodeBidi: 'bidi-override',
                     width: '100%',
-                    maxWidth: '100%'
+                    maxWidth: '100%',
+                    padding: '12px 16px',
+                    boxSizing: 'border-box',
                   }}
                 />
                 <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-2">

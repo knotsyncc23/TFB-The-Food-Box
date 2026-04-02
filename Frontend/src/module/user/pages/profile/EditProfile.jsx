@@ -22,6 +22,83 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import dayjs from 'dayjs'
 
+const datePickerTextFieldSx = {
+  '& .MuiOutlinedInput-root': {
+    height: '48px',
+    borderRadius: '8px',
+    backgroundColor: '#ffffff',
+    color: '#111827',
+    '& fieldset': {
+      borderColor: '#d1d5db',
+    },
+    '&:hover fieldset': {
+      borderColor: '#9ca3af',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#671E1F',
+      borderWidth: '1px',
+    },
+  },
+  '& .MuiInputBase-input': {
+    padding: '12px 14px',
+    fontSize: '16px',
+    color: 'inherit',
+    WebkitTextFillColor: 'currentColor',
+  },
+  '& .MuiInputBase-input::placeholder': {
+    color: '#9ca3af',
+    opacity: 1,
+  },
+  '& .MuiSvgIcon-root': {
+    color: 'inherit',
+  },
+  '& .MuiIconButton-root': {
+    color: 'inherit',
+  },
+  '@media (prefers-color-scheme: dark)': {
+    '& .MuiOutlinedInput-root': {
+      backgroundColor: '#1a1a1a',
+      color: '#ffffff',
+    },
+    '& .MuiOutlinedInput-notchedOutline': {
+      borderColor: '#4b5563',
+    },
+    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+      borderColor: '#6b7280',
+    },
+    '& .MuiInputBase-input': {
+      color: '#ffffff',
+      WebkitTextFillColor: '#ffffff',
+    },
+    '& .MuiSvgIcon-root': {
+      color: '#ffffff',
+    },
+    '& .MuiIconButton-root': {
+      color: '#ffffff',
+    },
+  },
+  '.dark & .MuiInputBase-input': {
+    color: '#ffffff',
+    WebkitTextFillColor: '#ffffff',
+  },
+  '.dark & .MuiOutlinedInput-root': {
+    backgroundColor: '#1a1a1a',
+    color: '#ffffff',
+  },
+  '.dark & .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#4b5563',
+  },
+  '.dark & .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#6b7280',
+  },
+  '.dark & .MuiSvgIcon-root': {
+    color: '#ffffff',
+  },
+  '.dark & .MuiIconButton-root': {
+    color: '#ffffff',
+  },
+}
+
 // Gender options
 const genderOptions = [
   { value: "male", label: "Male" },
@@ -300,6 +377,38 @@ export default function EditProfile() {
     }
   }
 
+  const handleRemoveProfileImage = async () => {
+    if (isUploadingImage) return
+    if (!profileImage) return
+
+    try {
+      setIsUploadingImage(true)
+      await userAPI.removeProfileImage()
+
+      setProfileImage(null)
+      setImagePreview(null)
+
+      updateUserProfile({ profileImage: null })
+      saveProfileToStorage({
+        name: formData.name,
+        phone: formData.mobile,
+        email: formData.email,
+        profileImage: null,
+        dateOfBirth: formData.dateOfBirth ? formData.dateOfBirth.format('YYYY-MM-DD') : undefined,
+        anniversary: formData.anniversary ? formData.anniversary.format('YYYY-MM-DD') : undefined,
+        gender: formData.gender,
+      })
+
+      toast.success("Profile photo removed")
+      window.dispatchEvent(new Event("userAuthChanged"))
+    } catch (error) {
+      console.error("Error removing profile image:", error)
+      toast.error(error?.response?.data?.message || "Failed to remove profile photo")
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
+
   const handleMobileChange = () => {
     // Navigate to mobile change page or show modal
     console.log('Change mobile clicked')
@@ -341,6 +450,18 @@ export default function EditProfile() {
                 {avatarInitial}
               </AvatarFallback>
             </Avatar>
+            {imagePreview && (
+              <button
+                type="button"
+                onClick={handleRemoveProfileImage}
+                disabled={isUploadingImage}
+                className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gray-900/90 hover:bg-gray-900 text-white flex items-center justify-center shadow-sm border-2 border-white disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Remove profile photo"
+                title="Remove photo"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
             {/* Edit: Camera and Gallery options */}
             <div className="absolute bottom-0 right-0 flex gap-1">
               <button
@@ -385,6 +506,19 @@ export default function EditProfile() {
             />
           </div>
         </div>
+        
+        {imagePreview && (
+          <div className="flex justify-center -mt-2">
+            <button
+              type="button"
+              onClick={handleRemoveProfileImage}
+              disabled={isUploadingImage}
+              className="text-xs font-medium text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
+            >
+              Remove Photo
+            </button>
+          </div>
+        )}
 
         {/* Form Card */}
         <Card className="bg-white dark:bg-[#1a1a1a] rounded-xl shadow-sm border-0 dark:border-gray-800">
@@ -466,27 +600,8 @@ export default function EditProfile() {
                   onChange={(newValue) => handleChange('dateOfBirth', newValue)}
                   slotProps={{
                     textField: {
-                      className: "w-full",
-                      sx: {
-                        '& .MuiOutlinedInput-root': {
-                          height: '48px',
-                          borderRadius: '8px',
-                          '& fieldset': {
-                            borderColor: '#d1d5db',
-                          },
-                          '&:hover fieldset': {
-                            borderColor: '#9ca3af',
-                          },
-                          '&.Mui-focused fieldset': {
-                            borderColor: '#671E1F',
-                            borderWidth: '1px',
-                          },
-                        },
-                        '& .MuiInputBase-input': {
-                          padding: '12px 14px',
-                          fontSize: '16px',
-                        },
-                      },
+                      className: "w-full bg-white dark:bg-[#1a1a1a]",
+                      sx: datePickerTextFieldSx,
                     },
                   }}
                 />
@@ -504,27 +619,8 @@ export default function EditProfile() {
                   onChange={(newValue) => handleChange('anniversary', newValue)}
                   slotProps={{
                     textField: {
-                      className: "w-full",
-                      sx: {
-                        '& .MuiOutlinedInput-root': {
-                          height: '48px',
-                          borderRadius: '8px',
-                          '& fieldset': {
-                            borderColor: '#d1d5db',
-                          },
-                          '&:hover fieldset': {
-                            borderColor: '#9ca3af',
-                          },
-                          '&.Mui-focused fieldset': {
-                            borderColor: '#671E1F',
-                            borderWidth: '1px',
-                          },
-                        },
-                        '& .MuiInputBase-input': {
-                          padding: '12px 14px',
-                          fontSize: '16px',
-                        },
-                      },
+                      className: "w-full bg-white dark:bg-[#1a1a1a]",
+                      sx: datePickerTextFieldSx,
                     },
                   }}
                 />
@@ -543,7 +639,7 @@ export default function EditProfile() {
                 <SelectTrigger className="h-12 text-base border border-gray-300 dark:border-gray-700 focus:border-red-600 focus:ring-1 focus:ring-red-600 rounded-lg bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white">
                   <SelectValue placeholder="Gender" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white border-gray-200 dark:border-gray-700">
                   {genderOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -562,7 +658,7 @@ export default function EditProfile() {
           className={`w-full h-14 rounded-xl font-semibold text-base transition-all ${
             hasChanges && !isSaving && !isUploadingImage
               ? 'bg-red-600 hover:bg-red-700 text-white'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-300 cursor-not-allowed'
           }`}
         >
           {isSaving ? (

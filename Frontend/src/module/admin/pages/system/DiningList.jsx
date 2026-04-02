@@ -4,6 +4,7 @@ import { Search, Download, ChevronDown, Eye, Settings, ArrowUpDown, Loader2, Sta
 import { adminAPI, restaurantAPI } from "@/lib/api"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { exportRestaurantsToPDF } from "../../components/restaurants/restaurantsExportUtils"
+import { toast } from "sonner"
 
 export default function DiningList() {
     const navigate = useNavigate()
@@ -137,11 +138,13 @@ export default function DiningList() {
     }
 
     const renderStars = (rating) => {
-        return "★".repeat(Math.floor(rating)) + "☆".repeat(5 - Math.floor(rating))
+        const validRating = Math.max(0, Math.min(5, Math.floor(Number(rating) || 0)));
+        return "★".repeat(validRating) + "☆".repeat(5 - validRating);
     }
 
     const handleDiningToggle = async (restaurant) => {
         const newStatus = !restaurant.diningSettings?.isEnabled
+        const restaurantId = restaurant._id || restaurant.id
         try {
             // Optimistic update
             setRestaurants(prev => prev.map(r =>
@@ -157,24 +160,31 @@ export default function DiningList() {
                     : r
             ))
 
-            await adminAPI.updateRestaurantDiningSettings(restaurant._id, {
+            await adminAPI.updateRestaurantDiningSettings(restaurantId, {
                 isEnabled: newStatus
             })
             // Could show success toast here
         } catch (error) {
-            console.error("Failed to update dining settings", error)
+            console.error("Failed to update dining settings", {
+                message: error?.response?.data?.message || error?.message,
+                status: error?.response?.status,
+                data: error?.response?.data,
+                error,
+            })
             // Revert on error
             setRestaurants(prev => prev.map(r =>
                 r.id === restaurant.id
                     ? { ...r, diningSettings: { ...r.diningSettings, isEnabled: !newStatus } }
                     : r
             ))
+            toast.error(error?.response?.data?.message || "Failed to update dining settings")
         }
     }
 
     const handleMaxGuestsUpdate = async (restaurant, newValue) => {
         const guests = parseInt(newValue)
         if (isNaN(guests) || guests < 1) return
+        const restaurantId = restaurant._id || restaurant.id
 
         // Prevent unnecessary API calls
         if (guests === restaurant.diningSettings?.maxGuests) return
@@ -187,11 +197,17 @@ export default function DiningList() {
                     : r
             ))
 
-            await adminAPI.updateRestaurantDiningSettings(restaurant._id, {
+            await adminAPI.updateRestaurantDiningSettings(restaurantId, {
                 maxGuests: guests
             })
         } catch (error) {
-            console.error("Failed to update max guests", error)
+            console.error("Failed to update max guests", {
+                message: error?.response?.data?.message || error?.message,
+                status: error?.response?.status,
+                data: error?.response?.data,
+                error,
+            })
+            toast.error(error?.response?.data?.message || "Failed to update max guests")
             // Revert would require tracking previous value better
         }
     }
@@ -506,7 +522,8 @@ export default function DiningList() {
                                 onClick={async () => {
                                     try {
                                         setLoading(true)
-                                        await adminAPI.updateRestaurantDiningSettings(editingRestaurant._id, editingRestaurant.diningSettings)
+                                        const restaurantId = editingRestaurant._id || editingRestaurant.id
+                                        await adminAPI.updateRestaurantDiningSettings(restaurantId, editingRestaurant.diningSettings)
 
                                         // Update local state
                                         setRestaurants(prev => prev.map(r =>
@@ -516,7 +533,13 @@ export default function DiningList() {
                                         setIsEditModalOpen(false)
                                         // toast.success("Settings updated")
                                     } catch (err) {
-                                        console.error("Update failed", err)
+                                        console.error("Update failed", {
+                                            message: err?.response?.data?.message || err?.message,
+                                            status: err?.response?.status,
+                                            data: err?.response?.data,
+                                            error: err,
+                                        })
+                                        toast.error(err?.response?.data?.message || "Failed to save dining settings")
                                     } finally {
                                         setLoading(false)
                                     }

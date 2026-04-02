@@ -10,6 +10,7 @@ import {
 import { deliveryAPI } from "@/lib/api"
 import { clearModuleAuth } from "@/lib/utils/auth"
 import { useCompanyName } from "@/lib/hooks/useCompanyName"
+import { validateDeliveryPhone } from "@/lib/utils/deliveryPhoneValidation"
 
 // Common country codes
 const countryCodes = [
@@ -48,6 +49,8 @@ export default function DeliverySignIn() {
   // When opening sign-in, clear any old delivery session so a new
   // phone number starts a fresh login flow.
   useEffect(() => {
+    setFormData({ phone: "", countryCode: "+91" })
+    setError("")
     try {
       clearModuleAuth("delivery")
       sessionStorage.removeItem("deliveryAuthData")
@@ -59,30 +62,8 @@ export default function DeliverySignIn() {
   // Get selected country details dynamically
   const selectedCountry = countryCodes.find(c => c.code === formData.countryCode) || countryCodes[2] // Default to India (+91)
 
-  const validatePhone = (phone, countryCode) => {
-    if (!phone || phone.trim() === "") {
-      return "Phone number is required"
-    }
-
-    const digitsOnly = phone.replace(/\D/g, "")
-
-    if (digitsOnly.length < 7) {
-      return "Phone number must be at least 7 digits"
-    }
-
-    // India-specific validation
-    if (countryCode === "+91") {
-      if (digitsOnly.length !== 10) {
-        return "Indian phone number must be 10 digits"
-      }
-      const firstDigit = digitsOnly[0]
-      if (!["6", "7", "8", "9"].includes(firstDigit)) {
-        return "Invalid Indian mobile number"
-      }
-    }
-
-    return ""
-  }
+  const validatePhone = (phone, countryCode) =>
+    validateDeliveryPhone(phone, countryCode)
 
   const handleSendOTP = async () => {
     setError("")
@@ -150,7 +131,7 @@ export default function DeliverySignIn() {
   const isValid = !validatePhone(formData.phone, formData.countryCode)
 
   return (
-    <div className="max-h-screen h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col overflow-y-auto">
       {/* Top Section - Logo and Badge */}
       <div className="flex flex-col items-center pt-8 pb-6 px-6">
         {/* Tifunbox wordmark styled like logo font */}
@@ -252,9 +233,13 @@ export default function DeliverySignIn() {
           {/* Terms and Conditions */}
           <p className="text-xs text-center text-gray-600 px-4">
             By continuing, you agree to our{" "}
-            <a href="#" className="text-blue-600 hover:underline">
+            <button
+              type="button"
+              onClick={() => navigate("/delivery/terms")}
+              className="text-blue-600 hover:underline"
+            >
               Terms and Conditions
-            </a>
+            </button>
           </p>
         </div>
       </div>

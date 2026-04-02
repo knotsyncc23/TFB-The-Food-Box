@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom"
+import { useEffect, useState, useMemo } from "react"
 import { ArrowLeft, Bell, CheckCircle2, Clock, Tag, Gift, AlertCircle } from "lucide-react"
 import AnimatedPage from "../components/AnimatedPage"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { userAPI } from "@/lib/api"
 
-// Mock notification data
-const notifications = [
+const fallbackNotifications = [
   {
     id: 1,
     type: "order",
@@ -70,7 +71,63 @@ const notifications = [
 ]
 
 export default function Notifications() {
-  const unreadCount = notifications.filter(n => !n.read).length
+  const [notifications, setNotifications] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+
+    const fetchNotifications = async () => {
+      try {
+        setLoading(true)
+        const response = await userAPI.getNotifications({ limit: 50, page: 1 })
+        const items = response?.data?.data?.notifications || []
+        if (!mounted) return
+
+        const mapped = items.map((notification, index) => ({
+          id: notification._id || index + 1,
+          type:
+            notification.sendTo === "Restaurant" ? "promotion" :
+            notification.sendTo === "Delivery Man" ? "alert" :
+            notification.title?.toLowerCase().includes("order") ? "order" : "offer",
+          title: notification.title || "Notification",
+          message: notification.description || "",
+          time: notification.createdAt
+            ? new Date(notification.createdAt).toLocaleString("en-IN", {
+                day: "numeric",
+                month: "short",
+                hour: "numeric",
+                minute: "2-digit",
+              })
+            : "Just now",
+          read: false,
+          icon:
+            notification.sendTo === "Restaurant" ? Gift :
+            notification.sendTo === "Delivery Man" ? AlertCircle :
+            notification.title?.toLowerCase().includes("order") ? CheckCircle2 : Bell,
+          iconColor:
+            notification.sendTo === "Restaurant" ? "text-blue-600" :
+            notification.sendTo === "Delivery Man" ? "text-orange-600" :
+            "text-red-600",
+        }))
+
+        setNotifications(mapped.length > 0 ? mapped : fallbackNotifications)
+      } catch (error) {
+        console.error("Error fetching notifications:", error)
+        if (mounted) setNotifications(fallbackNotifications)
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+
+    fetchNotifications()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications])
 
   return (
     <AnimatedPage className="min-h-screen bg-white dark:bg-[#0a0a0a]">
@@ -94,8 +151,13 @@ export default function Notifications() {
         </div>
 
         {/* Notifications List */}
-        <div className="space-y-3 md:space-y-4">
-          {notifications.map((notification) => {
+        {loading ? (
+          <div className="py-16 text-center text-gray-500 dark:text-gray-400">
+            Loading notifications...
+          </div>
+        ) : (
+          <div className="space-y-3 md:space-y-4">
+            {notifications.map((notification) => {
             const Icon = notification.icon
             return (
               <Card
@@ -141,10 +203,11 @@ export default function Notifications() {
               </Card>
             )
           })}
-        </div>
+          </div>
+        )}
 
         {/* Empty State (if no notifications) */}
-        {notifications.length === 0 && (
+        {!loading && notifications.length === 0 && (
           <div className="text-center py-12 md:py-16 lg:py-20">
             <Bell className="h-16 w-16 md:h-20 md:w-20 lg:h-24 lg:w-24 text-gray-300 dark:text-gray-600 mx-auto mb-4 md:mb-5 lg:mb-6" />
             <h3 className="text-lg md:text-xl lg:text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-2 md:mb-3">No notifications</h3>

@@ -5,8 +5,40 @@ import VariantPickerModal from "../components/VariantPickerModal"
 import ReplaceCartModal from "../components/ReplaceCartModal"
 
 // Build cart item from (item, restaurant, variation?). Used for add-to-cart and variant flow.
+function normalizeFoodType(value) {
+  if (typeof value !== "string") return null
+  const normalized = value.trim().toLowerCase().replace(/[_\s]+/g, "-")
+  if (!normalized) return null
+  if (normalized === "veg") return "veg"
+  if (normalized.includes("non-veg") || normalized.includes("nonveg") || normalized === "egg") return "non-veg"
+  return null
+}
+
+function deriveCartItemIsVeg(item, variation = null) {
+  const normalizedFoodType =
+    normalizeFoodType(variation?.foodType) ||
+    normalizeFoodType(item?.variationFoodType) ||
+    normalizeFoodType(item?.foodType)
+
+  if (normalizedFoodType === "veg") return true
+  if (normalizedFoodType === "non-veg") return false
+  if (item?.isVeg === true) return true
+  if (item?.isVeg === false) return false
+  return false
+}
+
+function normalizeExistingCartItem(item) {
+  return {
+    ...item,
+    isVeg: deriveCartItemIsVeg(item),
+    foodType: item?.foodType || null,
+    variationFoodType: item?.variationFoodType || null,
+  }
+}
+
 function buildCartItem(item, restaurant, variation = null) {
   const validRestaurantId = restaurant?.restaurantId || restaurant?._id || restaurant?.id
+  const isVeg = deriveCartItemIsVeg(item, variation)
   const base = {
     id: String(item.itemId ?? item.id),
     name: item.name,
@@ -16,7 +48,9 @@ function buildCartItem(item, restaurant, variation = null) {
     restaurantId: validRestaurantId ?? item.restaurantId,
     description: item.description ?? "",
     originalPrice: item.originalPrice ?? item.price,
-    isVeg: item.isVeg !== false,
+    isVeg,
+    foodType: item.foodType || null,
+    variationFoodType: variation?.foodType || item.variationFoodType || null,
     subCategory: item.subCategory || "",
   }
   if (variation) {
@@ -69,7 +103,7 @@ export function CartProvider({ children }) {
     if (typeof window === "undefined") return []
     try {
       const saved = localStorage.getItem("cart")
-      return saved ? JSON.parse(saved) : []
+      return saved ? JSON.parse(saved).map(normalizeExistingCartItem) : []
     } catch {
       return []
     }
@@ -162,6 +196,14 @@ export function CartProvider({ children }) {
       // ignore storage errors (private mode, quota, etc.)
     }
   }, [cart])
+
+  useEffect(() => {
+    setCart((prev) => {
+      const normalized = prev.map(normalizeExistingCartItem)
+      const changed = normalized.some((item, index) => item.isVeg !== prev[index]?.isVeg)
+      return changed ? normalized : prev
+    })
+  }, [])
 
   // Clear cart when user logs out so new account gets empty cart
   useEffect(() => {

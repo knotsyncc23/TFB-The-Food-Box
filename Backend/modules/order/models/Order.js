@@ -310,6 +310,7 @@ const orderSchema = new mongoose.Schema(
       zoneName: String,
       deliveryPartnerId: String,
       assignedAt: Date,
+      rejectedDeliveryPartnerIds: [String],
     },
     deliveryState: {
       status: {

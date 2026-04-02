@@ -192,14 +192,15 @@ export default function AddMoneyModal({ open, onOpenChange, onSuccess }) {
             </label>
             <div className="relative">
               <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                <IndianRupee className="h-5 w-5 text-gray-400" />
+                <IndianRupee className="h-5 w-5 text-gray-400 dark:text-gray-300" />
               </div>
               <Input
                 type="text"
+                inputMode="decimal"
                 value={amount}
                 onChange={handleAmountChange}
                 placeholder="Enter amount"
-                className="pl-10 h-12 text-lg"
+                className="pl-10 h-12 text-lg text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
                 disabled={loading || processing}
               />
             </div>
@@ -233,7 +234,7 @@ export default function AddMoneyModal({ open, onOpenChange, onSuccess }) {
           <Button
             onClick={handleAddMoney}
             disabled={!amount || loading || processing || parseFloat(amount) < 1}
-            className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-semibold text-base"
+            className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-base"
           >
             {loading || processing ? (
               <>

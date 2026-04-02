@@ -469,11 +469,11 @@ export default function UserOrderDetails() {
             <div key={idx} className="flex justify-between items-start mt-2">
               <div className="flex items-center gap-2">
                 <div
-                  className={`w-3 h-3 border ${item.isVeg ? "border-red-600" : "border-red-600"
+                  className={`w-3 h-3 border ${item.isVeg ? "border-green-600" : "border-red-600"
                     } flex items-center justify-center p-[1px]`}
                 >
                   <div
-                    className={`w-full h-full rounded-full ${item.isVeg ? "bg-red-600" : "bg-red-600"
+                    className={`w-full h-full rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"
                       }`}
                   />
                 </div>
@@ -735,7 +735,7 @@ export default function UserOrderDetails() {
               rows={3}
               value={feedbackText}
               onChange={(e) => setFeedbackText(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E23744] focus:border-[#E23744] resize-none"
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm leading-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E23744] focus:border-[#E23744] resize-none"
               placeholder="Share what you liked or disliked (optional)"
             />
 

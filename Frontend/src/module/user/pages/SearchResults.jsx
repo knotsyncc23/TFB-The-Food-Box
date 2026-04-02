@@ -9,6 +9,7 @@ import { useProfile } from "../context/ProfileContext"
 import { useLocation } from "../hooks/useLocation"
 import { useZone } from "../hooks/useZone"
 import { restaurantAPI, adminAPI } from "@/lib/api"
+import { filterCategoriesByVegMode } from "@/lib/utils/categoryDietary"
 
 // Import shared food images - prevents duplication
 import { foodImages } from "@/constants/images"
@@ -31,6 +32,7 @@ export default function SearchResults() {
   const [searchParams, setSearchParams] = useSearchParams()
   const query = searchParams.get("q") || ""
   const navigate = useNavigate()
+  const { vegMode } = useProfile()
   const { location } = useLocation()
   const { zoneId, isOutOfService } = useZone(location)
   const [searchQuery, setSearchQuery] = useState(query)
@@ -54,7 +56,7 @@ export default function SearchResults() {
         const response = await adminAPI.getPublicCategories()
 
         if (response.data && response.data.success && response.data.data && response.data.data.categories) {
-          const categoriesArray = response.data.data.categories
+          const categoriesArray = filterCategoriesByVegMode(response.data.data.categories, vegMode)
 
           // Transform API categories to match expected format
           const transformedCategories = [
@@ -64,6 +66,7 @@ export default function SearchResults() {
               name: cat.name,
               image: cat.image || foodImages[0],
               type: cat.type,
+              foodPreference: cat.foodPreference || "all",
             }))
           ]
 
@@ -92,7 +95,7 @@ export default function SearchResults() {
     }
 
     fetchCategories()
-  }, [])
+  }, [vegMode])
 
   // Keep local search input in sync with URL ?q= when user lands here from previous page
   useEffect(() => {
@@ -174,9 +177,14 @@ export default function SearchResults() {
     const fetchRestaurants = async () => {
       try {
         setLoadingRestaurants(true)
+        setRestaurantsData([])
         console.log('🔄 Fetching restaurants from API...')
         // Optional: Add zoneId if available (for sorting/filtering, but show all restaurants)
         const params = {}
+        if (location?.latitude != null && location?.longitude != null) {
+          params.latitude = location.latitude
+          params.longitude = location.longitude
+        }
         if (zoneId) {
           params.zoneId = zoneId
         }
@@ -397,7 +405,7 @@ export default function SearchResults() {
     }
 
     fetchRestaurants()
-  }, [zoneId, isOutOfService])
+  }, [zoneId, isOutOfService, location?.latitude, location?.longitude])
 
   // Update search query when URL changes
   useEffect(() => {
@@ -413,6 +421,12 @@ export default function SearchResults() {
       }
     }
   }, [query])
+
+  useEffect(() => {
+    if (!categories.some((cat) => cat.id === selectedCategory) && selectedCategory !== 'all') {
+      setSelectedCategory('all')
+    }
+  }, [categories, selectedCategory])
 
   const toggleFilter = (filterId) => {
     setActiveFilters(prev => {
@@ -893,7 +907,7 @@ export default function SearchResults() {
                           </h3>
                         </div>
                         {restaurant.rating && (
-                          <div className="flex-shrink-0 bg-red-600 text-white px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg flex items-center gap-1">
+                          <div className="flex-shrink-0 bg-green-600 text-white px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg flex items-center gap-1">
                             <span className="text-sm lg:text-base font-bold">{restaurant.rating}</span>
                             <Star className="h-3 w-3 lg:h-4 lg:w-4 fill-white text-white" />
                           </div>

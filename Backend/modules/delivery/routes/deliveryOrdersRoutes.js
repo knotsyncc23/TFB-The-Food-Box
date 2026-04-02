@@ -4,6 +4,7 @@ import {
   getOrderDetails,
   getActiveOrder,
   acceptOrder, 
+  rejectOrder,
   confirmReachedPickup, 
   confirmOrderId,
   confirmReachedDrop,
@@ -25,6 +26,7 @@ router.get('/orders/:orderId', getOrderDetails);
 router.get('/orders/:orderId/chat', getOrderChatDelivery);
 router.post('/orders/:orderId/chat/messages', sendOrderChatMessageDelivery);
 router.patch('/orders/:orderId/accept', acceptOrder);
+router.patch('/orders/:orderId/reject', rejectOrder);
 router.patch('/orders/:orderId/reached-pickup', confirmReachedPickup);
 router.patch('/orders/:orderId/confirm-order-id', confirmOrderId);
 router.patch('/orders/:orderId/reached-drop', confirmReachedDrop);

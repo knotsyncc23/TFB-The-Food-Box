@@ -405,8 +405,8 @@ export default function DeliveryOTP() {
         return
       }
 
-      // Call backend to resend OTP
-      await deliveryAPI.sendOTP(phone, "login")
+      const purpose = authData?.isSignUp ? "register" : "login"
+      await deliveryAPI.sendOTP(phone, purpose)
     } catch (err) {
       const message =
         err?.response?.data?.message ||

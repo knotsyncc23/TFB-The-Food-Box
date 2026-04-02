@@ -10,46 +10,32 @@ import { API_BASE_URL } from "@/lib/api/config"
 
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const adminSocketRef = useRef(null)
-
-  // Get initial collapsed state from localStorage to set initial margin
-  useEffect(() => {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     try {
       const saved = localStorage.getItem('adminSidebarCollapsed')
-      if (saved !== null) {
-        setIsSidebarCollapsed(JSON.parse(saved))
-      }
+      return saved !== null ? JSON.parse(saved) : false
     } catch (e) {
       console.error('Error loading sidebar collapsed state:', e)
+      return false
     }
-  }, [])
+  });
+  const adminSocketRef = useRef(null)
 
-  // Admin foreground notifications (FCM, if enabled)
+  // Admin in-app toast for foreground FCM (OS notification is handled globally in fcmWeb.initializePushNotifications)
   useEffect(() => {
-    let unsub = () => {}
-    subscribeToForegroundFcmMessages((payload) => {
-      const title = payload?.notification?.title || "Notification"
-      const body = payload?.notification?.body || ""
+    const unsub = subscribeToForegroundFcmMessages((payload) => {
+      const title =
+        payload?.notification?.title || payload?.data?.title || "Notification"
+      const body =
+        payload?.notification?.body || payload?.data?.body || ""
       toast(title, { description: body })
-      try {
-        if (
-          typeof Notification !== "undefined" &&
-          Notification.permission === "granted"
-        ) {
-          new Notification(title, { body })
-        }
-      } catch {}
     })
-      .then((u) => {
-        unsub = u
-      })
-      .catch(() => {})
-
     return () => {
       try {
         unsub?.()
-      } catch {}
+      } catch {
+        return
+      }
     }
   }, [])
 
@@ -59,7 +45,9 @@ export default function AdminLayout() {
       if (adminSocketRef.current) {
         try {
           adminSocketRef.current.disconnect()
-        } catch {}
+        } catch {
+          return
+        }
         adminSocketRef.current = null
       }
     }
@@ -77,7 +65,9 @@ export default function AdminLayout() {
         const raw = localStorage.getItem("admin_user")
         const parsed = raw ? JSON.parse(raw) : null
         adminId = parsed?._id || parsed?.id || parsed?.userId || null
-      } catch {}
+      } catch {
+        adminId = null
+      }
       if (!adminId) return
 
       // Already connected

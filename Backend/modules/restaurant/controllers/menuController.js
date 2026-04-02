@@ -35,6 +35,39 @@ const deriveBasePriceFromVariations = (rawPrice, variations) => {
     : 0;
 };
 
+// Items that are explicitly unavailable (boolean false or stringy false from JSON/forms)
+const isItemAvailableForPublic = (item) => {
+  if (!item || typeof item !== "object") return false;
+  const v = item.isAvailable;
+  if (v === false) return false;
+  if (v === "false" || v === "False" || v === 0 || v === "0") return false;
+  return true;
+};
+
+// Backward-compatible approval check for public visibility.
+// Supports legacy formats, empty/invalid status strings, and non-standard enum values.
+const isPubliclyApproved = (item) => {
+  if (!item || typeof item !== "object") return false;
+
+  if (item.rejectedAt) return false;
+
+  const status = String(item.approvalStatus ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (status === "approved") return true;
+  if (status === "rejected") return false;
+  // Pending: still list on customer menu (only rejected stays hidden). Admin rejects bad items.
+  if (status === "pending") return true;
+
+  if (item.isApproved === true) return true;
+  if (item.approvedAt && !item.rejectedAt) return true;
+
+  // Empty status, unknown strings, or legacy docs without approval fields: visible
+  // (avoids hiding items when approvalStatus is "", missing, or client sends odd values)
+  return true;
+};
+
 // Get menu for a restaurant
 export const getMenu = asyncHandler(async (req, res) => {
   // Restaurant is attached by authenticate middleware
@@ -93,7 +126,9 @@ export const updateMenu = asyncHandler(async (req, res) => {
   // Normalize and validate sections
   const normalizedSections = Array.isArray(sections) ? sections.map((section, index) => {
     // Find existing section to preserve approval status
-    const existingSection = existingMenu?.sections?.find(s => s.id === section.id);
+    const existingSection = existingMenu?.sections?.find(
+      (s) => String(s.id) === String(section.id),
+    );
     
     return {
       id: section.id || `section-${index}`,
@@ -171,7 +206,9 @@ export const updateMenu = asyncHandler(async (req, res) => {
       }) : [],
     subsections: Array.isArray(section.subsections) ? section.subsections.map(subsection => {
       // Find existing subsection to preserve approval status
-      const existingSubsection = existingSection?.subsections?.find(s => s.id === subsection.id);
+      const existingSubsection = existingSection?.subsections?.find(
+        (s) => String(s.id) === String(subsection.id),
+      );
       
       return {
         id: subsection.id || `subsection-${Date.now()}`,
@@ -575,27 +612,30 @@ export const getMenuByRestaurantId = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Find restaurant by ID, slug, or restaurantId
+    // Match dining/public slug resolution: do not require isActive on Restaurant
+    // (getRestaurantBySlug can return inactive rows; menu must not 404 in that case)
     const restaurant = await Restaurant.findOne({
       $or: [
         { restaurantId: id },
         { slug: id },
-        ...(mongoose.Types.ObjectId.isValid(id) && id.length === 24 
-          ? [{ _id: new mongoose.Types.ObjectId(id) }] 
+        ...(mongoose.Types.ObjectId.isValid(id) && id.length === 24
+          ? [{ _id: new mongoose.Types.ObjectId(id) }]
           : []),
       ],
-      isActive: true,
     });
 
     if (!restaurant) {
       return errorResponse(res, 404, 'Restaurant not found');
     }
 
-    // Find menu
-    const menu = await Menu.findOne({ 
+    // Prefer active menu document; fall back so slug-opened outlets still get data
+    let menu = await Menu.findOne({
       restaurant: restaurant._id,
       isActive: true,
     });
+    if (!menu) {
+      menu = await Menu.findOne({ restaurant: restaurant._id });
+    }
 
     if (!menu) {
       // Return empty menu if not found
@@ -620,8 +660,8 @@ export const getMenuByRestaurantId = async (req, res) => {
         // Filter direct items - only show available AND approved items
         // Items where isAvailable is not explicitly false AND approvalStatus is 'approved' should be shown
         const availableItems = (section.items || []).filter(item => {
-          const isAvailable = item.isAvailable !== false;
-          const isApproved = item.approvalStatus === 'approved' || !item.approvalStatus; // Include approved or legacy items without approvalStatus
+          const isAvailable = isItemAvailableForPublic(item);
+          const isApproved = isPubliclyApproved(item);
           const shouldShow = isAvailable && isApproved;
           
           // Debug logging for filtered items
@@ -639,8 +679,8 @@ export const getMenuByRestaurantId = async (req, res) => {
         const availableSubsections = (section.subsections || [])
           .map(subsection => {
             const availableSubsectionItems = (subsection.items || []).filter(item => {
-              const isAvailable = item.isAvailable !== false;
-              const isApproved = item.approvalStatus === 'approved' || !item.approvalStatus; // Include approved or legacy items without approvalStatus
+              const isAvailable = isItemAvailableForPublic(item);
+              const isApproved = isPubliclyApproved(item);
               const shouldShow = isAvailable && isApproved;
               
               // Debug logging for filtered items

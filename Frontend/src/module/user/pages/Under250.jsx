@@ -18,8 +18,11 @@ import OptimizedImage from "@/components/OptimizedImage"
 import api from "@/lib/api"
 import { restaurantAPI } from "@/lib/api"
 import { isModuleAuthenticated } from "@/lib/utils/auth"
+import { useProfile } from "../context/ProfileContext"
+import { filterCategoriesByVegMode } from "@/lib/utils/categoryDietary"
 
 export default function Under250() {
+  const { vegMode } = useProfile()
   const { location } = useLocation()
   const { zoneId, zoneStatus, isInService, isOutOfService } = useZone(location)
   const navigate = useNavigate()
@@ -176,8 +179,16 @@ export default function Under250() {
     const fetchRestaurantsUnder250 = async () => {
       try {
         setLoadingRestaurants(true)
-        // Optional: Add zoneId if available (for sorting/filtering, but show all restaurants)
-        const response = await restaurantAPI.getRestaurantsUnder250(zoneId)
+        setUnder250Restaurants([])
+        const params = {}
+        if (location?.latitude != null && location?.longitude != null) {
+          params.latitude = location.latitude
+          params.longitude = location.longitude
+        }
+        if (zoneId) {
+          params.zoneId = zoneId
+        }
+        const response = await restaurantAPI.getRestaurantsUnder250(params)
         if (response.data.success && response.data.data.restaurants) {
           setUnder250Restaurants(response.data.data.restaurants)
         } else {
@@ -192,7 +203,7 @@ export default function Under250() {
     }
 
     fetchRestaurantsUnder250()
-  }, [zoneId, isOutOfService])
+  }, [zoneId, isOutOfService, location?.latitude, location?.longitude])
 
   // Fetch categories from admin API
   useEffect(() => {
@@ -201,11 +212,12 @@ export default function Under250() {
         setLoadingCategories(true)
         const response = await api.get('/categories/public')
         if (response.data.success && response.data.data.categories) {
-          const adminCategories = response.data.data.categories.map(cat => ({
+          const adminCategories = filterCategoriesByVegMode(response.data.data.categories, vegMode).map(cat => ({
             id: cat.id,
             name: cat.name,
             image: cat.image || foodImages[0], // Fallback to default image if not provided
-            slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-')
+            slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-'),
+            foodPreference: cat.foodPreference || "all",
           }))
           setCategories(adminCategories)
         } else {
@@ -233,7 +245,7 @@ export default function Under250() {
     }
 
     fetchCategories()
-  }, [])
+  }, [vegMode])
 
   // Sync quantities from cart (sum by base item id so variants of same dish show total)
   useEffect(() => {
@@ -309,8 +321,11 @@ export default function Under250() {
       price: item.price,
       image: item.image,
       restaurant: restaurant,
+      restaurantId: item.restaurantId,
       description: item.description || "",
       originalPrice: item.originalPrice || item.price,
+      foodType: item.foodType || null,
+      isVeg: item.foodType === "Veg" ? true : item.foodType === "Non-Veg" ? false : item.isVeg,
     }
 
     // Get source position for animation from event target
@@ -585,8 +600,8 @@ export default function Under250() {
                         {/* Veg indicator + name */}
                         <div className="flex items-center gap-2 mb-1">
                           {item.isVeg ? (
-                            <div className="w-4 h-4 border-2 border-red-600 flex items-center justify-center rounded-sm flex-shrink-0">
-                              <div className="w-2 h-2 bg-red-600 rounded-full"></div>
+                            <div className="w-4 h-4 border-2 border-green-600 flex items-center justify-center rounded-sm flex-shrink-0">
+                              <div className="w-2 h-2 bg-green-600 rounded-full"></div>
                             </div>
                           ) : (
                             <div className="w-4 h-4 border-2 border-orange-600 flex items-center justify-center rounded-sm flex-shrink-0">
@@ -900,8 +915,8 @@ export default function Under250() {
                 <div className="flex items-start justify-between mb-3 md:mb-4 lg:mb-6">
                   <div className="flex items-center gap-2 md:gap-3 flex-1">
                     {selectedItem.isVeg && (
-                      <div className="h-5 w-5 md:h-6 md:w-6 lg:h-7 lg:w-7 rounded border-2 border-red-600 dark:border-red-500 bg-red-50 dark:bg-red-900/20 flex items-center justify-center flex-shrink-0">
-                        <div className="h-2.5 w-2.5 md:h-3 md:w-3 lg:h-3.5 lg:w-3.5 rounded-full bg-red-600 dark:bg-red-500" />
+                      <div className="h-5 w-5 md:h-6 md:w-6 lg:h-7 lg:w-7 rounded border-2 border-green-600 dark:border-green-500 bg-green-50 dark:bg-green-900/20 flex items-center justify-center flex-shrink-0">
+                        <div className="h-2.5 w-2.5 md:h-3 md:w-3 lg:h-3.5 lg:w-3.5 rounded-full bg-green-600 dark:bg-green-500" />
                       </div>
                     )}
                     <h2 className="text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-900 dark:text-white">

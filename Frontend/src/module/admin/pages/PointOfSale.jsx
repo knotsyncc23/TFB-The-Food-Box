@@ -1,5 +1,18 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, XCircle, Star, Calendar, BarChart3, Users, Award, Package } from 'lucide-react'
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  ShoppingCart,
+  XCircle,
+  Star,
+  Calendar,
+  BarChart3,
+  Users,
+  Award,
+  Package,
+  Search,
+} from 'lucide-react'
 import { adminAPI } from '@/lib/api'
 
 export default function PointOfSale() {
@@ -7,6 +20,14 @@ export default function PointOfSale() {
   const [selectedRestaurant, setSelectedRestaurant] = useState('')
   const [loading, setLoading] = useState(false)
   const [restaurantData, setRestaurantData] = useState(null)
+
+  // API may return numeric values as strings; ensure we never call `.toFixed` on non-numbers.
+  const safeNumber = (v) => {
+    const n = typeof v === 'number' ? v : parseFloat(v)
+    return Number.isFinite(n) ? n : 0
+  }
+
+  const safeToFixed = (v, decimals = 1) => safeNumber(v).toFixed(decimals)
 
   // Dummy data structure - replace with actual API calls
   const [analyticsData, setAnalyticsData] = useState({
@@ -120,9 +141,7 @@ export default function PointOfSale() {
         setRestaurantData(restaurant)
         
         // Parse commission percentage - handle both number and string
-        const commissionPercentage = analytics.commissionPercentage !== undefined && analytics.commissionPercentage !== null
-          ? parseFloat(analytics.commissionPercentage) || 0
-          : 0;
+        const commissionPercentage = safeNumber(analytics.commissionPercentage)
         
         console.log('Parsed commission percentage:', commissionPercentage)
         
@@ -134,22 +153,22 @@ export default function PointOfSale() {
           averageRating: Number(analytics.averageRating) || 0,
           totalRatings: Number(analytics.totalRatings) || 0,
           commissionPercentage: commissionPercentage,
-          monthlyProfit: analytics.monthlyProfit || 0,
-          yearlyProfit: analytics.yearlyProfit || 0,
-          averageOrderValue: analytics.averageOrderValue || 0,
-          totalRevenue: analytics.totalRevenue || 0,
-          totalCommission: analytics.totalCommission || 0,
-          restaurantEarning: analytics.restaurantEarning || 0,
-          monthlyOrders: analytics.monthlyOrders || 0,
-          yearlyOrders: analytics.yearlyOrders || 0,
-          averageMonthlyProfit: analytics.averageMonthlyProfit || 0,
-          averageYearlyProfit: analytics.averageYearlyProfit || 0,
+          monthlyProfit: safeNumber(analytics.monthlyProfit),
+          yearlyProfit: safeNumber(analytics.yearlyProfit),
+          averageOrderValue: safeNumber(analytics.averageOrderValue),
+          totalRevenue: safeNumber(analytics.totalRevenue),
+          totalCommission: safeNumber(analytics.totalCommission),
+          restaurantEarning: safeNumber(analytics.restaurantEarning),
+          monthlyOrders: safeNumber(analytics.monthlyOrders),
+          yearlyOrders: safeNumber(analytics.yearlyOrders),
+          averageMonthlyProfit: safeNumber(analytics.averageMonthlyProfit),
+          averageYearlyProfit: safeNumber(analytics.averageYearlyProfit),
           status: analytics.status || 'inactive',
           joinDate: analytics.joinDate || restaurant.createdAt || new Date(),
-          totalCustomers: analytics.totalCustomers || 0,
-          repeatCustomers: analytics.repeatCustomers || 0,
-          cancellationRate: analytics.cancellationRate || 0,
-          completionRate: analytics.completionRate || 0
+          totalCustomers: safeNumber(analytics.totalCustomers),
+          repeatCustomers: safeNumber(analytics.repeatCustomers),
+          cancellationRate: safeNumber(analytics.cancellationRate),
+          completionRate: safeNumber(analytics.completionRate)
         })
       } else {
         // Fallback to empty data if API fails
@@ -269,7 +288,6 @@ export default function PointOfSale() {
                     </option>
                   ))}
                 </select>
-                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400 text-xs">▼</span>
               </div>
               {selectedRestaurant && (
                 <p className="text-xs text-red-600 mt-2">✓ Selected: {getSelectedRestaurantName()}</p>
@@ -321,7 +339,7 @@ export default function PointOfSale() {
                   <div className="p-3 bg-red-100 rounded-lg">
                     <XCircle className="w-6 h-6 text-red-600" />
                   </div>
-                  <span className="text-sm font-semibold text-red-600">{analyticsData.cancellationRate.toFixed(1)}%</span>
+                  <span className="text-sm font-semibold text-red-600">{safeToFixed(analyticsData.cancellationRate, 1)}%</span>
                 </div>
                 <h3 className="text-sm font-medium text-[#8a94aa] mb-1">Cancelled Orders</h3>
                 <p className="text-2xl font-bold text-[#334257]">{formatNumber(analyticsData.cancelledOrders)}</p>
@@ -337,7 +355,7 @@ export default function PointOfSale() {
                   <span className="text-sm font-semibold text-red-600">+{analyticsData.averageRating}</span>
                 </div>
                 <h3 className="text-sm font-medium text-[#8a94aa] mb-1">Average Rating</h3>
-                <p className="text-2xl font-bold text-[#334257]">{analyticsData.averageRating.toFixed(1)}</p>
+                <p className="text-2xl font-bold text-[#334257]">{safeToFixed(analyticsData.averageRating, 1)}</p>
                 <p className="text-xs text-[#8a94aa] mt-2">From {formatNumber(analyticsData.totalRatings)} reviews</p>
               </div>
 
@@ -347,10 +365,10 @@ export default function PointOfSale() {
                   <div className="p-3 bg-purple-100 rounded-lg">
                     <Award className="w-6 h-6 text-purple-600" />
                   </div>
-                  <span className="text-sm font-semibold text-purple-600">{analyticsData.commissionPercentage}%</span>
+                  <span className="text-sm font-semibold text-purple-600">{safeNumber(analyticsData.commissionPercentage)}%</span>
                   </div>
                 <h3 className="text-sm font-medium text-[#8a94aa] mb-1">Commission Rate</h3>
-                <p className="text-2xl font-bold text-[#334257]">{analyticsData.commissionPercentage}%</p>
+                <p className="text-2xl font-bold text-[#334257]">{safeNumber(analyticsData.commissionPercentage)}%</p>
                 <p className="text-xs text-[#8a94aa] mt-2">Set Commission</p>
                   </div>
                   </div>
@@ -441,7 +459,7 @@ export default function PointOfSale() {
                   </div>
                   <div className="flex justify-between items-center py-3 border-b border-[#e3e6ef]">
                     <span className="text-sm text-[#8a94aa]">Completion Rate</span>
-                    <span className="text-base font-semibold text-red-600">{analyticsData.completionRate.toFixed(1)}%</span>
+                    <span className="text-base font-semibold text-red-600">{safeToFixed(analyticsData.completionRate, 1)}%</span>
                   </div>
                   <div className="flex justify-between items-center py-3 border-b border-[#e3e6ef]">
                     <span className="text-sm text-[#8a94aa]">Commission Percentage</span>
@@ -478,8 +496,8 @@ export default function PointOfSale() {
                     <span className="text-sm text-[#8a94aa]">Customer Retention</span>
                     <span className="text-sm font-semibold text-red-600">
                       {analyticsData.totalCustomers > 0 
-                        ? ((analyticsData.repeatCustomers / analyticsData.totalCustomers) * 100).toFixed(1) 
-                        : '0'}%
+                        ? (safeNumber(analyticsData.repeatCustomers) / safeNumber(analyticsData.totalCustomers)) * 100
+                        : 0}%
                     </span>
                   </div>
                 </div>
@@ -539,7 +557,7 @@ export default function PointOfSale() {
                   <p className="text-xs text-[#8a94aa] mt-1">Cancelled</p>
                 </div>
                 <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                  <p className="text-2xl font-bold text-yellow-600">{analyticsData.completionRate.toFixed(1)}%</p>
+                  <p className="text-2xl font-bold text-yellow-600">{safeToFixed(analyticsData.completionRate, 1)}%</p>
                   <p className="text-xs text-[#8a94aa] mt-1">Success Rate</p>
                 </div>
               </div>

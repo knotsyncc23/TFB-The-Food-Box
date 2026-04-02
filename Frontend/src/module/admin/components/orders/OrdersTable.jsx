@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useMemo } from "react"
 import { Eye, Download, ArrowUpDown, Loader2, Phone } from "lucide-react"
 
 const getStatusColor = (orderStatus) => {
@@ -32,16 +32,13 @@ export default function OrdersTable({ orders, visibleColumns, onViewOrder, onPri
   const itemsPerPage = 10
   const totalPages = Math.ceil(orders.length / itemsPerPage)
 
-  // Reset to page 1 when orders change
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [orders.length])
+  const effectivePage = Math.min(currentPage, Math.max(totalPages, 1))
 
   const paginatedOrders = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage
+    const start = (effectivePage - 1) * itemsPerPage
     const end = start + itemsPerPage
     return orders.slice(start, end)
-  }, [orders, currentPage])
+  }, [orders, effectivePage])
 
   const formatRestaurantName = (name) => {
     if (name === "Cafe Monarch") return "Café Monarch"
@@ -165,7 +162,7 @@ export default function OrdersTable({ orders, visibleColumns, onViewOrder, onPri
               >
                 {visibleColumns.si && (
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-medium text-slate-700">{(currentPage - 1) * itemsPerPage + index + 1}</span>
+                    <span className="text-sm font-medium text-slate-700">{(effectivePage - 1) * itemsPerPage + index + 1}</span>
                   </td>
                 )}
                 {visibleColumns.orderId && (
@@ -385,14 +382,14 @@ export default function OrdersTable({ orders, visibleColumns, onViewOrder, onPri
       {totalPages > 1 && (
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
           <div className="text-sm text-slate-600">
-            Showing <span className="font-semibold">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
-            <span className="font-semibold">{Math.min(currentPage * itemsPerPage, orders.length)}</span> of{" "}
+            Showing <span className="font-semibold">{(effectivePage - 1) * itemsPerPage + 1}</span> to{" "}
+            <span className="font-semibold">{Math.min(effectivePage * itemsPerPage, orders.length)}</span> of{" "}
             <span className="font-semibold">{orders.length}</span> orders
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
+              disabled={effectivePage === 1}
               className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               Previous
@@ -402,18 +399,18 @@ export default function OrdersTable({ orders, visibleColumns, onViewOrder, onPri
                 let pageNum
                 if (totalPages <= 5) {
                   pageNum = i + 1
-                } else if (currentPage <= 3) {
+                } else if (effectivePage <= 3) {
                   pageNum = i + 1
-                } else if (currentPage >= totalPages - 2) {
+                } else if (effectivePage >= totalPages - 2) {
                   pageNum = totalPages - 4 + i
                 } else {
-                  pageNum = currentPage - 2 + i
+                  pageNum = effectivePage - 2 + i
                 }
                 return (
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${currentPage === pageNum
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${effectivePage === pageNum
                       ? "bg-red-500 text-white shadow-md"
                       : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                       }`}
@@ -425,7 +422,7 @@ export default function OrdersTable({ orders, visibleColumns, onViewOrder, onPri
             </div>
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
+              disabled={effectivePage === totalPages}
               className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               Next

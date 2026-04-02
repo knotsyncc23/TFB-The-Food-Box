@@ -281,28 +281,48 @@ export default function ItemDetailsPage() {
     fetchItemData()
   }, [id, isNewItem, location.state, defaultCategory])
 
-  // Fetch categories from restaurant-specific API
+  // Admin-defined categories + menu section names (so picker is never empty when menu has sections)
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         setLoadingCategories(true)
-        const response = await restaurantAPI.getCategories()
-        if (response.data.success && response.data.data.categories) {
-          // Format categories for the UI - flat list, no subcategories
-          const formattedCategories = response.data.data.categories.map(cat => ({
-            id: cat._id || cat.id,
-            name: cat.name
+        const [catRes, menuRes] = await Promise.all([
+          restaurantAPI.getCategories().catch(() => ({ data: {} })),
+          restaurantAPI.getMenu().catch(() => ({ data: {} })),
+        ])
+
+        const fromAdmin = []
+        if (catRes?.data?.success && Array.isArray(catRes?.data?.data?.categories)) {
+          catRes.data.data.categories.forEach((cat) => {
+            if (cat?.name) {
+              fromAdmin.push({
+                id: cat._id || cat.id,
+                name: String(cat.name).trim(),
+              })
+            }
+          })
+        }
+
+        const sections = menuRes?.data?.data?.menu?.sections || []
+        const fromMenu = sections
+          .filter((s) => s?.name && String(s.name).trim())
+          .map((s) => ({
+            id: s.id || s._id || `section-${s.name}`,
+            name: String(s.name).trim(),
           }))
 
-          console.log('Formatted restaurant categories:', formattedCategories)
-          setCategories(formattedCategories)
-        } else {
-          // If no categories exist, show empty array (user can add categories)
-          setCategories([])
+        const byName = new Map()
+        for (const c of fromAdmin) {
+          byName.set(c.name.toLowerCase(), c)
         }
+        for (const c of fromMenu) {
+          const k = c.name.toLowerCase()
+          if (!byName.has(k)) byName.set(k, c)
+        }
+
+        setCategories([...byName.values()])
       } catch (error) {
-        console.error('Error fetching restaurant categories:', error)
-        // Show empty array on error - user can add categories
+        console.error("Error fetching restaurant categories:", error)
         setCategories([])
       } finally {
         setLoadingCategories(false)
@@ -337,10 +357,6 @@ export default function ItemDetailsPage() {
     {
       category: "Speciality",
       tags: ["Freshly Frosted", "Pre Frosted", "Chef's Special"]
-    },
-    {
-      category: "Spice Level",
-      tags: ["Medium Spicy", "Very Spicy"]
     },
     {
       category: "Miscellaneous",
@@ -978,13 +994,17 @@ export default function ItemDetailsPage() {
                   }}
                   className="hidden"
                 />
-                <label
-                  htmlFor="image-gallery-upload"
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Always open gallery/file picker for this action.
+                    fileInputRef.current?.click()
+                  }}
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-xl text-sm font-semibold cursor-pointer hover:from-gray-800 hover:to-gray-700 transition-all shadow-md hover:shadow-lg active:scale-95"
                 >
                   <Upload className="w-5 h-5" />
                   <span>Gallery</span>
-                </label>
+                </button>
                 <button
                   type="button"
                   onClick={async () => {
@@ -1363,18 +1383,9 @@ export default function ItemDetailsPage() {
                     <Loader2 className="w-6 h-6 animate-spin text-gray-600" />
                   </div>
                 ) : categories.length === 0 ? (
-                  <div className="text-center py-12 space-y-4">
-                    <p className="text-sm text-gray-500">No categories available</p>
-                    <button
-                      onClick={() => {
-                        setIsCategoryPopupOpen(false)
-                        navigate('/restaurant/menu-categories')
-                      }}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors"
-                    >
-                      <Plus className="w-5 h-5" />
-                      Add Category
-                    </button>
+                  <div className="text-center py-12 space-y-3">
+                    <p className="text-sm text-gray-500">No categories available yet.</p>
+                    <p className="text-xs text-gray-400">Tap the <strong>"+ Add"</strong> button above to create your first category from the admin panel.</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -1483,3 +1494,4 @@ export default function ItemDetailsPage() {
     </div>
   )
 }
+

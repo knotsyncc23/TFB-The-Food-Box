@@ -58,6 +58,9 @@ export default function RestaurantLogin() {
   })
   const [isSending, setIsSending] = useState(false)
   const [apiError, setApiError] = useState("")
+  const isIOSBrowser = /iPad|iPhone|iPod/i.test(
+    typeof navigator !== "undefined" ? navigator.userAgent : "",
+  )
 
   // Prefill phone when user comes back from OTP screen
   useEffect(() => {
@@ -399,7 +402,14 @@ export default function RestaurantLogin() {
       }
 
       // 4) Normal browser path
-      const { signInWithPopup } = await import("firebase/auth")
+      const { signInWithPopup, signInWithRedirect } = await import("firebase/auth")
+
+      // iOS browsers are more reliable with redirect auth flow.
+      if (isIOSBrowser) {
+        await signInWithRedirect(firebaseAuth, googleProvider)
+        return
+      }
+
       const result = await signInWithPopup(firebaseAuth, googleProvider)
       if (result?.user) {
         await processSignedInUser(result.user, "popup-result")
@@ -407,6 +417,13 @@ export default function RestaurantLogin() {
     } catch (error) {
       console.error("Firebase Google login error:", error)
       setIsSending(false)
+      if (error?.code === "auth/popup-blocked") {
+        try {
+          const { signInWithRedirect } = await import("firebase/auth")
+          await signInWithRedirect(firebaseAuth, googleProvider)
+          return
+        } catch (_) {}
+      }
       if (error?.code !== "auth/popup-closed-by-user") {
         setApiError(error?.message || "Google sign-in failed")
       }

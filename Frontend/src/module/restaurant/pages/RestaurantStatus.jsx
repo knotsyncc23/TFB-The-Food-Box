@@ -5,6 +5,7 @@ import { ArrowLeft, Settings, ChevronRight } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Card, CardContent } from "@/components/ui/card"
 import { restaurantAPI } from "@/lib/api"
+import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
@@ -305,6 +306,12 @@ export default function RestaurantStatus() {
 
   // Handle delivery status change
   const handleDeliveryStatusChange = async (checked) => {
+    const previousStatus = deliveryStatus
+    // If turning on, check if restaurant is verified by admin
+    if (checked && !restaurantData?.approvedAt) {
+      toast.error("You cannot take orders until your restaurant is verified by admin.");
+      return
+    }
     // If day is closed in outlet timings, don't allow turning on
     if (checked && isDayClosed) {
       setShowOutletClosedDialog(true)
@@ -317,19 +324,13 @@ export default function RestaurantStatus() {
       return
     }
 
-    setDeliveryStatus(checked)
     try {
-      // Save to localStorage
-      localStorage.setItem('restaurant_online_status', JSON.stringify(checked))
+      // Update backend first (backend is source of truth for verification).
+      await restaurantAPI.updateDeliveryStatus(checked)
 
-      // Update backend
-      try {
-        await restaurantAPI.updateDeliveryStatus(checked)
-        console.log('✅ Delivery status updated in backend:', checked)
-      } catch (apiError) {
-        console.error('Error updating delivery status in backend:', apiError)
-        // Still continue with local update even if backend fails
-      }
+      // Persist + update local state only after backend succeeds.
+      localStorage.setItem('restaurant_online_status', JSON.stringify(checked))
+      setDeliveryStatus(checked)
 
       // Dispatch custom event for navbar to listen
       window.dispatchEvent(new CustomEvent('restaurantStatusChanged', {
@@ -337,6 +338,12 @@ export default function RestaurantStatus() {
       }))
     } catch (error) {
       console.error("Error saving delivery status:", error)
+      // Revert UI if backend rejected the update
+      try {
+        localStorage.setItem('restaurant_online_status', JSON.stringify(previousStatus))
+      } catch {}
+      setDeliveryStatus(previousStatus)
+      toast.error(error?.response?.data?.message || "Failed to update delivery status")
     }
   }
 

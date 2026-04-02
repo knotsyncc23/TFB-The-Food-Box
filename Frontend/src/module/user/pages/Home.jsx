@@ -37,6 +37,7 @@ import offerImage from "@/assets/offerimage.png"
 import api, { restaurantAPI } from "@/lib/api"
 import { API_BASE_URL } from "@/lib/api/config"
 import OptimizedImage from "@/components/OptimizedImage"
+import { filterCategoriesByVegMode } from "@/lib/utils/categoryDietary"
 // Explore More Icons
 import exploreOffers from "@/assets/explore more icons/offers.png"
 import exploreGourmet from "@/assets/explore more icons/gourmet.png"
@@ -324,12 +325,13 @@ export default function Home() {
         setLoadingRealCategories(true)
         const response = await api.get('/categories/public')
         if (response.data.success && response.data.data.categories) {
-          const adminCategories = response.data.data.categories.map(cat => ({
+          const adminCategories = filterCategoriesByVegMode(response.data.data.categories, vegMode).map(cat => ({
             id: cat.id,
             name: cat.name,
             image: cat.image || foodImages[0], // Fallback to default image if not provided
             slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-'),
-            label: cat.name // For compatibility with existing code
+            label: cat.name, // For compatibility with existing code
+            foodPreference: cat.foodPreference || "all",
           }))
           setRealCategories(adminCategories)
         } else {
@@ -344,7 +346,7 @@ export default function Home() {
     }
 
     fetchRealCategories()
-  }, [])
+  }, [vegMode])
 
   // Fetch landing page config (categories, explore more, settings)
   useEffect(() => {
@@ -701,7 +703,11 @@ export default function Home() {
         params.trusted = 'true'
       }
 
-      // Optional: Add zoneId if available (for sorting/filtering, but show all restaurants)
+      if (location?.latitude != null && location?.longitude != null) {
+        params.latitude = location.latitude
+        params.longitude = location.longitude
+      }
+
       if (zoneId) {
         params.zoneId = zoneId
       }
@@ -740,9 +746,15 @@ export default function Home() {
         const userLng = location?.longitude
 
         // Transform API data to match expected format
-        const transformedRestaurants = restaurantsArray.map((restaurant, index) => {
+        const transformedRestaurants = restaurantsArray
+          .map((restaurant, index) => {
           // Use restaurant data if available, otherwise use defaults
           const deliveryTime = restaurant.estimatedDeliveryTime || "25-30 mins"
+
+          // QA: hide restaurants that have no dish available.
+          // In our data model, a restaurant with no dishes should have an empty/blank `featuredDish`.
+          const rawFeaturedDish = String(restaurant.featuredDish || "").trim()
+          if (!rawFeaturedDish) return null
 
           // Calculate distance from user to restaurant
           let distance = restaurant.distance || "1.2 km"
@@ -827,12 +839,18 @@ export default function Home() {
           const normalizedRating = (rawRating !== null && rawRating > 0)
             ? Math.round(rawRating * 10) / 10
             : null
+          const ratingInFiveScale = normalizedRating !== null
+            ? Math.min(5, Math.max(0, normalizedRating > 5 ? normalizedRating / 2 : normalizedRating))
+            : null
+          const roundedRating = ratingInFiveScale !== null
+            ? Math.round(ratingInFiveScale * 10) / 10
+            : null
 
           return {
             id: restaurant.restaurantId || restaurant._id,
             name: restaurant.name,
             cuisine: cuisine,
-            rating: normalizedRating,
+            rating: roundedRating,
             totalRatings: restaurant.totalRatings || 0,
             deliveryTime: deliveryTime,
             distance: distance,
@@ -840,9 +858,7 @@ export default function Home() {
             image: image,
             images: allImages, // Array of cover images for carousel (separate from menu images)
             priceRange: restaurant.priceRange || "$$", // Use from API or default
-            featuredDish: restaurant.featuredDish || (restaurant.cuisines && restaurant.cuisines.length > 0
-              ? `${restaurant.cuisines[0]} Special`
-              : "Special Dish"),
+            featuredDish: rawFeaturedDish,
             featuredPrice: restaurant.featuredPrice || 249, // Use from API or default
             offer: restaurant.offer || "Flat ₹50 OFF above ₹199", // Use from API or default
             slug: restaurant.slug,
@@ -853,6 +869,7 @@ export default function Home() {
             isPureVeg: isPureVegRestaurant,
           }
         })
+          .filter(Boolean)
 
         // Sort restaurants by distance (nearby first) - only if user location is available
         if (userLat && userLng) {
@@ -888,10 +905,11 @@ export default function Home() {
       setLoadingRestaurants(false)
       console.log('Restaurant loading completed. restaurantsData length:', restaurantsData.length)
     }
-  }, [zoneId])
+  }, [zoneId, location?.latitude, location?.longitude])
 
   // Fetch restaurants when appliedFilters change
   useEffect(() => {
+    setRestaurantsData([])
     fetchRestaurants(appliedFilters)
   }, [appliedFilters, fetchRestaurants])
 
@@ -1396,7 +1414,7 @@ export default function Home() {
                   checked={vegMode}
                   onCheckedChange={handleVegModeChange}
                   aria-label="Toggle Veg Mode"
-                  className="data-[state=checked]:bg-red-600 data-[state=unchecked]:bg-gray-300 w-9 h-4 sm:w-10 sm:h-5 lg:w-12 lg:h-6 shadow-lg [&_[data-slot=switch-thumb]]:bg-white [&_[data-slot=switch-thumb]]:h-3 [&_[data-slot=switch-thumb]]:w-3 sm:[&_[data-slot=switch-thumb]]:h-4 sm:[&_[data-slot=switch-thumb]]:w-4 lg:[&_[data-slot=switch-thumb]]:h-5 lg:[&_[data-slot=switch-thumb]]:w-5 [&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-5 sm:[&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-5 lg:[&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-6 [&_[data-slot=switch-thumb]]:data-[state=unchecked]:translate-x-0"
+                  className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-gray-300 w-9 h-4 sm:w-10 sm:h-5 lg:w-12 lg:h-6 shadow-lg [&_[data-slot=switch-thumb]]:bg-white [&_[data-slot=switch-thumb]]:h-3 [&_[data-slot=switch-thumb]]:w-3 sm:[&_[data-slot=switch-thumb]]:h-4 sm:[&_[data-slot=switch-thumb]]:w-4 lg:[&_[data-slot=switch-thumb]]:h-5 lg:[&_[data-slot=switch-thumb]]:w-5 [&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-5 sm:[&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-5 lg:[&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-6 [&_[data-slot=switch-thumb]]:data-[state=unchecked]:translate-x-0"
                 />
               </motion.div>
             </motion.div>
@@ -1793,6 +1811,7 @@ export default function Home() {
                 const restaurantSlug = restaurant.slug || restaurant.name.toLowerCase().replace(/\s+/g, "-")
                 // Direct favorite check - isFavorite is already memoized in context
                 const favorite = isFavorite(restaurantSlug)
+                const isRestaurantClosed = !(restaurant.isActive && restaurant.isAcceptingOrders)
 
                 const handleToggleFavorite = (e) => {
                   e.preventDefault()
@@ -1841,8 +1860,19 @@ export default function Home() {
                               priority={index < 3}
                             />
 
+                            {isRestaurantClosed && (
+                              <>
+                                <div className="absolute inset-0 z-[1] rounded-t-2xl sm:rounded-t-3xl bg-black/35 pointer-events-none" />
+                                <div className="absolute top-3 left-3 md:top-4 md:left-4 z-10">
+                                  <div className="rounded-md bg-red-600/95 px-3 py-1.5 text-xs md:text-sm font-bold text-white shadow-lg">
+                                    Closed
+                                  </div>
+                                </div>
+                              </>
+                            )}
+
                             {/* Featured Dish Badge - Top Left */}
-                            <div className="absolute top-3 left-3 md:top-4 md:left-4 flex items-center z-10 transform transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5">
+                            <div className={`absolute md:top-4 md:left-4 flex items-center z-10 transform transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5 ${isRestaurantClosed ? 'top-14 left-3' : 'top-3 left-3'}`}>
                               <div className="bg-gray-800/90 backdrop-blur-sm text-white px-2 py-1 md:px-4 md:py-1.5 rounded-md text-xs font-medium flex items-center shadow-lg">
                                 {restaurant.featuredDish} · ₹{restaurant.featuredPrice}
                               </div>
@@ -1882,12 +1912,12 @@ export default function Home() {
                               {/* Restaurant Name & Rating */}
                               <div className="flex items-start justify-between gap-2 mb-2 lg:mb-3">
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="text-md sm:text-md lg:text-xl font-bold text-gray-900 dark:text-white line-clamp-1 lg:line-clamp-2 transition-colors duration-300 group-hover:text-red-600">
+                                  <h3 className="text-md sm:text-md lg:text-xl font-bold text-gray-900 dark:text-white line-clamp-1 lg:line-clamp-2 transition-colors duration-300 group-hover:text-green-600">
                                     {restaurant.name}
                                   </h3>
                                 </div>
                                 {typeof restaurant.rating === "number" && restaurant.rating > 0 ? (
-                                  <div className="flex-shrink-0 bg-red-600 text-white px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg flex items-center gap-1 transform transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6">
+                                  <div className="flex-shrink-0 bg-green-600 text-white px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg flex items-center gap-1 transform transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6">
                                     <span className="text-sm lg:text-base font-bold">
                                       {restaurant.rating.toFixed(1)}
                                     </span>
@@ -1909,6 +1939,14 @@ export default function Home() {
                                 <span className="mx-1">|</span>
                                 <span className="font-medium dark:text-gray-300 text-gray-700">{restaurant.distance}</span>
                               </div>
+
+                              {isRestaurantClosed && (
+                                <div className="mb-2 lg:mb-3">
+                                  <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600 dark:bg-red-950/40 dark:text-red-300">
+                                    Closed
+                                  </span>
+                                </div>
+                              )}
 
                               {/* Offer Badge */}
                               {restaurant.offer && (
@@ -1976,7 +2014,7 @@ export default function Home() {
                     setSortBy(null)
                     setSelectedCuisine(null)
                   }}
-                  className="text-red-600 font-medium text-sm"
+                  className="text-green-600 font-medium text-sm"
                 >
                   Clear all
                 </button>
@@ -2385,7 +2423,7 @@ export default function Home() {
                       className="sr-only"
                     />
                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${vegModeOption === "all"
-                      ? "border-red-600 dark:border-red-500 bg-red-600 dark:bg-red-500"
+                      ? "border-green-600 dark:border-green-500 bg-green-600 dark:bg-green-500"
                       : "border-gray-300 dark:border-gray-600 bg-white dark:bg-[#2a2a2a]"
                       }`}>
                       {vegModeOption === "all" && (
@@ -2413,7 +2451,7 @@ export default function Home() {
                       className="sr-only"
                     />
                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${vegModeOption === "pure-veg"
-                      ? "border-red-600 dark:border-red-500 bg-red-600 dark:bg-red-500"
+                      ? "border-green-600 dark:border-green-500 bg-green-600 dark:bg-green-500"
                       : "border-gray-300 dark:border-gray-600 bg-white dark:bg-[#2a2a2a]"
                       }`}>
                       {vegModeOption === "pure-veg" && (
@@ -2440,7 +2478,7 @@ export default function Home() {
                     setIsApplyingVegMode(false)
                   }, 2000)
                 }}
-                className="w-full bg-[#671E1F] text-white font-semibold py-2.5 rounded-xl hover:bg-[#218a56] transition-colors text-sm shadow-sm"
+                className="w-full bg-green-600 text-white font-semibold py-2.5 rounded-xl hover:bg-green-700 transition-colors text-sm shadow-sm"
               >
                 Apply
               </button>

@@ -174,10 +174,10 @@ export default function DiningManagement() {
     setForm((prev) => {
       const idStr = String(match._id)
       const current = prev.categories || []
-      if (current.length === 1 && String(current[0]) === idStr) {
+      if (current.some((categoryId) => String(categoryId) === idStr)) {
         return prev
       }
-      return { ...prev, categories: [match._id] }
+      return { ...prev, categories: [...current, match._id] }
     })
   }, [adminControls.recommendedCategorySlug, allDiningCategories])
 
@@ -308,13 +308,14 @@ export default function DiningManagement() {
     }
   }
 
-  // Allow only a single dining category selection
+  // Dining categories allow multi-select.
   const toggleCategory = (categoryId) => {
     setForm(prev => {
       const current = prev.categories || [];
       const isSelected = current.includes(categoryId);
-      // If already selected, clear category; otherwise set as the only category
-      const updated = isSelected ? [] : [categoryId];
+      const updated = isSelected
+        ? current.filter((id) => id !== categoryId)
+        : [...current, categoryId];
       return { ...prev, categories: updated };
     });
   }

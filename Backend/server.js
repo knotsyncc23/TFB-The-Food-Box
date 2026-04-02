@@ -45,6 +45,7 @@ import aboutPublicRoutes from "./modules/admin/routes/aboutPublicRoutes.js";
 import businessSettingsPublicRoutes from "./modules/admin/routes/businessSettingsPublicRoutes.js";
 import termsPublicRoutes from "./modules/admin/routes/termsPublicRoutes.js";
 import privacyPublicRoutes from "./modules/admin/routes/privacyPublicRoutes.js";
+import contactUsPublicRoutes from "./modules/admin/routes/contactUsPublicRoutes.js";
 import refundPublicRoutes from "./modules/admin/routes/refundPublicRoutes.js";
 import shippingPublicRoutes from "./modules/admin/routes/shippingPublicRoutes.js";
 import cancellationPublicRoutes from "./modules/admin/routes/cancellationPublicRoutes.js";
@@ -148,14 +149,44 @@ if (typeof trustProxyRaw === "string" && trustProxyRaw.trim() !== "") {
 // Initialize Socket.IO with proper CORS configuration
 const allowedSocketOrigins = [
   process.env.CORS_ORIGIN,
- 
   "https://app.tifunbox.com",
+  "https://www.app.tifunbox.com",
   "http://app.tifunbox.com",
+  "capacitor://localhost",
+  "ionic://localhost",
+  "app://localhost",
+  "file://",
   "http://localhost:5173",
   "http://localhost:3000",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:3000",
 ].filter(Boolean); // Remove undefined values
+
+const isTrustedAppOrigin = (origin) => {
+  if (!origin || typeof origin !== "string") return false;
+  try {
+    const { hostname, protocol } = new URL(origin);
+    if (!/^https?:$/i.test(protocol)) return false;
+
+    // Primary web app domains
+    if (
+      hostname === "app.tifunbox.com" ||
+      hostname === "www.app.tifunbox.com" ||
+      hostname.endsWith(".app.tifunbox.com")
+    ) {
+      return true;
+    }
+
+    // iOS Google app in-app browser / web cache entry points.
+    if (hostname === "www.google.com" || hostname.endsWith(".google.com")) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+};
 
 const io = new Server(httpServer, {
   cors: {
@@ -166,7 +197,7 @@ const io = new Server(httpServer, {
       }
 
       // Check if origin is in allowed list
-      if (allowedSocketOrigins.includes(origin)) {
+      if (allowedSocketOrigins.includes(origin) || isTrustedAppOrigin(origin)) {
         callback(null, true);
       } else {
         // In development, allow all localhost origins
@@ -347,11 +378,16 @@ app.use(helmet());
 const allowedOrigins = [
   process.env.CORS_ORIGIN,
   "https://app.tifunbox.com",
+  "https://www.app.tifunbox.com",
   "http://localhost:3000",
   "http://localhost:5173",
   "http://localhost:5174",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5174",
+  "capacitor://localhost",
+  "ionic://localhost",
+  "app://localhost",
+  "file://",
 ].filter(Boolean); // Remove undefined values
 
 app.use(
@@ -362,17 +398,25 @@ app.use(
 
       if (
         allowedOrigins.indexOf(origin) !== -1 ||
+        isTrustedAppOrigin(origin) ||
         process.env.NODE_ENV === "development"
       ) {
-        callback(null, true);
-      } else {
-        console.warn(`⚠️ CORS blocked origin: ${origin}`);
-        callback(null, true); // Allow in development, block in production
+        // Reflect the request origin so Access-Control-Allow-Origin is never *
+        // (required for credentialed requests on Safari / Chrome)
+        return callback(null, origin);
       }
+      console.warn(`⚠️ CORS unknown origin (allowing): ${origin}`);
+      return callback(null, origin);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "x-refresh-token",
+      "X-Refresh-Token",
+    ],
   }),
 );
 
@@ -457,6 +501,7 @@ app.use("/api", aboutPublicRoutes);
 app.use("/api", businessSettingsPublicRoutes);
 app.use("/api", termsPublicRoutes);
 app.use("/api", privacyPublicRoutes);
+app.use("/api", contactUsPublicRoutes);
 app.use("/api", refundPublicRoutes);
 app.use("/api", shippingPublicRoutes);
 app.use("/api", cancellationPublicRoutes);
@@ -574,15 +619,18 @@ io.on("connection", (socket) => {
         const { default: Order } =
           await import("./modules/order/models/Order.js");
 
-        const order = await Order.findById(orderId)
-          .populate({
-            path: "deliveryPartnerId",
-            select: "availability",
-            populate: {
-              path: "availability.currentLocation",
-            },
-          })
-          .lean();
+      const isValidObjectId = mongoose.Types.ObjectId.isValid(orderId);
+      const order = isValidObjectId
+        ? await Order.findById(orderId)
+        : await Order.findOne({ orderId: orderId })
+        .populate({
+          path: "deliveryPartnerId",
+          select: "availability",
+          populate: {
+            path: "availability.currentLocation",
+          },
+        })
+        .lean();
 
         if (order?.deliveryPartnerId?.availability?.currentLocation) {
           const coords =
@@ -613,7 +661,10 @@ io.on("connection", (socket) => {
       const { default: Order } =
         await import("./modules/order/models/Order.js");
 
-      const order = await Order.findById(orderId)
+      const isValidObjectId = mongoose.Types.ObjectId.isValid(orderId);
+      const order = isValidObjectId
+        ? await Order.findById(orderId)
+        : await Order.findOne({ orderId: orderId })
         .populate({
           path: "deliveryPartnerId",
           select: "availability",
@@ -681,23 +732,23 @@ function initializeScheduledTasks() {
       console.error("❌ Failed to initialize menu schedule service:", error);
     });
 
-  // Import auto-ready service
-  import("./modules/order/services/autoReadyService.js")
-    .then(({ processAutoReadyOrders }) => {
-      // Run every 30 seconds to check for orders that should be marked as ready
-      cron.schedule("*/30 * * * * *", async () => {
-        try {
-          const result = await processAutoReadyOrders();
-          if (result.processed > 0) {
-          }
-        } catch (error) {
-          console.error("[Auto Ready Cron] Error:", error);
-        }
-      });
-    })
-    .catch((error) => {
-      console.error("❌ Failed to initialize auto-ready service:", error);
-    });
+  // Import auto-ready service - DISABLED: Orders should only be marked ready manually by restaurant
+  // import("./modules/order/services/autoReadyService.js")
+  //   .then(({ processAutoReadyOrders }) => {
+  //     // Run every 30 seconds to check for orders that should be marked as ready
+  //     cron.schedule("*/30 * * * * *", async () => {
+  //       try {
+  //         const result = await processAutoReadyOrders();
+  //         if (result.processed > 0) {
+  //         }
+  //       } catch (error) {
+  //         console.error("[Auto Ready Cron] Error:", error);
+  //       }
+  //     });
+  //   })
+  //   .catch((error) => {
+  //     console.error("❌ Failed to initialize auto-ready service:", error);
+  //   });
 
   // Import auto-reject service
   import("./modules/order/services/autoRejectService.js")

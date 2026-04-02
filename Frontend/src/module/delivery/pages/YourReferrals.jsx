@@ -67,6 +67,8 @@ export default function YourReferrals() {
     window.location.href = `tel:${mobile}`
   }
 
+  const getReferralPhone = (referral) => referral?.mobile || referral?.phone || referral?.mobileNumber || ""
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -78,10 +80,14 @@ export default function YourReferrals() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="text-lg font-bold">Your referrals</h1>
-        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => navigate("/delivery/help/tickets")}
+          className="flex items-center gap-2 rounded-full px-2 py-1 hover:bg-gray-800 transition-colors"
+        >
           <Headphones className="w-5 h-5" />
           <span className="text-sm">Help</span>
-        </div>
+        </button>
       </div>
 
       {/* Earnings Card */}
@@ -162,7 +168,7 @@ export default function YourReferrals() {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleWhatsApp(referral.mobile, referral.name)}
+                        onClick={() => handleWhatsApp(getReferralPhone(referral), referral.name)}
                         className="flex-1 bg-white border border-gray-300 text-gray-900 font-semibold py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
                       >
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -171,7 +177,7 @@ export default function YourReferrals() {
                         <span>Whatsapp</span>
                       </button>
                       <button
-                        onClick={() => handleCall(referral.mobile)}
+                        onClick={() => handleCall(getReferralPhone(referral))}
                         className="flex-1 bg-black text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors"
                       >
                         <Phone className="w-5 h-5" />

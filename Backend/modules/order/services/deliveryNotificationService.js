@@ -51,6 +51,43 @@ async function checkDeliveryPartnerConnection(deliveryPartnerId) {
   }
 }
 
+async function isDeliveryPartnerOnline(deliveryPartnerId) {
+  try {
+    const partner = await Delivery.findById(deliveryPartnerId)
+      .select("availability.isOnline status isActive")
+      .lean();
+
+    return Boolean(
+      partner &&
+        partner.isActive &&
+        ["approved", "active"].includes(partner.status) &&
+        partner.availability?.isOnline,
+    );
+  } catch (error) {
+    console.error("Error checking delivery partner online status:", error);
+    return false;
+  }
+}
+
+async function filterOnlineDeliveryPartnerIds(deliveryPartnerIds) {
+  if (!Array.isArray(deliveryPartnerIds) || deliveryPartnerIds.length === 0) {
+    return [];
+  }
+
+  const uniqueIds = [...new Set(deliveryPartnerIds.map((id) => id?.toString?.() || String(id || "")).filter(Boolean))];
+  const partners = await Delivery.find({
+    _id: { $in: uniqueIds },
+    isActive: true,
+    status: { $in: ["approved", "active"] },
+    "availability.isOnline": true,
+  })
+    .select("_id")
+    .lean();
+
+  const onlineIdSet = new Set(partners.map((partner) => partner._id.toString()));
+  return uniqueIds.filter((id) => onlineIdSet.has(id));
+}
+
 /**
  * Redact sensitive PII from order data for broad notifications
  * @param {Object} data - Notification data
@@ -137,17 +174,16 @@ export async function notifyDeliveryBoyNewOrder(order, deliveryPartnerId) {
       return;
     }
 
-    // Verify delivery partner is online and active
-    if (!deliveryPartner.availability?.isOnline) {
+    // Verify delivery partner is online and active before notifying
+    if (
+      !deliveryPartner.isActive ||
+      !["approved", "active"].includes(deliveryPartner.status) ||
+      !deliveryPartner.availability?.isOnline
+    ) {
       console.warn(
-        `⚠️ Delivery partner ${deliveryPartnerId} (${deliveryPartner.name}) is not online. Notification may not be received.`,
+        `⚠️ Delivery partner ${deliveryPartnerId} (${deliveryPartner.name}) is offline or inactive. Skipping order notification.`,
       );
-    }
-
-    if (!deliveryPartner.isActive) {
-      console.warn(
-        `⚠️ Delivery partner ${deliveryPartnerId} (${deliveryPartner.name}) is not active.`,
-      );
+      return { success: false, reason: "delivery_partner_offline" };
     }
 
     if (
@@ -225,12 +261,10 @@ export async function notifyDeliveryBoyNewOrder(order, deliveryPartnerId) {
       typeof estimatedEarnings === "object"
         ? (estimatedEarnings.totalEarning ?? 0)
         : Number(estimatedEarnings) || 0;
-    if (earnedValue <= 0 && deliveryFeeFromOrder > 0) {
-      estimatedEarnings =
-        typeof estimatedEarnings === "object"
-          ? { ...estimatedEarnings, totalEarning: deliveryFeeFromOrder }
-          : deliveryFeeFromOrder;
-    }
+    estimatedEarnings = normalizeEstimatedEarningsForOrder(
+      earnedValue <= 0 ? estimatedEarnings : estimatedEarnings,
+      deliveryFeeFromOrder,
+    );
 
     // Prepare order notification data
     const orderNotification = {
@@ -238,6 +272,11 @@ export async function notifyDeliveryBoyNewOrder(order, deliveryPartnerId) {
       orderMongoId: order._id.toString(),
       restaurantId: order.restaurantId,
       restaurantName: order.restaurantName,
+      restaurantAddress:
+        restaurant?.address ||
+        restaurant?.location?.formattedAddress ||
+        restaurant?.location?.address ||
+        "Restaurant address",
       restaurantLocation: restaurant?.location
         ? {
             latitude: restaurant.location.coordinates[1],
@@ -248,6 +287,8 @@ export async function notifyDeliveryBoyNewOrder(order, deliveryPartnerId) {
               "Restaurant address",
           }
         : null,
+      restaurantLat: restaurant?.location?.coordinates?.[1],
+      restaurantLng: restaurant?.location?.coordinates?.[0],
       customerLocation: {
         latitude: order.address.location.coordinates[1],
         longitude: order.address.location.coordinates[0],
@@ -256,6 +297,12 @@ export async function notifyDeliveryBoyNewOrder(order, deliveryPartnerId) {
           `${order.address.street}, ${order.address.city}` ||
           "Customer address",
       },
+      customerAddress:
+        order.address.formattedAddress ||
+        `${order.address.street}, ${order.address.city}` ||
+        "Customer address",
+      customerLat: order.address.location.coordinates?.[1],
+      customerLng: order.address.location.coordinates?.[0],
       items: order.items.map((item) => ({
         name: item.name,
         quantity: item.quantity,
@@ -272,6 +319,7 @@ export async function notifyDeliveryBoyNewOrder(order, deliveryPartnerId) {
       pickupDistance: pickupDistance
         ? `${pickupDistance.toFixed(2)} km`
         : "Distance not available",
+      pickupDistanceRaw: pickupDistance || 0,
       deliveryDistance: deliveryDistance
         ? `${deliveryDistance.toFixed(2)} km`
         : "Calculating...",
@@ -388,6 +436,12 @@ export async function notifyMultipleDeliveryBoys(
     }
 
     const deliveryNamespace = io.of("/delivery");
+    const onlineDeliveryPartnerIds = await filterOnlineDeliveryPartnerIds(
+      deliveryPartnerIds,
+    );
+    if (onlineDeliveryPartnerIds.length === 0) {
+      return { success: false, notified: 0 };
+    }
     let notifiedCount = 0;
 
     // Populate userId if needed
@@ -492,12 +546,10 @@ export async function notifyMultipleDeliveryBoys(
           ? (estimatedEarnings.totalEarning ?? 0)
           : Number(estimatedEarnings) || 0;
       // Use deliveryFee as fallback if earnings is 0 or invalid
-      if (earnedValue <= 0 && deliveryFeeFromOrder > 0) {
-        estimatedEarnings =
-          typeof estimatedEarnings === "object"
-            ? { ...estimatedEarnings, totalEarning: deliveryFeeFromOrder }
-            : deliveryFeeFromOrder;
-      }
+      estimatedEarnings = normalizeEstimatedEarningsForOrder(
+        estimatedEarnings,
+        deliveryFeeFromOrder,
+      );
     } catch (earningsError) {
       console.error(
         "❌ Error calculating estimated earnings in notification:",
@@ -505,17 +557,17 @@ export async function notifyMultipleDeliveryBoys(
       );
       console.error("❌ Error stack:", earningsError.stack);
       // Fallback to deliveryFee or default
-      estimatedEarnings =
-        deliveryFeeFromOrder > 0
-          ? deliveryFeeFromOrder
-          : {
-              basePayout: 10,
-              distance: deliveryDistance,
-              commissionPerKm: 5,
-              distanceCommission: 0,
-              totalEarning: 10,
-              breakdown: "Default calculation",
-            };
+      estimatedEarnings = normalizeEstimatedEarningsForOrder(
+        {
+          basePayout: 10,
+          distance: deliveryDistance,
+          commissionPerKm: 5,
+          distanceCommission: 0,
+          totalEarning: 10,
+          breakdown: "Default calculation",
+        },
+        deliveryFeeFromOrder,
+      );
     }
 
     // Prepare notification payload
@@ -584,7 +636,7 @@ export async function notifyMultipleDeliveryBoys(
     // REDACT PII for broad notifications
     const orderNotification = redactPII(orderNotificationRaw);
     // Notify each delivery partner
-    for (const deliveryPartnerId of deliveryPartnerIds) {
+    for (const deliveryPartnerId of onlineDeliveryPartnerIds) {
       try {
         const normalizedId = deliveryPartnerId?.toString() || deliveryPartnerId;
         const roomVariations = [
@@ -664,6 +716,20 @@ export async function broadcastNewOrderToAllDeliveryBoys(order, phase = "priorit
     }
 
     const deliveryNamespace = io.of("/delivery");
+    const onlineDeliveryPartnerIds = await filterOnlineDeliveryPartnerIds(
+      await Delivery.find({
+        isActive: true,
+        status: { $in: ["approved", "active"] },
+        "availability.isOnline": true,
+      })
+        .select("_id")
+        .lean()
+        .then((docs) => docs.map((doc) => doc._id.toString())),
+    );
+
+    if (onlineDeliveryPartnerIds.length === 0) {
+      return;
+    }
 
     let orderWithUser = order;
     if (order.userId && typeof order.userId === "object" && order.userId._id) {
@@ -721,17 +787,15 @@ export async function broadcastNewOrderToAllDeliveryBoys(order, phase = "priorit
         typeof estimatedEarnings === "object"
           ? (estimatedEarnings.totalEarning ?? 0)
           : Number(estimatedEarnings) || 0;
-      if (earnedValue <= 0 && deliveryFeeFromOrder > 0) {
-        estimatedEarnings =
-          typeof estimatedEarnings === "object"
-            ? { ...estimatedEarnings, totalEarning: deliveryFeeFromOrder }
-            : deliveryFeeFromOrder;
-      }
+      estimatedEarnings = normalizeEstimatedEarningsForOrder(
+        estimatedEarnings,
+        deliveryFeeFromOrder,
+      );
     } catch (e) {
-      estimatedEarnings =
-        deliveryFeeFromOrder > 0
-          ? deliveryFeeFromOrder
-          : { totalEarning: 10, breakdown: "Default" };
+      estimatedEarnings = normalizeEstimatedEarningsForOrder(
+        { totalEarning: 10, breakdown: "Default" },
+        deliveryFeeFromOrder,
+      );
     }
 
     const orderNotificationRaw = {
@@ -756,6 +820,12 @@ export async function broadcastNewOrderToAllDeliveryBoys(order, phase = "priorit
               restaurantAddress,
           }
         : null,
+      restaurantLat:
+        restaurantLocation?.coordinates?.[1] ||
+        orderWithUser.restaurantId?.location?.coordinates?.[1],
+      restaurantLng:
+        restaurantLocation?.coordinates?.[0] ||
+        orderWithUser.restaurantId?.location?.coordinates?.[0],
       customerName: orderWithUser.userId?.name || "Customer",
       customerPhone: orderWithUser.userId?.phone || "",
       deliveryAddress:
@@ -771,6 +841,17 @@ export async function broadcastNewOrderToAllDeliveryBoys(order, phase = "priorit
               orderWithUser.address.address,
           }
         : null,
+      customerAddress:
+        orderWithUser.address?.formattedAddress ||
+        orderWithUser.address?.address ||
+        orderWithUser.address?.location?.address ||
+        "Customer address",
+      customerLat:
+        orderWithUser.address?.location?.coordinates?.[1] ||
+        orderWithUser.address?.location?.latitude,
+      customerLng:
+        orderWithUser.address?.location?.coordinates?.[0] ||
+        orderWithUser.address?.location?.longitude,
       totalAmount: orderWithUser.pricing?.total || 0,
       deliveryFee: deliveryFeeFromOrder,
       estimatedEarnings,
@@ -778,6 +859,7 @@ export async function broadcastNewOrderToAllDeliveryBoys(order, phase = "priorit
         deliveryDistance > 0
           ? `${deliveryDistance.toFixed(2)} km`
           : "Calculating...",
+      deliveryDistanceRaw: deliveryDistance || 0,
       paymentMethod: orderWithUser.payment?.method || "cash",
       message: `New order available: ${orderWithUser.orderId || orderWithUser._id}`,
       timestamp: new Date().toISOString(),
@@ -798,13 +880,23 @@ export async function broadcastNewOrderToAllDeliveryBoys(order, phase = "priorit
 
     const orderNotification = redactPII(orderNotificationRaw);
 
-    deliveryNamespace.emit("new_order_available", orderNotification);
-    deliveryNamespace.emit("play_notification_sound", {
-      type: "new_order_available",
-      orderId: order.orderId,
-      message: `New order available: ${order.orderId}`,
-      phase,
-    });
+    for (const deliveryPartnerId of onlineDeliveryPartnerIds) {
+      const roomVariations = [
+        `delivery:${deliveryPartnerId}`,
+        ...(mongoose.Types.ObjectId.isValid(deliveryPartnerId)
+          ? [`delivery:${new mongoose.Types.ObjectId(deliveryPartnerId).toString()}`]
+          : []),
+      ];
+      for (const room of roomVariations) {
+        deliveryNamespace.to(room).emit("new_order_available", orderNotification);
+        deliveryNamespace.to(room).emit("play_notification_sound", {
+          type: "new_order_available",
+          orderId: order.orderId,
+          message: `New order available: ${order.orderId}`,
+          phase,
+        });
+      }
+    }
   } catch (error) {
     console.error("❌ Error broadcasting to all delivery boys:", error);
   }
@@ -829,6 +921,19 @@ export async function notifyDeliveryBoyOrderReady(order, deliveryPartnerId) {
     const deliveryNamespace = io.of("/delivery");
     const normalizedDeliveryPartnerId =
       deliveryPartnerId?.toString() || deliveryPartnerId;
+
+    const isOnline = await isDeliveryPartnerOnline(normalizedDeliveryPartnerId);
+    if (!isOnline) {
+      console.warn(
+        `⚠️ Delivery partner ${normalizedDeliveryPartnerId} is offline or inactive. Skipping order_ready notification.`,
+      );
+      return {
+        success: false,
+        reason: "delivery_partner_offline",
+        deliveryPartnerId: normalizedDeliveryPartnerId,
+        orderId: order.orderId,
+      };
+    }
 
     // Prepare order ready notification
     const coords = order.restaurantId?.location?.coordinates;
@@ -911,6 +1016,40 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
       Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; // Distance in kilometers
+}
+
+function normalizeEstimatedEarningsForOrder(estimatedEarnings, deliveryFee = 0) {
+  const normalizedDeliveryFee = Number(deliveryFee) || 0;
+
+  if (normalizedDeliveryFee > 0) {
+    return {
+      basePayout: normalizedDeliveryFee,
+      distance:
+        typeof estimatedEarnings === "object" && estimatedEarnings?.distance != null
+          ? Number(estimatedEarnings.distance) || 0
+          : 0,
+      commissionPerKm: 0,
+      distanceCommission: 0,
+      totalEarning: normalizedDeliveryFee,
+      breakdown: {
+        basePayout: normalizedDeliveryFee,
+        distance:
+          typeof estimatedEarnings === "object" && estimatedEarnings?.distance != null
+            ? Number(estimatedEarnings.distance) || 0
+            : 0,
+        commissionPerKm: 0,
+        distanceCommission: 0,
+        minDistance:
+          typeof estimatedEarnings === "object" &&
+          estimatedEarnings?.minDistance != null
+            ? estimatedEarnings.minDistance
+            : 0,
+      },
+      source: "delivery_fee",
+    };
+  }
+
+  return estimatedEarnings;
 }
 
 /**

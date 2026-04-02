@@ -173,7 +173,7 @@ export default function Top10() {
                               {restaurant.name}
                             </h3>
                           </div>
-                          <div className="flex-shrink-0 bg-red-600 text-white px-2 py-1 rounded-lg flex items-center gap-1">
+                          <div className="flex-shrink-0 bg-green-600 text-white px-2 py-1 rounded-lg flex items-center gap-1">
                             <span className="text-sm font-bold">{restaurant.rating?.toFixed(1) || '0.0'}</span>
                             <Star className="h-3 w-3 fill-white text-white" />
                           </div>

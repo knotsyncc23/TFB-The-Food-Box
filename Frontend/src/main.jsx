@@ -8,48 +8,123 @@ import OfflineBanner from './components/OfflineBanner.jsx'
 import { getGoogleMapsApiKey } from './lib/utils/googleMapsApiKey.js'
 import { loadBusinessSettings } from './lib/utils/businessSettings.js'
 
+const safeStorageGet = (key, fallback = null) => {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return fallback
+    const value = window.localStorage.getItem(key)
+    return value == null ? fallback : value
+  } catch {
+    return fallback
+  }
+}
+
+const getUa = () => {
+  try {
+    return String(window?.navigator?.userAgent || "")
+  } catch {
+    return ""
+  }
+}
+
+const isIOS = () => /iPad|iPhone|iPod/i.test(getUa())
+const isGoogleInAppBrowser = () => {
+  const ua = getUa()
+  return /\bGSA\//i.test(ua) || /\bCriOS\//i.test(ua)
+}
+
+const safeSessionGet = (key, fallback = null) => {
+  try {
+    if (typeof window === "undefined" || !window.sessionStorage) return fallback
+    const value = window.sessionStorage.getItem(key)
+    return value == null ? fallback : value
+  } catch {
+    return fallback
+  }
+}
+
+const safeSessionSet = (key, value) => {
+  try {
+    if (typeof window === "undefined" || !window.sessionStorage) return
+    window.sessionStorage.setItem(key, value)
+  } catch {
+    return
+  }
+}
+
+const attemptChunkRecoveryReload = () => {
+  // Prevent infinite reload loops in case of persistent server/cache issue.
+  const onceKey = "tfb_chunk_recovery_once"
+  if (safeSessionGet(onceKey) === "1") return
+  safeSessionSet(onceKey, "1")
+  // Do not auto-navigate on iOS/in-app contexts to avoid browser handoff behavior.
+  if (isIOS() || isGoogleInAppBrowser()) return
+  try {
+    // Use in-place reload to avoid cross-browser handoff restrictions on iOS in-app browsers.
+    window.location.reload()
+  } catch {
+    // Last-resort same-tab navigation fallback.
+    window.location.assign(window.location.href)
+  }
+}
+
+const isLikelyChunkLoadError = (message = "") => {
+  const text = String(message || "").toLowerCase()
+  return (
+    text.includes("failed to fetch dynamically imported module") ||
+    text.includes("importing a module script failed") ||
+    text.includes("loading chunk") ||
+    text.includes("chunkloaderror")
+  )
+}
+
 // Load business settings on app start (favicon, title)
 // Silently handle errors - this is not critical for app functionality
-loadBusinessSettings().catch(() => {
-  // Silently fail - settings will load when admin is authenticated
-})
+setTimeout(() => {
+  loadBusinessSettings().catch(() => {
+    // Silently fail - settings will load when admin is authenticated
+  })
+}, 0)
+
+// Push: single global FCM foreground handler (bakalacart-style); non-blocking
+setTimeout(() => {
+  import("./lib/notifications/fcmWeb.js")
+    .then(({ initializePushNotifications }) => initializePushNotifications())
+    .catch(() => {})
+}, 0)
 
 // Global flag to track Google Maps loading state
-window.__googleMapsLoading = window.__googleMapsLoading || false;
-window.__googleMapsLoaded = window.__googleMapsLoaded || false;
+window.__googleMapsLoading = window.__googleMapsLoading || false
+window.__googleMapsLoaded = window.__googleMapsLoaded || false
 
 // Load Google Maps API dynamically from backend database
 // Only load if not already loaded to prevent multiple loads
-(async () => {
+setTimeout(async () => {
   // Check if Google Maps is already loaded
   if (window.google && window.google.maps) {
-    console.log('✅ Google Maps already loaded');
-    window.__googleMapsLoaded = true;
-    return;
+    window.__googleMapsLoaded = true
+    return
   }
-  
+
   // Check if script is already being loaded
-  const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+  const existingScript = document.querySelector('script[src*="maps.googleapis.com"]')
   if (existingScript) {
-    console.log('✅ Google Maps script already exists, waiting for it to load...');
-    window.__googleMapsLoading = true;
-    
+    window.__googleMapsLoading = true
+
     // Wait for script to load
     existingScript.addEventListener('load', () => {
-      window.__googleMapsLoaded = true;
-      window.__googleMapsLoading = false;
-    });
-    return;
+      window.__googleMapsLoaded = true
+      window.__googleMapsLoading = false
+    })
+    return
   }
-  
+
   // Check if Loader is already loading
   if (window.__googleMapsLoading) {
-    console.log('✅ Google Maps is already being loaded, waiting...');
-    return;
+    return
   }
-  
-  window.__googleMapsLoading = true;
-  
+
+  window.__googleMapsLoading = true
+
   try {
     const googleMapsApiKey = await getGoogleMapsApiKey()
     if (googleMapsApiKey) {
@@ -58,28 +133,25 @@ window.__googleMapsLoaded = window.__googleMapsLoaded || false;
       script.async = true
       script.defer = true
       script.onload = () => {
-        console.log('✅ Google Maps API loaded via script tag');
-        window.__googleMapsLoaded = true;
-        window.__googleMapsLoading = false;
+        window.__googleMapsLoaded = true
+        window.__googleMapsLoading = false
       }
       script.onerror = () => {
-        console.error('❌ Failed to load Google Maps API script');
-        window.__googleMapsLoading = false;
+        window.__googleMapsLoading = false
       }
       document.head.appendChild(script)
     } else {
-      window.__googleMapsLoading = false;
+      window.__googleMapsLoading = false
     }
-  } catch (error) {
-    console.warn('Failed to load Google Maps API key:', error.message)
-    window.__googleMapsLoading = false;
+  } catch {
+    window.__googleMapsLoading = false
     // No fallback - Google Maps will not load if key is not in database
-    console.warn('⚠️ Google Maps API key not available. Please set it in Admin → System → Environment Variables');
+    console.warn('⚠️ Google Maps API key not available. Please set it in Admin → System → Environment Variables')
   }
-})()
+}, 0)
 
 // Apply theme on app initialization
-const savedTheme = localStorage.getItem('appTheme') || 'light'
+const savedTheme = safeStorageGet('appTheme', 'light')
 if (savedTheme === 'dark') {
   document.documentElement.classList.add('dark')
 } else {
@@ -89,7 +161,15 @@ if (savedTheme === 'dark') {
 // Suppress browser extension errors
 const originalError = console.error
 console.error = (...args) => {
-  const errorStr = args.join(' ')
+  const errorStr = args
+    .map((arg) => {
+      try {
+        return typeof arg === 'string' ? arg : JSON.stringify(arg)
+      } catch {
+        return String(arg)
+      }
+    })
+    .join(' ')
   
   // Suppress browser extension errors
   if (
@@ -211,6 +291,13 @@ window.addEventListener('unhandledrejection', (event) => {
     event.preventDefault() // Prevent error from showing in console
     return
   }
+
+  // iOS Google in-app browser is more prone to stale chunk cache after deploy.
+  if ((isIOS() || isGoogleInAppBrowser()) && isLikelyChunkLoadError(errorMsg || errorStr)) {
+    event.preventDefault()
+    attemptChunkRecoveryReload()
+    return
+  }
   
   // Suppress refund processing errors that are already handled by the component
   // These errors are logged with console.error in the component's catch block
@@ -221,6 +308,13 @@ window.addEventListener('unhandledrejection', (event) => {
     // Error is already handled by the component, just prevent unhandled rejection
     event.preventDefault()
     return
+  }
+})
+
+window.addEventListener("error", (event) => {
+  const message = event?.message || ""
+  if ((isIOS() || isGoogleInAppBrowser()) && isLikelyChunkLoadError(message)) {
+    attemptChunkRecoveryReload()
   }
 })
 

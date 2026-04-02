@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { clearModuleAuth } from "@/lib/utils/auth"
 import { restaurantAPI } from "@/lib/api"
 import { firebaseAuth } from "@/lib/firebase"
+import { removeFcmTokenForRestaurant } from "@/lib/notifications/fcmWeb"
 
 const OUTLET_STORAGE_KEY = "restaurant_selected_outlet_id"
 
@@ -122,6 +123,12 @@ export default function SwitchOutlet() {
     if (isLoggingOut) return
     setIsLoggingOut(true)
     try {
+      try {
+        await removeFcmTokenForRestaurant()
+      } catch (fcmError) {
+        console.warn("Restaurant FCM token removal failed:", fcmError)
+      }
+
       try {
         await restaurantAPI.logout()
       } catch (apiError) {

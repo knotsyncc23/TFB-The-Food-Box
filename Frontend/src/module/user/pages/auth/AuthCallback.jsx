@@ -6,6 +6,23 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { setAuthData } from "@/lib/utils/auth"
 import { registerFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
+import { authAPI } from "@/lib/api"
+import { firebaseAuth, ensureFirebaseInitialized } from "@/lib/firebase"
+import { resolveFirebaseRedirectUser } from "@/lib/utils/firebaseRedirectRecovery"
+import { appendAppleDebugLog, getAppleDebugLog } from "@/lib/utils/appleDebugLog"
+
+const redirectToUserHome = () => {
+  window.location.replace("/")
+}
+
+const logAppleCallback = (message, details = null) => {
+  appendAppleDebugLog(message, details)
+  if (details) {
+    console.log(`[AppleCallback] ${message}`, details)
+    return
+  }
+  console.log(`[AppleCallback] ${message}`)
+}
 
 export default function AuthCallback() {
   const navigate = useNavigate()
@@ -13,13 +30,27 @@ export default function AuthCallback() {
   const [status, setStatus] = useState("loading") // "loading", "success", "error"
   const [error, setError] = useState("")
   const [provider, setProvider] = useState("")
+  const [appleDebugEntries, setAppleDebugEntries] = useState(() => getAppleDebugLog())
 
   useEffect(() => {
+    const syncAppleLogs = () => {
+      setAppleDebugEntries(getAppleDebugLog())
+    }
+
     const handleAuthCallback = async () => {
       try {
+        syncAppleLogs()
         // Get provider from URL params
-        const providerParam = searchParams.get("provider") || "google"
+        const providerParam =
+          searchParams.get("provider") ||
+          (window.location.pathname.includes("/auth/apple/callback") ? "apple" : "google")
         setProvider(providerParam)
+        if (providerParam === "apple") {
+          logAppleCallback("Callback handler started", {
+            path: window.location.pathname,
+            search: window.location.search,
+          })
+        }
 
         // Get OAuth parameters from URL
         const code = searchParams.get("code")
@@ -28,6 +59,11 @@ export default function AuthCallback() {
 
         // Check for OAuth errors
         if (errorParam) {
+          if (providerParam === "apple") {
+            logAppleCallback("Apple callback returned OAuth error", {
+              error: errorParam,
+            })
+          }
           setStatus("error")
           setError(
             errorParam === "access_denied"
@@ -35,6 +71,96 @@ export default function AuthCallback() {
               : "Authentication failed. Please try again."
           )
           return
+        }
+
+        // Complete Firebase redirect flows for Apple/Google when the provider
+        // sends the browser to this callback route.
+        try {
+          const { getRedirectResult } = await import("firebase/auth")
+          await ensureFirebaseInitialized()
+
+          let firebaseUser = null
+          let redirectSource = null
+
+          if (firebaseAuth) {
+            const redirectResolution = await resolveFirebaseRedirectUser(
+              firebaseAuth,
+              getRedirectResult,
+              {
+                timeoutMs: providerParam === "apple" ? 25000 : 12000,
+                pollIntervalMs: 600,
+                shouldLog: providerParam === "apple",
+                logLabel: "AppleCallback",
+              },
+            )
+            firebaseUser = redirectResolution?.user || null
+            redirectSource = redirectResolution?.source || null
+            if (providerParam === "apple") {
+              logAppleCallback("Checked Firebase redirect result", {
+                redirectSource,
+                hasCurrentUser: !!firebaseAuth.currentUser,
+                resolvedUser: !!firebaseUser,
+                error: redirectResolution?.error?.message || null,
+              })
+            }
+          }
+
+          if (firebaseUser) {
+            const idToken = await firebaseUser.getIdToken(true)
+            if (providerParam === "apple") {
+              logAppleCallback("Got Firebase user during Apple callback", {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || null,
+                hasIdToken: !!idToken,
+                idTokenLength: idToken?.length || 0,
+              })
+            }
+            const response = await authAPI.firebaseSocialLogin(
+              idToken,
+              "user",
+              providerParam,
+            )
+            const data = response?.data?.data || {}
+            if (providerParam === "apple") {
+              logAppleCallback("Backend social login finished", {
+                hasAccessToken: !!data.accessToken,
+                hasUser: !!data.user,
+                role: data.user?.role || null,
+              })
+            }
+
+            if (!data.accessToken || !data.user) {
+              throw new Error("Invalid response from server while completing social login")
+            }
+
+            setAuthData("user", data.accessToken, data.user)
+            if (providerParam === "apple") {
+              logAppleCallback("Stored access token from Apple callback", {
+                localToken: !!localStorage.getItem("user_accessToken"),
+                sessionToken: !!sessionStorage.getItem("user_accessToken"),
+              })
+            }
+            window.dispatchEvent(new Event("userAuthChanged"))
+            registerFcmTokenForLoggedInUser().catch(() => {})
+
+            setStatus("success")
+            setTimeout(() => {
+              if (providerParam === "apple") {
+                logAppleCallback("Redirecting to home after Apple callback success")
+                syncAppleLogs()
+              }
+              redirectToUserHome()
+            }, 800)
+            return
+          }
+        } catch (firebaseError) {
+          console.error("Firebase callback completion failed:", firebaseError)
+          if (providerParam === "apple") {
+            logAppleCallback("Firebase callback completion failed", {
+              message: firebaseError?.message || "Unknown error",
+              code: firebaseError?.code || null,
+            })
+          }
         }
 
         // Check for direct token from backend (Backend OAuth flow)
@@ -47,6 +173,13 @@ export default function AuthCallback() {
 
             // Save auth data
             setAuthData("user", token, user)
+            if (providerParam === "apple") {
+              logAppleCallback("Stored token from direct backend callback", {
+                hasUser: !!user,
+                localToken: !!localStorage.getItem("user_accessToken"),
+                sessionToken: !!sessionStorage.getItem("user_accessToken"),
+              })
+            }
 
             // Notify app of auth change
             window.dispatchEvent(new Event("userAuthChanged"))
@@ -58,7 +191,11 @@ export default function AuthCallback() {
 
             // Redirect to home after short delay
             setTimeout(() => {
-              navigate("/user", { replace: true })
+              if (providerParam === "apple") {
+                logAppleCallback("Redirecting to home after direct Apple callback success")
+                syncAppleLogs()
+              }
+              redirectToUserHome()
             }, 1000)
             return
           } catch (err) {
@@ -67,30 +204,15 @@ export default function AuthCallback() {
           }
         }
 
-        // If no code and no token, it might be a direct redirect (for demo purposes)
+        // Do not fake a successful login if we have no real auth payload.
         if (!code) {
-          // Simulate OAuth flow for demo
-          await new Promise((resolve) => setTimeout(resolve, 2000))
-
-          // In a real app, you would:
-          // 1. Exchange the code for tokens
-          // 2. Get user info from the provider
-          // 3. Create/login user in your backend
-          // 4. Set authentication tokens
-
-          // For now, if we don't have a token, we can't really log them in properly
-          // unless this is just a mockup
-
-          // Store auth success in sessionStorage
-          sessionStorage.setItem("oauthSuccess", JSON.stringify({
-            provider: providerParam,
-            timestamp: Date.now(),
-          }))
-
-          // Redirect to home after short delay
-          setTimeout(() => {
-            navigate("/user")
-          }, 1500)
+          if (providerParam === "apple") {
+            logAppleCallback("Apple callback ended without code or token", {
+              search: window.location.search,
+            })
+          }
+          setStatus("error")
+          setError("Authentication did not return a valid session. Please try again.")
           return
         }
 
@@ -129,9 +251,15 @@ export default function AuthCallback() {
 
         // Redirect to home
         setTimeout(() => {
-          navigate("/user")
+          redirectToUserHome()
         }, 1500)
       } catch (err) {
+        if (provider === "apple" || window.location.pathname.includes("/auth/apple/callback")) {
+          logAppleCallback("Unhandled callback error", {
+            message: err?.message || "Unknown error",
+          })
+          syncAppleLogs()
+        }
         setStatus("error")
         setError(
           err.message || "An error occurred during authentication. Please try again."
@@ -209,6 +337,39 @@ export default function AuthCallback() {
                 <p className="text-sm md:text-base text-muted-foreground">
                   Please try signing in again or use a different method.
                 </p>
+                {provider === "apple" && appleDebugEntries.length > 0 && (
+                  <div className="mx-auto mt-4 max-w-sm rounded-lg border border-amber-200 bg-amber-50 p-3 text-left dark:border-amber-900 dark:bg-amber-950/40">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                        Apple Debug
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAppleDebugEntries(getAppleDebugLog())}
+                        className="h-auto px-2 py-1 text-[11px] text-amber-700 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100"
+                      >
+                        Refresh
+                      </Button>
+                    </div>
+                    <div className="max-h-40 space-y-2 overflow-y-auto pr-1">
+                      {appleDebugEntries.map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="rounded-md bg-white/70 p-2 text-[11px] text-amber-950 dark:bg-black/20 dark:text-amber-100"
+                        >
+                          <p className="font-medium">{entry.message}</p>
+                          {entry.details && (
+                            <pre className="mt-1 whitespace-pre-wrap break-words font-mono text-[10px] text-amber-800 dark:text-amber-200">
+                              {JSON.stringify(entry.details, null, 2)}
+                            </pre>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex flex-col sm:flex-row gap-3 w-full pt-4 md:pt-6">
                 <Button

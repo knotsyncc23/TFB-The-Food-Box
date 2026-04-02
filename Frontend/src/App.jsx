@@ -5,6 +5,7 @@ import AuthRedirect from "@/components/AuthRedirect"
 import { Suspense, lazy } from "react"
 import Loader from "@/components/Loader"
 
+// App routes stay lazy-loaded to keep the initial bundle lean.
 // Lazy Loading Components
 const UserRouter = lazy(() => import("@/module/user/components/UserRouter"))
 // User main pages - mapped to existing user module pages
@@ -18,7 +19,7 @@ const CheckoutPage = lazy(() => import("@/module/user/pages/cart/Checkout"))
 const PaymentPage = lazy(() => import("@/module/user/pages/cart/Checkout"))
 const OrdersPage = lazy(() => import("@/module/user/pages/orders/Orders"))
 const OrderDetailsPage = lazy(() => import("@/module/user/pages/orders/UserOrderDetails"))
-const OrderChatScreen = lazy(() => import("@/module/user/pages/orders/OrderTracking"))
+const OrderChatScreen = lazy(() => import("@/module/user/pages/orders/OrderChatScreen"))
 const WishlistPage = lazy(() => import("@/module/user/pages/profile/Favorites"))
 
 // Restaurant Module
@@ -43,6 +44,7 @@ const RestaurantForgotPassword = lazy(() => import("@/module/restaurant/pages/au
 const RestaurantOTP = lazy(() => import("@/module/restaurant/pages/auth/OTP"))
 const RestaurantGoogleCallback = lazy(() => import("@/module/restaurant/pages/auth/GoogleCallback"))
 const RestaurantWelcome = lazy(() => import("@/module/restaurant/pages/auth/Welcome"))
+const RestaurantOnboardingExperience = lazy(() => import("@/module/restaurant/pages/OnboardingExperience"))
 
 const AdvertisementsPage = lazy(() => import("@/module/restaurant/pages/AdvertisementsPage"))
 const AdDetailsPage = lazy(() => import("@/module/restaurant/pages/AdDetailsPage"))
@@ -150,6 +152,7 @@ export default function App() {
         <Route path="/restaurant/forgot-password" element={<AuthRedirect module="restaurant"><RestaurantForgotPassword /></AuthRedirect>} />
         <Route path="/restaurant/otp" element={<AuthRedirect module="restaurant"><RestaurantOTP /></AuthRedirect>} />
         <Route path="/restaurant/auth/google-callback" element={<AuthRedirect module="restaurant"><RestaurantGoogleCallback /></AuthRedirect>} />
+        <Route path="/restaurant/onboarding-experience" element={<RestaurantOnboardingExperience />} />
 
         {/* Restaurant Protected Routes */}
         <Route

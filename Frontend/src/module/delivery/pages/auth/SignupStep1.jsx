@@ -44,7 +44,19 @@ const INDIAN_STATES = [
   "Puducherry",
 ].sort()
 
-const STORAGE_KEY = "delivery_signup_basic_details"
+const STORAGE_KEY_PREFIX = "delivery_signup_basic_details"
+
+const getSignupStorageKey = () => {
+  try {
+    const authRaw = sessionStorage.getItem("deliveryAuthData")
+    if (!authRaw) return STORAGE_KEY_PREFIX
+    const auth = JSON.parse(authRaw)
+    const phone = String(auth?.phone || "").replace(/\D/g, "")
+    return phone ? `${STORAGE_KEY_PREFIX}_${phone}` : STORAGE_KEY_PREFIX
+  } catch {
+    return STORAGE_KEY_PREFIX
+  }
+}
 
 export default function SignupStep1() {
   const navigate = useNavigate()
@@ -67,10 +79,11 @@ export default function SignupStep1() {
   useEffect(() => {
     try {
       if (typeof window === "undefined") return
+      const scopedKey = getSignupStorageKey()
 
       // Prefer data saved from a previous visit during this session
-      const sessionStored = sessionStorage.getItem(STORAGE_KEY)
-      const localStored = localStorage.getItem(STORAGE_KEY)
+      const sessionStored = sessionStorage.getItem(scopedKey)
+      const localStored = localStorage.getItem(scopedKey)
       const raw = sessionStored || localStored
 
       if (!raw) return
@@ -138,7 +151,7 @@ export default function SignupStep1() {
       // Persist draft so navigating away and back keeps the data
       try {
         if (typeof window !== "undefined") {
-          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+          sessionStorage.setItem(getSignupStorageKey(), JSON.stringify(updated))
         }
       } catch (storageError) {
         console.warn("Failed to persist delivery signup basic details:", storageError)
@@ -291,7 +304,7 @@ export default function SignupStep1() {
         // Persist the latest saved details so returning to this page pre-fills from backend state
         try {
           if (typeof window !== "undefined") {
-            sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+            sessionStorage.setItem(getSignupStorageKey(), JSON.stringify({
               ...formData,
               name: formData.name.trim(),
               email: formData.email.trim(),
@@ -322,7 +335,19 @@ export default function SignupStep1() {
       {/* Header */}
       <div className="bg-white px-4 py-3 flex items-center gap-4 border-b border-gray-200">
         <button
-          onClick={() => navigate(-1)}
+          type="button"
+          onClick={() => {
+            try {
+              const raw = sessionStorage.getItem("deliveryAuthData")
+              if (raw) {
+                navigate("/delivery/otp")
+                return
+              }
+            } catch {
+              /* ignore */
+            }
+            navigate("/delivery/sign-in")
+          }}
           className="p-2 hover:bg-gray-100 rounded-full transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />

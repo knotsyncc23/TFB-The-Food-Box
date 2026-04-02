@@ -12,7 +12,7 @@ import { sendPushNotification } from "../../../shared/services/fcmPushService.js
 import PushNotification from "../models/PushNotification.js";
 
 /**
- * Send push notification to Customers, Delivery Man, or Restaurant
+ * Send push notification to Customers, Delivery Man, Restaurant, or All
  * POST /api/admin/push-notification
  * Body: { title, description, sendTo, zone?, image? }
  */
@@ -23,12 +23,12 @@ export const sendPushNotificationAdmin = asyncHandler(async (req, res) => {
     return errorResponse(res, 400, "title and description are required");
   }
 
-  const validSendTo = ["Customer", "Delivery Man", "Restaurant"];
+  const validSendTo = ["Customer", "Delivery Man", "Restaurant", "All"];
   if (!sendTo || !validSendTo.includes(sendTo)) {
     return errorResponse(
       res,
       400,
-      "sendTo must be one of: Customer, Delivery Man, Restaurant"
+      "sendTo must be one of: Customer, Delivery Man, Restaurant, All"
     );
   }
 

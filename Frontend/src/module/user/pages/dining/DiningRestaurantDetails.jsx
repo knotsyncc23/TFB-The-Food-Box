@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { shareContent } from "@/lib/utils/share"
 
 export default function DiningRestaurantDetails() {
     const { diningType, slug } = useParams() // Get params from URL
@@ -34,28 +35,6 @@ export default function DiningRestaurantDetails() {
     const [diningOffers, setDiningOffers] = useState([])
     const [diningMenu, setDiningMenu] = useState(null)
 
-    // Share handler (Web Share API + clipboard fallback)
-    const copyToClipboard = async (text) => {
-        try {
-            await navigator.clipboard.writeText(text)
-            toast.success("Link copied to clipboard!")
-        } catch (error) {
-            const textArea = document.createElement("textarea")
-            textArea.value = text
-            textArea.style.position = "fixed"
-            textArea.style.opacity = "0"
-            document.body.appendChild(textArea)
-            textArea.select()
-            try {
-                document.execCommand("copy")
-                toast.success("Link copied to clipboard!")
-            } catch (err) {
-                toast.error("Failed to copy link")
-            }
-            document.body.removeChild(textArea)
-        }
-    }
-
     const handleShareClick = async () => {
         if (!restaurant) return
 
@@ -63,23 +42,17 @@ export default function DiningRestaurantDetails() {
         const shareTitle = `${restaurant.name || "Dining"} - Tifunbox`
         const shareText = `Book your table at ${restaurant.name || "this restaurant"} on Tifunbox.`
 
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: shareTitle,
-                    text: shareText,
-                    url: shareUrl,
-                })
-                return
-            } catch (error) {
-                if (error.name === "AbortError") {
-                    return
-                }
-                // fall through to clipboard fallback
-            }
-        }
+        const result = await shareContent({
+            title: shareTitle,
+            text: shareText,
+            url: shareUrl,
+        })
 
-        await copyToClipboard(shareUrl)
+        if (result.method === "whatsapp") {
+            toast.success("Opening share options")
+        } else if (result.method === "clipboard") {
+            toast.success("Share link copied")
+        }
     }
 
     // Fetch data
@@ -92,10 +65,14 @@ export default function DiningRestaurantDetails() {
                 const response = await diningAPI.getRestaurantBySlug(slug)
 
                 if (response.data && response.data.success) {
-                    const apiRestaurant = response.data.data
-                    // Check if this is a dining restaurant with nested restaurant data
-                    const actualRestaurant = apiRestaurant?.restaurant || apiRestaurant
-                    setRestaurant(actualRestaurant)
+                    const raw = response.data.data
+                    const inner = raw?.restaurant || raw
+                    setRestaurant({
+                        ...inner,
+                        ...(raw.menuRestaurantId
+                            ? { menuRestaurantId: raw.menuRestaurantId }
+                            : {}),
+                    })
                 } else {
                     // Fallback: search by name if slug lookup fails directly (though getRestaurantById usually handles slugs)
                     // For now, assuming direct slug work or we might need the search logic from RestaurantDetails.jsx
@@ -153,10 +130,11 @@ export default function DiningRestaurantDetails() {
 
     // Fetch restaurant menu for Menu tab (with images)
     useEffect(() => {
-        if (!restaurant?._id) return
+        const menuId = restaurant?.menuRestaurantId || restaurant?._id
+        if (!menuId) return
         const fetchMenu = async () => {
             try {
-                const res = await restaurantAPI.getMenuByRestaurantId(restaurant._id)
+                const res = await restaurantAPI.getMenuByRestaurantId(menuId)
                 const data = res?.data?.data || res?.data
                 setDiningMenu(data?.menu || data || null)
             } catch {
@@ -164,7 +142,7 @@ export default function DiningRestaurantDetails() {
             }
         }
         fetchMenu()
-    }, [restaurant?._id])
+    }, [restaurant?.menuRestaurantId, restaurant?._id])
 
     if (loading) {
         return (

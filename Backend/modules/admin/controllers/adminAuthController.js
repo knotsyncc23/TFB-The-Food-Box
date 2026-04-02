@@ -3,6 +3,10 @@ import jwtService from '../../auth/services/jwtService.js';
 import otpService from '../../auth/services/otpService.js';
 import { successResponse, errorResponse } from '../../../shared/utils/response.js';
 import { asyncHandler } from '../../../shared/middleware/asyncHandler.js';
+import {
+  getRefreshTokenCookieOptions,
+  getClearRefreshTokenCookieOptions,
+} from '../../../config/refreshCookie.js';
 import winston from 'winston';
 
 const logger = winston.createLogger({
@@ -67,12 +71,7 @@ export const adminSignup = asyncHandler(async (req, res) => {
     });
 
     // Set refresh token in httpOnly cookie
-    res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
+    res.cookie('refreshToken', tokens.refreshToken, getRefreshTokenCookieOptions());
 
     // Remove password from response
     const adminResponse = admin.toObject();
@@ -136,12 +135,7 @@ export const adminLogin = asyncHandler(async (req, res) => {
   });
 
   // Set refresh token in httpOnly cookie
-  res.cookie('refreshToken', tokens.refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-  });
+  res.cookie('refreshToken', tokens.refreshToken, getRefreshTokenCookieOptions());
 
   // Remove password from response
   const adminResponse = admin.toObject();
@@ -217,12 +211,7 @@ export const adminSignupWithOTP = asyncHandler(async (req, res) => {
     });
 
     // Set refresh token in httpOnly cookie
-    res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
+    res.cookie('refreshToken', tokens.refreshToken, getRefreshTokenCookieOptions());
 
     // Remove password from response
     const adminResponse = admin.toObject();
@@ -275,12 +264,7 @@ export const getCurrentAdmin = asyncHandler(async (req, res) => {
  */
 export const adminLogout = asyncHandler(async (req, res) => {
   // Clear refresh token cookie
-  res.cookie('refreshToken', '', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 0
-  });
+  res.clearCookie('refreshToken', getClearRefreshTokenCookieOptions());
 
   logger.info(`Admin logged out: ${req.user?._id || req.user?.userId}`);
 

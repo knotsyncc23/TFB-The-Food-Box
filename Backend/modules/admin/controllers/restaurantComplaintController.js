@@ -20,6 +20,9 @@ export const getAllComplaints = asyncHandler(async (req, res) => {
     } = req.query;
 
     const query = {};
+    const normalizedSearch = typeof search === 'string'
+      ? search.replace(/\s+/g, '').trim()
+      : '';
 
     // Status filter
     if (status) {
@@ -52,14 +55,14 @@ export const getAllComplaints = asyncHandler(async (req, res) => {
     }
 
     // Search filter
-    if (search) {
+    if (normalizedSearch) {
       query.$or = [
-        { orderNumber: { $regex: search, $options: 'i' } },
-        { customerName: { $regex: search, $options: 'i' } },
-        { customerPhone: { $regex: search, $options: 'i' } },
-        { restaurantName: { $regex: search, $options: 'i' } },
-        { subject: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { orderNumber: { $regex: normalizedSearch, $options: 'i' } },
+        { customerName: { $regex: normalizedSearch, $options: 'i' } },
+        { customerPhone: { $regex: normalizedSearch, $options: 'i' } },
+        { restaurantName: { $regex: normalizedSearch, $options: 'i' } },
+        { subject: { $regex: normalizedSearch, $options: 'i' } },
+        { description: { $regex: normalizedSearch, $options: 'i' } }
       ];
     }
 

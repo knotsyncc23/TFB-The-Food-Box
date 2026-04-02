@@ -447,6 +447,25 @@ export const detectUserZone = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get all active zones (PUBLIC API)
+ * GET /api/zones/active
+ */
+export const getActiveZonesPublic = asyncHandler(async (req, res) => {
+  try {
+    const zones = await Zone.find({ isActive: true })
+      .select('name zoneName country coordinates isActive')
+      .lean();
+
+    return successResponse(res, 200, 'Active zones retrieved successfully', {
+      zones
+    });
+  } catch (error) {
+    console.error('Error fetching active zones (public):', error);
+    return errorResponse(res, 500, 'Failed to fetch active zones');
+  }
+});
+
+/**
  * Calculate zone centroid (average of all coordinates)
  */
 function calculateZoneCentroid(coordinates) {
@@ -533,4 +552,3 @@ export const checkLocationInZone = asyncHandler(async (req, res) => {
     return errorResponse(res, 500, 'Failed to check location');
   }
 });
-

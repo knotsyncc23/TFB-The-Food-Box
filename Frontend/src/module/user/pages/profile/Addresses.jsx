@@ -58,7 +58,7 @@ export default function Addresses() {
           <div className="space-y-3">
             {addresses.map((addr) => (
               <Card
-                key={addr.id || addr.label}
+                key={addr.id || addr._id || addr.label}
                 className="bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 shadow-sm"
               >
                 <CardContent className="p-4">

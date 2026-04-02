@@ -6,7 +6,7 @@ const pushNotificationSchema = new mongoose.Schema(
     description: { type: String, required: true, trim: true },
     sendTo: {
       type: String,
-      enum: ["Customer", "Delivery Man", "Restaurant"],
+      enum: ["Customer", "Delivery Man", "Restaurant", "All"],
       required: true,
       index: true,
     },

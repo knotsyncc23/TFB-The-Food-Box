@@ -27,6 +27,92 @@ import { restaurantAPI, uploadAPI } from "@/lib/api"
 import { openCameraViaFlutter, hasFlutterCameraBridge } from "@/lib/utils/cameraBridge"
 import { toast } from "sonner"
 
+const isAddonApproved = (addon) => {
+  const status = String(addon?.approvalStatus || "").trim().toLowerCase()
+  if (status === "approved") return true
+  if (status === "pending" || status === "rejected") return false
+  if (addon?.isApproved === true) return true
+  if (addon?.approvedAt && !addon?.rejectedAt) return true
+  return false
+}
+
+function itemMatchesActiveFilter(item, activeFilter) {
+  if (!activeFilter) return true
+  switch (activeFilter) {
+    case "recommended":
+      return item.isRecommended
+    case "out-of-stock":
+    case "item-not-live":
+      return !item.isAvailable
+    case "no-photos":
+      return !item.image || item.photoCount === 0
+    case "without-description":
+      return !item.description || item.description.trim() === ""
+    case "without-serving-info":
+      return !item.variations || item.variations.length === 0
+    case "veg":
+      return item.foodType === "Veg"
+    case "non-veg":
+      return item.foodType !== "Veg"
+    default:
+      return true
+  }
+}
+
+function itemMatchesSearch(item, searchQuery, sectionName) {
+  if (!searchQuery || !searchQuery.trim()) return true
+  const q = searchQuery.toLowerCase().trim()
+  return (
+    (item.name && item.name.toLowerCase().includes(q)) ||
+    (item.category && item.category.toLowerCase().includes(q)) ||
+    (sectionName && sectionName.toLowerCase().includes(q)) ||
+    (item.description && item.description.toLowerCase().includes(q))
+  )
+}
+
+/** Apply hub filters/search to section items and nested subsections (must match public menu structure). */
+function filterMenuGroup(group, activeFilter, searchQuery) {
+  let items = [...(group.items || [])]
+  let subsections = (group.subsections || []).map((sub) => ({
+    ...sub,
+    items: [...(sub.items || [])],
+  }))
+
+  if (activeFilter) {
+    items = items.filter((item) => itemMatchesActiveFilter(item, activeFilter))
+    subsections = subsections
+      .map((sub) => ({
+        ...sub,
+        items: (sub.items || []).filter((item) => itemMatchesActiveFilter(item, activeFilter)),
+      }))
+      .filter((sub) => sub.items.length > 0)
+  }
+
+  if (searchQuery && searchQuery.trim()) {
+    items = items.filter((item) => itemMatchesSearch(item, searchQuery, group.name))
+    subsections = subsections
+      .map((sub) => ({
+        ...sub,
+        items: (sub.items || []).filter((item) => itemMatchesSearch(item, searchQuery, group.name)),
+      }))
+      .filter((sub) => sub.items.length > 0)
+  }
+
+  return { ...group, items, subsections }
+}
+
+function groupHasVisibleItems(group) {
+  const direct = (group.items || []).length > 0
+  const inSub = (group.subsections || []).some((s) => (s.items || []).length > 0)
+  return direct || inSub
+}
+
+function countAllItemsInGroup(group) {
+  const direct = group.items || []
+  const sub = (group.subsections || []).flatMap((s) => s.items || [])
+  return direct.length + sub.length
+}
+
 export default function HubMenu() {
   const navigate = useNavigate()
   const [loadingMenu, setLoadingMenu] = useState(true)
@@ -119,10 +205,12 @@ export default function HubMenu() {
       "without-description": allItems.filter(item => !item.description || item.description.trim() === "").length,
       "without-serving-info": allItems.filter(item => !item.variations || item.variations.length === 0).length,
       "item-not-live": allItems.filter(item => !item.isAvailable).length,
-      "photos-rejected": 0, // This would need a status field in the item model
-      "under-review": 0, // This would need a status field in the item model
-      goods: 0, // This would need a category type field
-      services: 0, // This would need a category type field
+      "veg": allItems.filter(item => item.foodType === "Veg").length,
+      "non-veg": allItems.filter(item => item.foodType !== "Veg").length,
+      "photos-rejected": 0,
+      "under-review": 0,
+      goods: 0,
+      services: 0,
     }
 
     return counts
@@ -130,14 +218,12 @@ export default function HubMenu() {
 
   // Filter options with dynamic counts
   const filterOptions = useMemo(() => [
+    { id: "veg", label: "Veg", count: calculateFilterCounts.veg },
+    { id: "non-veg", label: "Non-Veg", count: calculateFilterCounts["non-veg"] },
     { id: "recommended", label: "Recommended", count: calculateFilterCounts.recommended },
     { id: "out-of-stock", label: "Out of stock", count: calculateFilterCounts["out-of-stock"] },
-    { id: "goods", label: "Goods", count: calculateFilterCounts.goods },
-    { id: "services", label: "Services", count: calculateFilterCounts.services },
     { id: "item-not-live", label: "Item not live", count: calculateFilterCounts["item-not-live"] },
-    { id: "photos-rejected", label: "Photos rejected", count: calculateFilterCounts["photos-rejected"] },
     { id: "no-photos", label: "No photos", count: calculateFilterCounts["no-photos"] },
-    { id: "under-review", label: "Under review", count: calculateFilterCounts["under-review"] },
     { id: "without-description", label: "Without description", count: calculateFilterCounts["without-description"] },
     { id: "without-serving-info", label: "Without serving info", count: calculateFilterCounts["without-serving-info"] },
   ], [calculateFilterCounts])
@@ -145,14 +231,14 @@ export default function HubMenu() {
   // Quick filter buttons (horizontally scrollable) - only show filters with count > 0
   const quickFilters = useMemo(() => {
     const filters = [
+      { id: "veg", label: "Veg", count: calculateFilterCounts.veg },
+      { id: "non-veg", label: "Non-Veg", count: calculateFilterCounts["non-veg"] },
       { id: "out-of-stock", label: "Out of stock", count: calculateFilterCounts["out-of-stock"] },
       { id: "no-photos", label: "No photos", count: calculateFilterCounts["no-photos"] },
-      { id: "recommended", label: "Recommended", count: calculateFilterCounts.recommended },
-      { id: "services", label: "Services", count: calculateFilterCounts.services },
-      { id: "photos-rejected", label: "Photos Rejected", count: calculateFilterCounts["photos-rejected"] },
     ]
-    // Only return filters with count > 0
-    return filters.filter(f => f.count > 0)
+    // Only return filters with count > 0, but keep Veg/Non-veg if we want them always?
+    // Bug 69 says non veg categories should be visible in pure veg mode.
+    return filters.filter(f => f.count > 0 || f.id === "veg" || f.id === "non-veg")
   }, [calculateFilterCounts])
 
   // Menu groups are now directly from menuData (fetched from backend)
@@ -368,7 +454,7 @@ export default function HubMenu() {
       const response = await restaurantAPI.getAddons()
       const data = response?.data?.data?.addons || response?.data?.addons || []
       // Filter to show only approved add-ons
-      const approvedAddons = data.filter(addon => addon.approvalStatus === 'approved')
+      const approvedAddons = data.filter((addon) => isAddonApproved(addon))
       setAddons(approvedAddons)
     } catch (error) {
       console.error('Error fetching add-ons:', error)
@@ -624,47 +710,13 @@ export default function HubMenu() {
   }, [isFilterOpen, isAddPopupOpen, isMenuOpen, isAvailabilityPopupOpen,
     isCategoryOptionsOpen, isEditCategoryOpen, isAddSubCategoryOpen, isAddCategoryPopupOpen, isSearchOpen, isAddAddonModalOpen])
 
-  // Filter menu based on active filter and search query
+  // Filter menu based on active filter and search query (includes subsection items)
   const filteredMenuGroups = useMemo(() => {
-    let filtered = menuData
-
-    // Apply filter-based filtering
-    if (activeFilter) {
-      filtered = filtered.map(group => {
-        const filteredItems = group.items.filter(item => {
-          switch (activeFilter) {
-            case "recommended":
-              return item.isRecommended
-            case "out-of-stock":
-              return !item.isAvailable
-            case "no-photos":
-              return !item.image || item.photoCount === 0
-            case "without-description":
-              return !item.description || item.description.trim() === ""
-            case "without-serving-info":
-              return !item.variations || item.variations.length === 0
-            default:
-              return true
-          }
-        })
-        return { ...group, items: filteredItems }
-      }).filter(group => group.items.length > 0)
-    }
-
-    // Apply search query filtering
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim()
-      filtered = filtered.map(group => {
-        const filteredItems = group.items.filter(item => {
-          return item.name.toLowerCase().includes(query) ||
-            item.category.toLowerCase().includes(query) ||
-            (item.description && item.description.toLowerCase().includes(query))
-        })
-        return { ...group, items: filteredItems }
-      }).filter(group => group.items.length > 0)
-    }
-
-    return filtered
+    return menuData
+      .map((group) => filterMenuGroup(group, activeFilter, searchQuery))
+      // Bug fix: Always show categories even if they are empty so user knows they exist
+      // especially in "Pure Veg" mode where empty non-veg categories should still show.
+      // .filter(groupHasVisibleItems) 
   }, [menuData, activeFilter, searchQuery])
 
   // Toggle group expansion
@@ -681,9 +733,13 @@ export default function HubMenu() {
   }
 
   // Toggle item stock status - opens popup
-  const toggleItemStock = (itemId, groupId) => {
+  const toggleItemStock = async (itemId, groupId) => {
     const group = menuData.find(g => g.id === groupId)
-    const item = group?.items.find(i => i.id === itemId)
+    const item =
+      group?.items?.find((i) => String(i.id) === String(itemId)) ||
+      group?.subsections
+        ?.flatMap((s) => s.items || [])
+        .find((i) => String(i.id) === String(itemId))
     if (item && item.isAvailable) {
       // Opening popup to switch off
       setSwitchingOffTarget({ type: 'item', id: itemId, groupId })
@@ -693,10 +749,26 @@ export default function HubMenu() {
       // Directly turn on (no popup needed)
       setMenuData(prev => prev.map(g => ({
         ...g,
-        items: g.items.map(i =>
+        items: (g.items || []).map(i =>
           i.id === itemId ? { ...i, isAvailable: true } : i
-        )
+        ),
+        subsections: (g.subsections || []).map(sub => ({
+          ...sub,
+          items: (sub.items || []).map(i =>
+            i.id === itemId ? { ...i, isAvailable: true } : i
+          )
+        }))
       })))
+      // Also notify backend
+      try {
+        await restaurantAPI.scheduleItemAvailability({
+          sectionId: groupId,
+          itemId: itemId,
+          scheduleType: 'manual_on'
+        });
+      } catch (err) {
+        console.error('Error turning on item:', err);
+      }
     }
   }
 
@@ -874,26 +946,21 @@ export default function HubMenu() {
     try {
       // Add category to backend
       const response = await restaurantAPI.addSection(newCategoryName.trim())
+      const section = response?.data?.data?.section
+      const ok =
+        response?.data?.success === true &&
+        section &&
+        (section.id != null || section._id != null)
 
-      if (response.data && response.data.success) {
-        // Refresh menu data
+      if (ok) {
         const menuResponse = await restaurantAPI.getMenu()
         if (menuResponse.data && menuResponse.data.success && menuResponse.data.data && menuResponse.data.data.menu) {
           setMenuData(menuResponse.data.data.menu.sections || [])
         }
 
-        toast.success('Category added successfully!')
-
-        // Navigate to new item page with new category
-        navigate('/restaurant/hub-menu/item/new', {
-          state: {
-            category: newCategoryName.trim(),
-            isNewCategory: true,
-            sectionId: response.data.data.section.id
-          }
-        })
+        toast.success(`Category "${newCategoryName.trim()}" added successfully!`)
       } else {
-        toast.error(response.data?.message || 'Failed to add category')
+        toast.error(response?.data?.message || 'Failed to add category')
       }
     } catch (error) {
       console.error('Error adding category:', error)
@@ -1091,8 +1158,18 @@ export default function HubMenu() {
             {/* Add Add-on Button */}
             <div className="mb-6">
               <button
-                onClick={() => setIsAddAddonModalOpen(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                onClick={() => {
+                  if (restaurantData?.approvedAt) {
+                    setIsAddAddonModalOpen(true);
+                  } else {
+                    toast.error("You cannot add add-ons until your restaurant is verified by admin.");
+                  }
+                }}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                  restaurantData?.approvedAt
+                    ? "bg-red-600 hover:bg-red-700 text-white"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed border-gray-300"
+                }`}
               >
                 <Plus className="h-5 w-5" />
                 <span>Add Add-on</span>
@@ -1196,9 +1273,77 @@ export default function HubMenu() {
             )}
             {filteredMenuGroups.map((group) => {
               const isExpanded = expandedGroups.has(group.id)
-              const itemCount = group.items.length
-              const enabledItems = group.items.filter(item => item.isAvailable).length
-              const varietyCount = group.items.reduce((sum, item) => sum + (item.variations?.length || 0), 0)
+              const flatForStats = [
+                ...(group.items || []),
+                ...(group.subsections || []).flatMap((s) => s.items || []),
+              ]
+              const enabledItems = flatForStats.filter((item) => item.isAvailable).length
+              const varietyCount = flatForStats.reduce((sum, item) => sum + (item.variations?.length || 0), 0)
+
+              const renderItemRow = (item, rowKey) => (
+                <div key={rowKey} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div
+                          className={`w-4 h-4 rounded-sm border-2 shrink-0 flex items-center justify-center ${item.foodType === "Veg"
+                            ? "bg-green-50 border-green-600"
+                            : "bg-red-50 border-red-600"
+                            }`}
+                        >
+                          <div className={`w-2 h-2 rounded-full ${item.foodType === "Veg"
+                            ? "bg-green-600"
+                            : "bg-red-600"
+                            }`} />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h5 className="text-base font-bold text-gray-900">{item.name}</h5>
+                        {item.approvalStatus && (
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${item.approvalStatus === 'approved'
+                              ? 'bg-red-100 text-red-700 border border-red-300'
+                              : item.approvalStatus === 'rejected'
+                                ? 'bg-red-100 text-red-700 border border-red-300'
+                                : 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                              }`}
+                          >
+                            {item.approvalStatus === 'approved'
+                              ? 'Approved'
+                              : item.approvalStatus === 'rejected'
+                                ? 'Rejected'
+                                : 'Pending'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-medium text-gray-700 mb-3">₹{item.price}</p>
+                    </div>
+                    <div className="relative">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-20 h-20 rounded-lg object-cover"
+                      />
+                      <div className="absolute bottom-1 right-1 bg-black/60 rounded-full p-1">
+                        <div className="flex items-center gap-1">
+                          <Camera className="w-3 h-3 text-white" />
+                          <span className="text-white text-xs font-semibold">{item.photoCount}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center gap-3 mt-4">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/restaurant/hub-menu/item/${item.id}`, { state: { item, groupId: group.id } })}
+                      className="flex items-center gap-1.5 bg-transparent text-gray-700 text-sm font-medium"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+                  </div>
+                </div>
+              )
 
               return (
                 <div
@@ -1248,79 +1393,23 @@ export default function HubMenu() {
 
                   {isExpanded && (
                     <div className="p-4 space-y-2">
-                      {/* Items */}
                       <div className="space-y-4">
-                        {group.items.map((item) => (
-                          <div key={item.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
-                            <div className="flex items-start gap-3">
-                              {/* Left: Veg/Non-veg icon, name, price */}
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <div
-                                    className={`w-4 h-4 rounded-sm border-2 shrink-0 flex items-center justify-center ${item.foodType === "Veg"
-                                      ? "bg-red-50 border-red-600"
-                                      : "bg-red-50 border-red-600"
-                                      }`}
-                                  >
-                                    <div className={`w-2 h-2 rounded-full ${item.foodType === "Veg"
-                                      ? "bg-red-600"
-                                      : "bg-red-600"
-                                      }`} />
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h5 className="text-base font-bold text-gray-900">{item.name}</h5>
-                                  {/* Approval Status Tag */}
-                                  {item.approvalStatus && (
-                                    <span
-                                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${item.approvalStatus === 'approved'
-                                        ? 'bg-red-100 text-red-700 border border-red-300'
-                                        : item.approvalStatus === 'rejected'
-                                          ? 'bg-red-100 text-red-700 border border-red-300'
-                                          : 'bg-yellow-100 text-yellow-700 border border-yellow-300'
-                                        }`}
-                                    >
-                                      {item.approvalStatus === 'approved'
-                                        ? 'Approved'
-                                        : item.approvalStatus === 'rejected'
-                                          ? 'Rejected'
-                                          : 'Pending'}
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-sm font-medium text-gray-700 mb-3">₹{item.price}</p>
-                              </div>
-
-                              {/* Right: Image */}
-                              <div className="relative">
-                                <img
-                                  src={item.image}
-                                  alt={item.name}
-                                  className="w-20 h-20 rounded-lg object-cover"
-                                />
-                                <div className="absolute bottom-1 right-1 bg-black/60 rounded-full p-1">
-                                  <div className="flex items-center gap-1">
-                                    <Camera className="w-3 h-3 text-white" />
-                                    <span className="text-white text-xs font-semibold">{item.photoCount}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Action buttons - below image */}
-                            <div className="flex items-center justify-center gap-3 mt-4">
-                              <button
-                                onClick={() => navigate(`/restaurant/hub-menu/item/${item.id}`, { state: { item, groupId: group.id } })}
-                                className="flex items-center gap-1.5 bg-transparent text-gray-700 text-sm font-medium"
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                                <span>Edit</span>
-                              </button>
+                        {(group.items || []).map((item) =>
+                          renderItemRow(item, `${group.id}-item-${item.id}`),
+                        )}
+                        {(group.subsections || []).map((sub) => (
+                          <div key={sub.id} className="space-y-3 pt-2">
+                            <h4 className="text-sm font-semibold text-gray-600 border-b border-gray-100 pb-1">
+                              {sub.name}
+                            </h4>
+                            <div className="space-y-4">
+                              {(sub.items || []).map((item) =>
+                                renderItemRow(item, `${group.id}-sub-${sub.id}-${item.id}`),
+                              )}
                             </div>
                           </div>
                         ))}
                       </div>
-
                     </div>
                   )}
                 </div>
@@ -1426,16 +1515,25 @@ export default function HubMenu() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-4 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-bold text-gray-900 text-center">Add item</h2>
+                <h2 className="text-lg font-bold text-gray-900 text-center">Add</h2>
               </div>
               <div className="px-4 py-4 space-y-2">
                 <button
+                  type="button"
                   onClick={() => {
+                    setIsAddPopupOpen(false)
                     navigate(`/restaurant/hub-menu/item/new`)
                   }}
                   className="w-full py-3 px-4 text-left rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <span className="text-sm font-medium text-gray-900">Add item</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenAddCategory}
+                  className="w-full py-3 px-4 text-left rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <span className="text-sm font-medium text-gray-900">Add category</span>
                 </button>
               </div>
             </motion.div>
@@ -1564,12 +1662,23 @@ export default function HubMenu() {
 
         {activeTab !== "add-ons" && (
           <motion.button
-            whileTap={{ scale: 0.96 }}
-            onClick={() => setIsAddPopupOpen(true)}
-            className="px-4 py-2 border bg-black text-white border-gray-800 rounded-lg text-sm font-bold"
+            whileTap={{ scale: restaurantData?.approvedAt ? 0.96 : 1 }}
+            onClick={() => {
+              if (restaurantData?.approvedAt) {
+                setIsAddPopupOpen(true);
+              } else {
+                toast.error("You cannot add items until your restaurant is verified by admin.");
+              }
+            }}
+            className={`px-4 py-2 border rounded-lg text-sm font-bold ${
+              restaurantData?.approvedAt 
+                ? "bg-black text-white border-gray-800" 
+                : "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed"
+            }`}
           >
             + ADD
-          </motion.button>)}
+          </motion.button>
+        )}
 
         {/* Menu Button */}
         {activeTab !== "add-ons" && (
@@ -1614,7 +1723,11 @@ export default function HubMenu() {
                       <div className="h-px bg-gray-200 mx-4" />
                       <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1">
                         {menuData.map((category, index) => {
-                          const itemCount = category.items.filter(item => item.isAvailable).length
+                          const allCatItems = [
+                            ...(category.items || []),
+                            ...(category.subsections || []).flatMap((s) => s.items || []),
+                          ]
+                          const itemCount = allCatItems.filter((item) => item.isAvailable).length
                           const isLast = index === menuData.length - 1
 
                           return (
@@ -1922,7 +2035,7 @@ export default function HubMenu() {
                       : "bg-gray-300 text-gray-500 cursor-not-allowed"
                       }`}
                   >
-                    Continue
+                    Add Category
                   </button>
                 </div>
               </div>
@@ -1993,12 +2106,12 @@ export default function HubMenu() {
                       {filteredMenuGroups.map((group) => (
                         <div key={group.id} className="space-y-3">
                           <h3 className="text-sm font-bold text-gray-900 uppercase">
-                            {group.name} ({group.items.length})
+                            {group.name} ({countAllItemsInGroup(group)})
                           </h3>
                           <div className="space-y-3">
-                            {group.items.map((item) => (
+                            {(group.items || []).map((item) => (
                               <div
-                                key={item.id}
+                                key={`${group.id}-i-${item.id}`}
                                 onClick={() => {
                                   setIsSearchOpen(false)
                                   navigate(`/restaurant/hub-menu/item/${item.id}`, {
@@ -2016,12 +2129,12 @@ export default function HubMenu() {
                                   <div className="flex items-center gap-2 mb-1">
                                     <div
                                       className={`w-4 h-4 rounded-sm border-2 shrink-0 flex items-center justify-center ${item.foodType === "Veg"
-                                        ? "bg-red-50 border-red-600"
+                                        ? "bg-green-50 border-green-600"
                                         : "bg-red-50 border-red-600"
                                         }`}
                                     >
                                       <div className={`w-2 h-2 rounded-full ${item.foodType === "Veg"
-                                        ? "bg-red-600"
+                                        ? "bg-green-600"
                                         : "bg-red-600"
                                         }`} />
                                     </div>
@@ -2034,6 +2147,51 @@ export default function HubMenu() {
                                     <span className="text-xs text-red-600 font-medium">Out of stock</span>
                                   )}
                                 </div>
+                              </div>
+                            ))}
+                            {(group.subsections || []).map((sub) => (
+                              <div key={sub.id} className="space-y-2">
+                                {(sub.items || []).map((item) => (
+                                  <div
+                                    key={`${group.id}-s-${sub.id}-${item.id}`}
+                                    onClick={() => {
+                                      setIsSearchOpen(false)
+                                      navigate(`/restaurant/hub-menu/item/${item.id}`, {
+                                        state: { item, groupId: group.id }
+                                      })
+                                    }}
+                                    className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+                                  >
+                                    <img
+                                      src={item.image}
+                                      alt={item.name}
+                                      className="w-16 h-16 rounded-lg object-cover"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs text-gray-500 font-medium mb-0.5">{sub.name}</p>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <div
+                                          className={`w-4 h-4 rounded-sm border-2 shrink-0 flex items-center justify-center ${item.foodType === "Veg"
+                                            ? "bg-green-50 border-green-600"
+                                            : "bg-red-50 border-red-600"
+                                            }`}
+                                        >
+                                          <div className={`w-2 h-2 rounded-full ${item.foodType === "Veg"
+                                            ? "bg-green-600"
+                                            : "bg-red-600"
+                                            }`} />
+                                        </div>
+                                        <h4 className="text-sm font-bold text-gray-900 truncate">
+                                          {item.name}
+                                        </h4>
+                                      </div>
+                                      <p className="text-sm font-medium text-gray-700">₹{item.price}</p>
+                                      {!item.isAvailable && (
+                                        <span className="text-xs text-red-600 font-medium">Out of stock</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             ))}
                           </div>
@@ -2068,7 +2226,7 @@ export default function HubMenu() {
                     onClick={() => setIsSearchOpen(false)}
                     className="w-full py-3 rounded-lg font-semibold text-sm bg-gray-900 text-white hover:bg-gray-800 transition-colors"
                   >
-                    View Results ({filteredMenuGroups.reduce((acc, group) => acc + group.items.length, 0)} items)
+                    View Results ({filteredMenuGroups.reduce((acc, group) => acc + countAllItemsInGroup(group), 0)} items)
                   </button>
                 </div>
               )}
@@ -2210,13 +2368,29 @@ export default function HubMenu() {
                     className="hidden"
                   />
                   <div className="flex gap-2">
-                    <label
-                      htmlFor="addon-gallery-upload"
+                    <button
+                      type="button"
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-red-500 hover:bg-red-50 transition-colors"
+                      onClick={async () => {
+                        if (hasFlutterCameraBridge()) {
+                          const { success, file } = await openCameraViaFlutter({
+                            source: "gallery",
+                          })
+                          if (success && file) {
+                            handleAddonImageAdd({ target: { files: [file] } })
+                          }
+                          return
+                        }
+
+                        // Browser fallback: open regular file picker (native UI).
+                        document
+                          .getElementById("addon-gallery-upload")
+                          ?.click()
+                      }}
                     >
                       <Upload className="h-5 w-5 text-gray-500" />
                       <span className="text-sm font-medium text-gray-700">Gallery</span>
-                    </label>
+                    </button>
                     <button
                       type="button"
                       onClick={async () => {

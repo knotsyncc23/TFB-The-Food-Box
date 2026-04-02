@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react"
-import { Search, Download, ChevronDown, Calendar, Eye, FileDown, FileSpreadsheet, FileText, X, Mail, Phone, MapPin, Package, IndianRupee, Calendar as CalendarIcon, User, CheckCircle, XCircle } from "lucide-react"
+import { Search, Download, ChevronDown, Eye, FileDown, FileSpreadsheet, FileText, X, Mail, Phone, MapPin, Package, IndianRupee, Calendar as CalendarIcon, User, CheckCircle, XCircle } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { exportCustomersToCSV, exportCustomersToExcel, exportCustomersToPDF } from "../components/customers/customersExportUtils"
 import { adminAPI } from "@/lib/api"
@@ -11,7 +11,6 @@ export default function Customers() {
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [totalCustomers, setTotalCustomers] = useState(0)
-  const [selectedCustomer, setSelectedCustomer] = useState(null)
   const [userDetails, setUserDetails] = useState(null)
   const [loadingDetails, setLoadingDetails] = useState(false)
   const [showUserDetails, setShowUserDetails] = useState(false)
@@ -25,14 +24,14 @@ export default function Customers() {
 
   const filteredCustomers = useMemo(() => {
     let result = [...customers]
+    const normalizedQuery = searchQuery.replace(/\s+/g, "").toLowerCase()
     
     // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim()
+    if (normalizedQuery) {
       result = result.filter(customer =>
-        customer.name.toLowerCase().includes(query) ||
-        customer.email.toLowerCase().includes(query) ||
-        customer.phone.includes(query)
+        (customer.name || "").replace(/\s+/g, "").toLowerCase().includes(normalizedQuery) ||
+        (customer.email || "").replace(/\s+/g, "").toLowerCase().includes(normalizedQuery) ||
+        String(customer.phone || "").replace(/\s+/g, "").includes(normalizedQuery)
       )
     }
 
@@ -71,9 +70,10 @@ export default function Customers() {
       }
     }
 
-    // Limit results if "Choose First" is set
+    // Filter by order amount (minimum)
     if (filters.chooseFirst && parseInt(filters.chooseFirst) > 0) {
-      result = result.slice(0, parseInt(filters.chooseFirst))
+      const minOrderAmount = parseInt(filters.chooseFirst)
+      result = result.filter((customer) => (customer.totalOrderAmount || 0) >= minOrderAmount)
     }
 
     return result
@@ -88,10 +88,10 @@ export default function Customers() {
     const fetchCustomers = async () => {
       try {
         setLoading(true)
-        const params = {
+      const params = {
           limit: 1000, // Get all customers
           offset: 0,
-          ...(searchQuery && { search: searchQuery }),
+          ...(searchQuery.trim() && { search: searchQuery.trim() }),
           ...(filters.status && { status: filters.status }),
           ...(filters.joiningDate && { joiningDate: filters.joiningDate }),
           ...(filters.sortBy && { sortBy: filters.sortBy }),
@@ -150,7 +150,6 @@ export default function Customers() {
     try {
       setLoadingDetails(true)
       setShowUserDetails(true)
-      setSelectedCustomer(customerId)
 
       const response = await adminAPI.getUserById(customerId)
       const data = response?.data?.data || response?.data
@@ -216,9 +215,8 @@ export default function Customers() {
                   type="date"
                   value={filters.orderDate}
                   onChange={(e) => handleFilterChange("orderDate", e.target.value)}
-                  className="w-full px-4 py-2.5 pr-10 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 />
-                <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
@@ -231,9 +229,8 @@ export default function Customers() {
                   type="date"
                   value={filters.joiningDate}
                   onChange={(e) => handleFilterChange("joiningDate", e.target.value)}
-                  className="w-full px-4 py-2.5 pr-10 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 />
-                <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
@@ -287,9 +284,9 @@ export default function Customers() {
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => {
-                  // Filters are applied automatically via useMemo
+                  setFilters((prev) => ({ ...prev }))
                 }}
-                className="px-6 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all"
+                className="px-6 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all cursor-pointer"
               >
                 Apply Filters
               </button>
@@ -330,7 +327,7 @@ export default function Customers() {
                   type="text"
                   placeholder="Ex: Search by name"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => setSearchQuery(e.target.value.replace(/^\s+/, ""))}
                   className="pl-10 pr-4 py-2.5 w-full text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />

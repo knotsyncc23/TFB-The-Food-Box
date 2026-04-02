@@ -748,12 +748,19 @@ export default function CreatePercentageDiscount() {
                       />
                       {/* Veg/Non-Veg Indicator */}
                       <div className="absolute top-1 left-1">
-                        <div className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
-                          item.foodType === "Veg" ? "border-red-600 bg-white" : "border-red-600 bg-white"
-                        }`}>
-                          <div className={`w-2 h-2 rounded-full ${
-                            item.foodType === "Veg" ? "bg-red-600" : "bg-red-600"
-                          }`} />
+                        {/* Veg/Non-Veg Indicator (Veg = green, Non-Veg = red) */}
+                        <div
+                          className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
+                            item.foodType?.toLowerCase() === "veg"
+                              ? "border-green-600 bg-white"
+                              : "border-red-600 bg-white"
+                          }`}
+                        >
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              item.foodType?.toLowerCase() === "veg" ? "bg-green-600" : "bg-red-600"
+                            }`}
+                          />
                     </div>
             </div>
           </div>
@@ -780,10 +787,10 @@ export default function CreatePercentageDiscount() {
 
 
                       {/* Make Offer Button */}
-                      <div className="-mt-13.5 pt-2">
+                      <div className="mt-2 flex justify-end">
                   <button
                           onClick={() => openMakeOfferModal(item)}
-                          className="ml-32 mb-2 w-30  py-1.5 px-3 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-1.5"
+                          className="py-1.5 px-3 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-1.5"
                   >
                           <Tag className="w-3.5 h-3.5" />
                           Make Offer

@@ -2,6 +2,7 @@ import { asyncHandler } from '../../../shared/middleware/asyncHandler.js';
 import { successResponse, errorResponse } from '../../../shared/utils/response.js';
 import Delivery from '../../delivery/models/Delivery.js';
 import DeliveryWallet from '../../delivery/models/DeliveryWallet.js';
+import { sendPushNotificationToDeliveryPartner } from '../../../shared/services/fcmPushService.js';
 import mongoose from 'mongoose';
 import winston from 'winston';
 
@@ -14,6 +15,41 @@ const logger = winston.createLogger({
     })
   ]
 });
+
+function getDeliverySocketRooms(deliveryPartnerId) {
+  const normalizedId = deliveryPartnerId?.toString?.() || String(deliveryPartnerId || "");
+  const rooms = new Set();
+
+  if (normalizedId) {
+    rooms.add(`delivery:${normalizedId}`);
+  }
+
+  if (mongoose.Types.ObjectId.isValid(normalizedId)) {
+    rooms.add(`delivery:${new mongoose.Types.ObjectId(normalizedId).toString()}`);
+  }
+
+  return [...rooms];
+}
+
+async function notifyDeliveryPartnerBonus(req, deliveryPartnerId, payload) {
+  try {
+    const io = req.app?.get?.("io");
+    if (io) {
+      const deliveryNamespace = io.of("/delivery");
+      const rooms = getDeliverySocketRooms(deliveryPartnerId);
+
+      for (const room of rooms) {
+        deliveryNamespace.to(room).emit("delivery_bonus", payload);
+        deliveryNamespace.to(room).emit("play_notification_sound", {
+          type: "bonus",
+          title: payload.title,
+        });
+      }
+    }
+  } catch (error) {
+    logger.warn(`Failed to emit bonus notification over socket: ${error.message}`);
+  }
+}
 
 /**
  * Add Bonus to Delivery Partner
@@ -213,6 +249,26 @@ export const addBonus = asyncHandler(async (req, res) => {
         deliveryId: (delivery && delivery.deliveryId) ? delivery.deliveryId : null
       }
     };
+
+    await notifyDeliveryPartnerBonus(req, deliveryPartnerId, {
+      type: "bonus",
+      title: "Bonus added",
+      body: reference
+        ? `You received a bonus of ₹${bonusAmount.toFixed(2)} (${reference})`
+        : `You received a bonus of ₹${bonusAmount.toFixed(2)}`,
+      amount: bonusAmount,
+      reference: reference || null,
+      transactionId: transaction && transaction._id ? safeIdToString(transaction._id) : null,
+      deliveryPartnerId: safeIdToString(deliveryPartnerId),
+      createdAt: new Date().toISOString(),
+    });
+
+    await sendPushNotificationToDeliveryPartner(deliveryPartnerId, {
+      title: "Bonus added",
+      description: reference
+        ? `You received a bonus of ₹${bonusAmount.toFixed(2)} (${reference})`
+        : `You received a bonus of ₹${bonusAmount.toFixed(2)}`,
+    });
 
     return successResponse(res, 200, 'Bonus added successfully', responseData);
   } catch (error) {

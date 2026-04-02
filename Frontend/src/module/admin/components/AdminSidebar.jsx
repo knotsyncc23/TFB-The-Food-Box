@@ -182,13 +182,6 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
     }
   }, [isCollapsed, onCollapseChange])
 
-  // Notify parent on initial load
-  useEffect(() => {
-    if (onCollapseChange) {
-      onCollapseChange(isCollapsed)
-    }
-  }, [])
-
   const toggleCollapse = () => {
     setIsCollapsed(prev => !prev)
   }
@@ -267,36 +260,30 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
     return filtered
   }, [searchQuery])
 
-  // Auto-expand sections with matches when searching
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim()
+  // While searching, derive expanded sections instead of mutating state in an effect.
+  const displayedExpandedSections = useMemo(() => {
+    if (!searchQuery.trim()) return expandedSections
 
-      setExpandedSections((prev) => {
-        const newExpandedState = { ...prev }
+    const query = searchQuery.toLowerCase().trim()
+    const autoExpanded = { ...expandedSections }
 
-        sidebarMenuData.forEach((item) => {
-          if (item.type === "section") {
-            item.items.forEach((subItem) => {
-              if (subItem.type === "expandable") {
-                const matchesLabel = subItem.label.toLowerCase().includes(query)
-                const hasMatchingSubItems = subItem.subItems?.some(
-                  (si) => si.label.toLowerCase().includes(query)
-                )
-
-                if (matchesLabel || hasMatchingSubItems) {
-                  const sectionKey = subItem.label.toLowerCase().replace(/\s+/g, "")
-                  newExpandedState[sectionKey] = true
-                }
-              }
-            })
-          }
-        })
-
-        return newExpandedState
+    sidebarMenuData.forEach((item) => {
+      if (item.type !== "section") return
+      item.items.forEach((subItem) => {
+        if (subItem.type !== "expandable") return
+        const matchesLabel = subItem.label.toLowerCase().includes(query)
+        const hasMatchingSubItems = subItem.subItems?.some(
+          (si) => si.label.toLowerCase().includes(query)
+        )
+        if (matchesLabel || hasMatchingSubItems) {
+          const sectionKey = subItem.label.toLowerCase().replace(/\s+/g, "")
+          autoExpanded[sectionKey] = true
+        }
       })
-    }
-  }, [searchQuery])
+    })
+
+    return autoExpanded
+  }, [searchQuery, expandedSections])
 
   const isActive = (path, allPaths = []) => {
     if (path === "/admin") {
@@ -367,7 +354,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
     if (item.type === "expandable") {
       const Icon = iconMap[item.icon] || Utensils
       const sectionKey = item.label.toLowerCase().replace(/\s+/g, "")
-      const isExpanded = expandedSections[sectionKey] || false
+      const isExpanded = displayedExpandedSections[sectionKey] || false
 
       if (isCollapsed) {
         return (

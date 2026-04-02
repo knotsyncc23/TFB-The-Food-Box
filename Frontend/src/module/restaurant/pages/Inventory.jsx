@@ -23,6 +23,15 @@ import { toast } from "sonner"
 
 const INVENTORY_STORAGE_KEY = "restaurant_inventory_state"
 
+const getAddonApprovalStatus = (addon) => {
+  const status = String(addon?.approvalStatus || "").trim().toLowerCase()
+  if (status === "approved" || status === "pending" || status === "rejected") return status
+  if (addon?.isApproved === true) return "approved"
+  if (addon?.approvedAt && !addon?.rejectedAt) return "approved"
+  if (addon?.rejectedAt) return "rejected"
+  return "pending"
+}
+
 // Mock data - replace with actual data from API
 const mockCategories = [
   {
@@ -757,9 +766,7 @@ export default function Inventory() {
       if (showLoading) setLoadingAddons(true)
       const response = await restaurantAPI.getAddons()
       const data = response?.data?.data?.addons || response?.data?.addons || []
-      // Filter to show only approved add-ons
-      const approvedAddons = data.filter(addon => addon.approvalStatus === 'approved')
-      setAddons(approvedAddons)
+      setAddons(data)
     } catch (error) {
       console.error('Error fetching add-ons:', error)
       toast.error('Failed to load add-ons')
@@ -1500,7 +1507,7 @@ export default function Inventory() {
                     <p className="text-lg font-medium text-gray-500">No add-ons found</p>
                     <p className="text-sm text-gray-400 mt-2">
                       {addons.length === 0
-                        ? "Approved add-ons will appear here"
+                        ? "Add-ons will appear here after you create them"
                         : "Try adjusting your search or filters"}
                     </p>
                   </div>
@@ -1516,9 +1523,15 @@ export default function Inventory() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <h3 className="text-base font-semibold text-gray-900">{addon.name}</h3>
-                            {addon.approvalStatus === 'approved' && (
-                              <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded">Approved</span>
-                            )}
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                              getAddonApprovalStatus(addon) === 'approved'
+                                ? 'bg-green-100 text-green-800'
+                                : getAddonApprovalStatus(addon) === 'rejected'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {getAddonApprovalStatus(addon).charAt(0).toUpperCase() + getAddonApprovalStatus(addon).slice(1)}
+                            </span>
                           </div>
                           {addon.description && (
                             <p className="text-sm text-gray-600 mb-2">{addon.description}</p>
@@ -1539,6 +1552,7 @@ export default function Inventory() {
                           <div className="flex items-center">
                             <Switch
                               checked={addon.isAvailable !== false}
+                              disabled={getAddonApprovalStatus(addon) !== 'approved'}
                               onCheckedChange={(checked) =>
                                 handleAddonToggle(addon.id, checked)
                               }
@@ -1662,9 +1676,9 @@ export default function Inventory() {
                             <div className="flex items-center justify-between py-2">
                               <div className="flex items-center gap-2 flex-1">
                                 {/* Veg/Non-veg Icon */}
-                                <div className={`w-4 h-4 rounded-sm border-2 flex items-center justify-center ${item.isVeg ? 'border-red-600' : 'border-red-500'
+                                <div className={`w-4 h-4 rounded-sm border-2 flex items-center justify-center ${item.isVeg ? "border-green-600" : "border-red-600"
                                   }`}>
-                                  <div className={`w-2 h-2 rounded-full ${item.isVeg ? 'bg-red-600' : 'bg-red-500'
+                                  <div className={`w-2 h-2 rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"
                                     }`} />
                                 </div>
                                 <div>

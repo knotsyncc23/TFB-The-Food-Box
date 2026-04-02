@@ -19,12 +19,15 @@ import {
   IndianRupee,
   Sparkles,
   LogOut,
+  Trash2,
   X
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { deliveryAPI } from "@/lib/api"
 import { toast } from "sonner"
 import { clearModuleAuth } from "@/lib/utils/auth"
+import { firebaseAuth } from "@/lib/firebase"
+import { removeFcmTokenForDelivery } from "@/lib/notifications/fcmWeb"
 import alertSound from "@/assets/audio/alert.mp3"
 import originalSound from "@/assets/audio/original.mp3"
 
@@ -38,6 +41,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showAlertSoundPopup, setShowAlertSoundPopup] = useState(false)
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
   const [selectedAlertSound, setSelectedAlertSound] = useState(() => {
     // Load from localStorage, default to "zomato_tone"
     return localStorage.getItem('delivery_alert_sound') || 'zomato_tone'
@@ -167,11 +171,26 @@ export default function ProfilePage() {
     }
 
     try {
+      try {
+        await removeFcmTokenForDelivery()
+      } catch (fcmError) {
+        console.warn("Delivery FCM token removal failed:", fcmError)
+      }
+
       // Call logout API to clear refresh token on server
       await deliveryAPI.logout()
     } catch (error) {
       console.error("Logout API error (continuing with local cleanup):", error)
       // Continue with local cleanup even if API call fails
+    }
+
+    try {
+      const { signOut } = await import("firebase/auth")
+      if (firebaseAuth?.currentUser) {
+        await signOut(firebaseAuth)
+      }
+    } catch (firebaseError) {
+      console.warn("Firebase logout failed, continuing with local cleanup:", firebaseError)
     }
 
     // Use utility function to clear module auth
@@ -206,6 +225,65 @@ export default function ProfilePage() {
       // Redirect to sign-in
       navigate("/delivery/sign-in", { replace: true })
     }, 100)
+  }
+
+  const handleDeleteAccount = async () => {
+    if (isDeletingAccount) return
+
+    if (!window.confirm("Are you sure you want to delete your delivery account? This action cannot be undone.")) {
+      return
+    }
+
+    setIsDeletingAccount(true)
+
+    try {
+      try {
+        await removeFcmTokenForDelivery()
+      } catch (fcmError) {
+        console.warn("Delivery FCM token removal failed before account deletion:", fcmError)
+      }
+
+      await deliveryAPI.deleteAccount()
+
+      try {
+        const { signOut } = await import("firebase/auth")
+        if (firebaseAuth?.currentUser) {
+          await signOut(firebaseAuth)
+        }
+      } catch (firebaseError) {
+        console.warn("Firebase logout failed during delivery account deletion:", firebaseError)
+      }
+
+      clearModuleAuth("delivery")
+      localStorage.removeItem("delivery_gig_storage")
+      localStorage.removeItem("delivery_module_storage")
+      localStorage.removeItem("app:isOnline")
+      sessionStorage.removeItem("deliveryAuthData")
+
+      const keysToRemove = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith("delivery_")) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach((key) => localStorage.removeItem(key))
+
+      window.dispatchEvent(new Event('deliveryAuthChanged'))
+      window.dispatchEvent(new Event('onlineStatusChanged'))
+
+      toast.success("Account deleted successfully")
+      navigate("/delivery/sign-in", { replace: true })
+    } catch (error) {
+      console.error("Error deleting delivery account:", error)
+      toast.error(
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to delete account",
+      )
+    } finally {
+      setIsDeletingAccount(false)
+    }
   }
 
   return (
@@ -344,6 +422,21 @@ export default function ProfilePage() {
 
           {/* Logout Section */}
           <div className="pt-4">
+            <Card
+              onClick={handleDeleteAccount}
+              className="bg-white py-0 border-0 shadow-none rounded-lg cursor-pointer hover:bg-red-50 transition-colors mb-3"
+            >
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Trash2 className={`w-5 h-5 text-red-600 ${isDeletingAccount ? "animate-pulse" : ""}`} />
+                  <span className="text-sm font-medium text-red-600">
+                    {isDeletingAccount ? "Deleting account..." : "Delete account"}
+                  </span>
+                </div>
+                <ArrowRight className="w-5 h-5 text-gray-400" />
+              </CardContent>
+            </Card>
+
             <Card
               onClick={handleLogout}
               className="bg-white py-0 border-0 shadow-none rounded-lg cursor-pointer hover:bg-gray-200 transition-colors"

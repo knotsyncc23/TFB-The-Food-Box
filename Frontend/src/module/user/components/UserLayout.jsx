@@ -1,7 +1,6 @@
 import { Outlet, useLocation } from "react-router-dom"
 import { useEffect, useState, createContext, useContext, lazy, Suspense } from "react"
 import { ProfileProvider } from "../context/ProfileContext"
-import LocationPrompt from "./LocationPrompt"
 import { CartProvider } from "../context/CartContext"
 import { OrdersProvider } from "../context/OrdersContext"
 import { isModuleAuthenticated } from "@/lib/utils/auth"
@@ -192,7 +191,6 @@ export default function UserLayout() {
                 ) : null}
                 {/* <Navbar /> */}
                 {showBottomNav && <DesktopNavbar />}
-                <LocationPrompt />
                 <main className={isAuthRoute ? "min-h-screen" : ""}>
                   <Outlet />
                 </main>
@@ -205,4 +203,3 @@ export default function UserLayout() {
     </div>
   )
 }
-

@@ -93,7 +93,12 @@ export default function OrderTrackingCard() {
       setActiveOrder(active);
       // Calculate estimated delivery time
       const orderTime = new Date(active.createdAt || active.orderDate || active.created_at || active.date || Date.now());
-      const estimatedMinutes = active.estimatedDeliveryTime || active.estimatedTime || active.estimated_delivery_time || 35;
+      const estimatedMinutes =
+        active.eta?.max ||
+        active.estimatedDeliveryTime ||
+        active.estimatedTime ||
+        active.estimated_delivery_time ||
+        35;
       const deliveryTime = new Date(orderTime.getTime() + estimatedMinutes * 60000);
       const remaining = Math.max(0, Math.floor((deliveryTime - new Date()) / 60000));
       setTimeRemaining(remaining);
@@ -134,7 +139,12 @@ export default function OrderTrackingCard() {
       }
 
       const orderTime = new Date(currentActive.createdAt || currentActive.orderDate || currentActive.created_at || Date.now());
-      const estimatedMinutes = currentActive.estimatedDeliveryTime || currentActive.estimatedTime || currentActive.estimated_delivery_time || 35;
+      const estimatedMinutes =
+        currentActive.eta?.max ||
+        currentActive.estimatedDeliveryTime ||
+        currentActive.estimatedTime ||
+        currentActive.estimated_delivery_time ||
+        35;
       const deliveryTime = new Date(orderTime.getTime() + estimatedMinutes * 60000);
       const remaining = Math.max(0, Math.floor((deliveryTime - new Date()) / 60000));
       setTimeRemaining(remaining);

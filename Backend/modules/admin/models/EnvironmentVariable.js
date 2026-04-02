@@ -132,6 +132,18 @@ const environmentVariableSchema = new mongoose.Schema(
       trim: true
     },
     
+    // Apple Sign-In
+    APPLE_CLIENT_ID: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    APPLE_REDIRECT_URI: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    
     // Metadata
     lastUpdatedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -257,4 +269,3 @@ environmentVariableSchema.pre('save', function(next) {
 const EnvironmentVariable = mongoose.model('EnvironmentVariable', environmentVariableSchema);
 
 export default EnvironmentVariable;
-

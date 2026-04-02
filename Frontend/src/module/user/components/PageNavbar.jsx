@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom"
 import { useState, useEffect } from "react"
-import { ChevronDown, ShoppingCart, Wallet } from "lucide-react"
+import { ChevronDown, ShoppingCart, Wallet, Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useLocation } from "../hooks/useLocation"
 import { useCart } from "../context/CartContext"
@@ -785,8 +785,48 @@ export default function PageNavbar({
     }
   })()
 
-  const mainLocationName = locationDisplay.main
-  const subLocationName = locationDisplay.sub
+  const activeLocationText = (
+    location?.formattedAddress ||
+    location?.address ||
+    [location?.area, location?.city, location?.state].filter(Boolean).join(", ") ||
+    "Select location"
+  )
+    .replace(/,\s*India\s*$/i, "")
+    .trim()
+
+  const activeLocationParts = activeLocationText
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  const shortenLocationPart = (value, maxLength = 24) => {
+    if (!value) return ""
+    if (value.length <= maxLength) return value
+    return `${value.slice(0, maxLength).trim()}...`
+  }
+
+  const compactMainLocationName = (() => {
+    const firstPart = activeLocationParts[0] || locationDisplay.main || "Select location"
+    return shortenLocationPart(firstPart, 22)
+  })()
+
+  const mainLocationName =
+    activeLocationParts.slice(0, 2).join(", ") ||
+    locationDisplay.main ||
+    "Select location"
+  const subLocationName = activeLocationParts.slice(2).join(", ")
+
+  const compactSubLocationName = (() => {
+    const secondPart = activeLocationParts[1]
+    const fallback =
+      secondPart ||
+      location?.area ||
+      location?.city ||
+      subLocationName ||
+      ""
+
+    return shortenLocationPart(fallback, 28)
+  })()
 
   const handleLocationClick = () => {
     // Open location selector overlay
@@ -806,31 +846,30 @@ export default function PageNavbar({
     >
       <div className="flex items-center justify-between gap-2 sm:gap-3 md:gap-4 lg:gap-6 max-w-7xl mx-auto">
         {/* Left: Location - Hidden on desktop, shown on mobile */}
-        <div className="flex md:hidden items-center gap-3 sm:gap-4 min-w-0">
+        <div className="flex md:hidden flex-1 items-center gap-3 sm:gap-4 min-w-0">
           {/* Location Button */}
           <Button
             variant="ghost"
             onClick={handleLocationClick}
             disabled={loading}
-            className="h-auto px-0 py-0 hover:bg-transparent transition-colors flex-shrink-0"
+            className="h-auto min-w-0 max-w-full justify-start px-0 py-0 hover:bg-transparent transition-colors"
           >
             {loading ? (
               <span className={`text-sm font-bold ${textColorClass} ${textColor === "white" ? "drop-shadow-lg" : ""}`}>
                 Loading...
               </span>
             ) : (
-              <div className="flex flex-col items-start min-w-0">
-                <div className="flex items-center gap-1.5">
-
-                  <span className={`text-md sm:text-lg font-bold ${textColorClass} whitespace-nowrap ${textColor === "white" ? "drop-shadow-lg" : ""}`}>
-                    {mainLocationName}
+              <div className="flex flex-col items-start min-w-0 max-w-[120px] sm:max-w-[150px]">
+                <div className="flex items-center gap-1.5 min-w-0 w-full">
+                  <span className={`text-md sm:text-lg font-bold ${textColorClass} truncate ${textColor === "white" ? "drop-shadow-lg" : ""}`}>
+                    {compactMainLocationName}
                   </span>
                   <ChevronDown className={`h-4 w-4 sm:h-5 sm:w-5 ${textColorClass} flex-shrink-0 ${textColor === "white" ? "drop-shadow-lg" : ""}`} strokeWidth={2.5} />
                 </div>
                 {/* Show sub location (city, state) in second line */}
-                {subLocationName && (
-                  <span className={`text-xs font-bold ${textColorClass}${textColor === "white" ? "/90" : ""} whitespace-nowrap mt-0.5 ${textColor === "white" ? "drop-shadow-md" : ""}`}>
-                    {subLocationName}
+                {compactSubLocationName && (
+                  <span className={`text-xs font-bold ${textColorClass}${textColor === "white" ? "/90" : ""} truncate mt-0.5 ${textColor === "white" ? "drop-shadow-md" : ""}`}>
+                    {compactSubLocationName}
                   </span>
                 )}
               </div>
@@ -839,7 +878,7 @@ export default function PageNavbar({
         </div>
 
         {/* Center: Company Logo or Name - Show on all screen sizes; show nothing if no logo */}
-        <Link to="/" className="flex items-center justify-center">
+        <Link to="/" className="flex items-center justify-center flex-shrink-0">
           {logoUrl && logoUrl !== DEFAULT_LOGO_PLACEHOLDER && (
             <img
               src={logoUrl}
@@ -855,6 +894,20 @@ export default function PageNavbar({
 
         {/* Right: Actions - Hidden on desktop, shown on mobile */}
         <div className="flex md:hidden items-center gap-2 sm:gap-3 flex-shrink-0">
+          {/* Notifications Icon */}
+          <Link to="/notifications">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 sm:h-9 sm:w-9 rounded-full p-0 hover:opacity-80 transition-opacity"
+              title="Notifications"
+            >
+              <div className={`h-full w-full rounded-full bg-white/20 flex items-center justify-center ring-2 ${ringColor}`}>
+                <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-gray-800" strokeWidth={2} />
+              </div>
+            </Button>
+          </Link>
+
           {/* Wallet Icon */}
           <Link to="/user/wallet">
             <Button

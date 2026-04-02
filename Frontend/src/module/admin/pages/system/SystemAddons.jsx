@@ -43,6 +43,10 @@ export default function SystemAddons() {
     
     // Google Maps
     VITE_GOOGLE_MAPS_API_KEY: "",
+    
+    // Apple Sign-In
+    APPLE_CLIENT_ID: "",
+    APPLE_REDIRECT_URI: "",
   })
 
   // Load environment variables on component mount
@@ -272,6 +276,31 @@ export default function SystemAddons() {
               <InputField label="SMS Hub India API Key" fieldKey="SMSINDIAHUB_API_KEY" />
               <InputField label="SMS Hub India Sender ID" fieldKey="SMSINDIAHUB_SENDER_ID" />
             </div>
+          </div>
+
+          {/* Apple Sign-In Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center">
+                <Key className="w-4 h-4 text-white" />
+              </div>
+              Apple Sign-In Configuration
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InputField
+                label="Apple Service ID (Client ID)"
+                fieldKey="APPLE_CLIENT_ID"
+                placeholder="e.g. com.example.foodapp"
+              />
+              <InputField
+                label="Apple Redirect URI"
+                fieldKey="APPLE_REDIRECT_URI"
+                placeholder="https://app.example.com/auth/apple/callback"
+              />
+            </div>
+            <p className="text-xs text-slate-500 mt-3">
+              Make sure the redirect URI matches exactly what you register in the Apple Developer Console.
+            </p>
           </div>
 
           {/* Google Maps Section */}

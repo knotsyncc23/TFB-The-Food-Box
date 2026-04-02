@@ -70,10 +70,14 @@ export default function Navbar() {
     }
   }, [])
 
-  // Show area if available, otherwise show city
-  const areaName = location?.area && location?.area !== location?.city ? location.area : null
-  const cityName = areaName || location?.city || "Select"
-  const stateName = location?.state || "Location"
+  const fullLocationText =
+    location?.formattedAddress ||
+    location?.address ||
+    [location?.area, location?.city, location?.state].filter(Boolean).join(", ") ||
+    "Select location"
+  const locationParts = fullLocationText.split(",").map((part) => part.trim()).filter(Boolean)
+  const mainLocationName = locationParts.slice(0, 2).join(", ") || "Select location"
+  const secondaryLocation = locationParts.slice(2).join(", ")
 
   const handleLocationClick = () => {
     // Open location selector overlay
@@ -94,6 +98,7 @@ export default function Navbar() {
               variant="ghost"
               onClick={handleLocationClick}
               disabled={loading}
+              className="flex-1 min-w-0 max-w-full justify-start px-0 hover:bg-transparent overflow-hidden"
             >
               {loading ? ( 
                 <span className="text-xs sm:text-sm font-semibold text-left text-black">
@@ -101,13 +106,13 @@ export default function Navbar() {
                 </span>
               ) : (
                 <div className="flex flex-col items-start w-full min-w-0">
-                  <span className="text-xs sm:text-sm flex flex-row items-center gap-1 font-semibold text-left text-foreground truncate w-full">
+                  <span className="text-xs sm:text-sm flex flex-row items-center gap-1 font-semibold text-left text-foreground truncate w-full min-w-0">
                     <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-black flex-shrink-0" />
-                    {cityName}
+                    <span className="truncate min-w-0">{mainLocationName}</span>
                   </span>
-                  {location?.state && (
+                  {secondaryLocation && (
                     <span className="text-[10px] sm:text-xs text-black pt-1 text-left truncate w-full">
-                      {stateName}
+                      {secondaryLocation}
                     </span>
                   )}
                 </div>

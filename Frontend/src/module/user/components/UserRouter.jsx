@@ -37,7 +37,7 @@ const Orders = lazy(() => import("../pages/orders/Orders"))
 const OrderTracking = lazy(() => import("../pages/orders/OrderTracking"))
 const OrderInvoice = lazy(() => import("../pages/orders/OrderInvoice"))
 const UserOrderDetails = lazy(() => import("../pages/orders/UserOrderDetails"))
-const OrderChatScreen = lazy(() => import("../pages/orders/OrderTracking"))
+const OrderChatScreen = lazy(() => import("../pages/orders/OrderChatScreen"))
 
 // Offers
 const Offers = lazy(() => import("../pages/Offers"))
@@ -69,6 +69,7 @@ const RedeemGoldCoupon = lazy(() => import("../pages/profile/RedeemGoldCoupon"))
 const About = lazy(() => import("../pages/profile/About"))
 const Terms = lazy(() => import("../pages/profile/Terms"))
 const Privacy = lazy(() => import("../pages/profile/Privacy"))
+const ContactUs = lazy(() => import("../pages/profile/ContactUs"))
 const ContentPolicy = lazy(() => import("../pages/profile/ContentPolicy"))
 const Refund = lazy(() => import("../pages/profile/Refund"))
 const Shipping = lazy(() => import("../pages/profile/Shipping"))
@@ -332,14 +333,8 @@ export default function UserRouter() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/profile/privacy"
-            element={
-              <ProtectedRoute requiredRole="user" loginPath="/user/auth/sign-in">
-                <Privacy />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/profile/privacy" element={<Privacy />} />
+          <Route path="/profile/contact-us" element={<ContactUs />} />
           <Route
             path="/profile/refund"
             element={
@@ -400,11 +395,14 @@ export default function UserRouter() {
           {/* Public legal pages (no login required) */}
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/contact" element={<ContactUs />} />
+          <Route path="/contact-us" element={<ContactUs />} />
           <Route path="/content-policy" element={<ContentPolicy />} />
 
           {/* Auth */}
           <Route path="/auth/sign-in" element={<AuthRedirect module="user"><SignIn /></AuthRedirect>} />
           <Route path="/auth/otp" element={<AuthRedirect module="user"><OTP /></AuthRedirect>} />
+          <Route path="/auth/apple/callback" element={<AuthRedirect module="user"><AuthCallback /></AuthRedirect>} />
           <Route path="/auth/callback" element={<AuthRedirect module="user"><AuthCallback /></AuthRedirect>} />
 
           {/* Help */}

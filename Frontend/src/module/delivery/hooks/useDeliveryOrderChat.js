@@ -25,6 +25,35 @@ export function useDeliveryOrderChat(orderId, options = {}) {
   const [messages, setMessages] = useState([]);
   const socketRef = useRef(null);
 
+  const buildIncomingMessage = useCallback(
+    (payload) => ({
+      _id: payload._id,
+      sender: payload.sender,
+      message: payload.message,
+      timestamp: payload.timestamp,
+    }),
+    []
+  );
+
+  const isMatchingMessage = useCallback((left, right) => {
+    if (!left || !right) return false;
+    if (
+      left.sender !== right.sender ||
+      (left.message || "").trim() !== (right.message || "").trim()
+    ) {
+      return false;
+    }
+
+    const leftTime = new Date(left.timestamp).getTime();
+    const rightTime = new Date(right.timestamp).getTime();
+
+    if (Number.isNaN(leftTime) || Number.isNaN(rightTime)) {
+      return false;
+    }
+
+    return Math.abs(leftTime - rightTime) < 10000;
+  }, []);
+
   const fetchChat = useCallback(async () => {
     if (!orderId || !enabled) return;
     setLoading(true);
@@ -56,6 +85,16 @@ export function useDeliveryOrderChat(orderId, options = {}) {
   }, [fetchChat]);
 
   useEffect(() => {
+    if (!orderId || !enabled) return undefined;
+
+    const interval = window.setInterval(() => {
+      fetchChat();
+    }, 10000);
+
+    return () => window.clearInterval(interval);
+  }, [orderId, enabled, fetchChat]);
+
+  useEffect(() => {
     if (!orderId || !enabled) return;
     const socket = io(backendUrl, { transports: ['websocket', 'polling'], path: '/socket.io/' });
     socketRef.current = socket;
@@ -67,18 +106,28 @@ export function useDeliveryOrderChat(orderId, options = {}) {
     socket.on('chat_message', (payload) => {
       if (!payload || (payload.orderMongoId !== orderId && payload.orderId !== orderId)) return;
       setMessages((prev) => {
-        const idMatch = payload._id && prev.some((m) => String(m._id) === String(payload._id));
-        const contentMatch = prev.some(
-          (m) =>
-            m.sender === payload.sender &&
-            m.message === payload.message &&
-            Math.abs(new Date(m.timestamp).getTime() - new Date(payload.timestamp).getTime()) < 2000
+        const incomingMessage = buildIncomingMessage(payload);
+        const exactIndex = payload._id
+          ? prev.findIndex((m) => String(m._id) === String(payload._id))
+          : -1;
+
+        if (exactIndex !== -1) return prev;
+
+        const optimisticIndex = prev.findIndex(
+          (m) => m._optimistic && isMatchingMessage(m, incomingMessage)
         );
-        if (idMatch || contentMatch) return prev;
-        return [
-          ...prev,
-          { _id: payload._id, sender: payload.sender, message: payload.message, timestamp: payload.timestamp }
-        ];
+
+        if (optimisticIndex !== -1) {
+          return prev.map((message, index) =>
+            index === optimisticIndex ? incomingMessage : message
+          );
+        }
+
+        if (prev.some((m) => isMatchingMessage(m, incomingMessage))) {
+          return prev;
+        }
+
+        return [...prev, incomingMessage];
       });
     });
 

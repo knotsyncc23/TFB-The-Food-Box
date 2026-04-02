@@ -1,5 +1,4 @@
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useMemo, useState } from "react"
 import { Search, Info, Settings } from "lucide-react"
 import { toast } from "sonner"
 import { conversationsDummy } from "../data/conversationsDummy"
@@ -9,6 +8,24 @@ export default function Chattings() {
   const [searchQuery, setSearchQuery] = useState("")
   const [messageInput, setMessageInput] = useState("")
   const [messages, setMessages] = useState({})
+  const [selectedConversation, setSelectedConversation] = useState(null)
+
+  const filteredConversations = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    const source = Array.isArray(conversationsDummy) ? conversationsDummy : []
+    return source
+      .filter((conversation) => {
+        const type = (conversation.type || "customer").toLowerCase()
+        return type === activeTab
+      })
+      .filter((conversation) => {
+        if (!query) return true
+        const name = (conversation.name || "").toLowerCase()
+        const phone = (conversation.phone || "").toLowerCase()
+        const lastMessage = (conversation.lastMessage || "").toLowerCase()
+        return name.includes(query) || phone.includes(query) || lastMessage.includes(query)
+      })
+  }, [activeTab, searchQuery])
 
   const handleSendMessage = () => {
     if (!messageInput.trim() || !selectedConversation) return

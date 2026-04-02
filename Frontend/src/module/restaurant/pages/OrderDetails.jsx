@@ -136,6 +136,32 @@ export default function OrderDetails() {
 
         if (response.data?.success && response.data.data?.order) {
           const order = response.data.data.order
+          const restaurantLocation = order.restaurantId?.location || {}
+          const restaurantAddress = (
+            order.restaurantId?.address ||
+            restaurantLocation.formattedAddress ||
+            restaurantLocation.address ||
+            [
+              restaurantLocation.addressLine1,
+              restaurantLocation.addressLine2,
+              restaurantLocation.street,
+              restaurantLocation.area,
+              restaurantLocation.city,
+              restaurantLocation.state,
+              restaurantLocation.pincode || restaurantLocation.zipCode || restaurantLocation.postalCode,
+            ].filter(Boolean).join(", ")
+          ) || "Address not available"
+
+          const customerLocation = (
+            order.address?.formattedAddress ||
+            [
+              order.address?.street,
+              order.address?.area,
+              order.address?.city,
+              order.address?.state,
+              order.address?.zipCode || order.address?.postalCode,
+            ].filter(Boolean).join(", ")
+          ) || "Location not available"
 
           // Transform API order data to match component structure
           const transformedOrder = {
@@ -143,12 +169,12 @@ export default function OrderDetails() {
             status: order.status?.toUpperCase() || 'PENDING',
             date: new Date(order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
             time: new Date(order.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-            restaurant: order.restaurantName || 'Restaurant',
-            address: order.address?.street || order.address?.city || 'Address not available',
+            restaurant: order.restaurantName || order.restaurantId?.name || 'Restaurant',
+            address: restaurantAddress,
             customer: {
               name: order.userId?.name || 'Customer',
               orderCount: 1,
-              location: `${order.address?.city || ''}, ${order.address?.state || ''}`.trim(),
+              location: customerLocation,
               distance: 'N/A'
             },
             items: order.items?.map(item => ({
@@ -274,13 +300,13 @@ export default function OrderDetails() {
       doc.setFont("helvetica", "bold")
       doc.text("Order ID:", 15, yPosition)
       doc.setFont("helvetica", "normal")
-      doc.text(orderData.id, 50, yPosition)
+      doc.text(String(orderData.id || "N/A"), 50, yPosition)
       yPosition += 7
 
       doc.setFont("helvetica", "bold")
       doc.text("Date & Time:", 15, yPosition)
       doc.setFont("helvetica", "normal")
-      doc.text(`${orderData.date}, ${orderData.time}`, 50, yPosition)
+      doc.text(`${orderData.date || "N/A"}, ${orderData.time || "N/A"}`, 50, yPosition)
       yPosition += 7
 
       doc.setFont("helvetica", "bold")
@@ -292,7 +318,7 @@ export default function OrderDetails() {
       } else if (orderData.status === "DELIVERED") {
         doc.setTextColor(103, 30, 31)
       }
-      doc.text(orderData.status, 50, yPosition)
+      doc.text(String(orderData.status || "N/A"), 50, yPosition)
       doc.setTextColor(0, 0, 0) // Reset to black
       yPosition += 10
 
@@ -310,19 +336,21 @@ export default function OrderDetails() {
       doc.setFont("helvetica", "bold")
       doc.text("Name:", 15, yPosition)
       doc.setFont("helvetica", "normal")
-      doc.text(orderData.customer.name, 50, yPosition)
+      doc.text(String(orderData.customer?.name || "Customer"), 50, yPosition)
       yPosition += 6
 
       doc.setFont("helvetica", "bold")
       doc.text("Location:", 15, yPosition)
       doc.setFont("helvetica", "normal")
-      doc.text(orderData.customer.location, 50, yPosition)
-      yPosition += 6
+      const customerLocationLines = doc.splitTextToSize(String(orderData.customer?.location || "Location not available"), pageWidth - 65)
+      doc.text(customerLocationLines, 50, yPosition)
+      yPosition += customerLocationLines.length * 5
+      yPosition += 1
 
       doc.setFont("helvetica", "bold")
       doc.text("Distance:", 15, yPosition)
       doc.setFont("helvetica", "normal")
-      doc.text(orderData.customer.distance, 50, yPosition)
+      doc.text(String(orderData.customer?.distance || "N/A"), 50, yPosition)
       yPosition += 10
 
       // Items Section
@@ -337,10 +365,10 @@ export default function OrderDetails() {
 
       // Items Table
       const itemsTableData = orderData.items.map(item => [
-        `${item.quantity}x`,
-        item.name,
+        `${item.quantity || 1}x`,
+        String(item.name || "Item"),
         item.type || "-",
-        `Rs. ${item.price}`
+        `Rs. ${Number(item.price || 0).toFixed(2)}`
       ])
 
       // Use autoTable with the doc instance

@@ -11,6 +11,9 @@ import locationIcon from "../../assets/Dashboard-icons/image1.png"
 import restaurantIcon from "../../assets/Dashboard-icons/image2.png"
 import inactiveIcon from "../../assets/Dashboard-icons/image3.png"
 
+const FALLBACK_RESTAURANT_IMAGE =
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'><rect width='128' height='128' rx='16' fill='%23e2e8f0'/><path d='M32 84c8-16 20-24 32-24s24 8 32 24' fill='none' stroke='%2394a3b8' stroke-width='8' stroke-linecap='round'/><circle cx='48' cy='48' r='10' fill='%2394a3b8'/><circle cx='80' cy='48' r='10' fill='%2394a3b8'/></svg>"
+
 export default function RestaurantsList() {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState("")
@@ -118,7 +121,7 @@ export default function RestaurantsList() {
               : (restaurant.cuisine || "N/A"),
             status: restaurant.isActive !== false, // Default to true if not set
             rating: restaurant.ratings?.average || restaurant.rating || 0,
-            logo: restaurant.profileImage?.url || restaurant.logo || "https://via.placeholder.com/40",
+            logo: restaurant.profileImage?.url || restaurant.logo || FALLBACK_RESTAURANT_IMAGE,
             diningCommissionPercentage: restaurant.diningCommissionPercentage ?? 0,
             // Preserve original restaurant data for details modal
             originalData: restaurant,
@@ -246,7 +249,10 @@ export default function RestaurantsList() {
   }
 
   const renderStars = (rating) => {
-    return "★".repeat(rating) + "☆".repeat(5 - rating)
+    const numericRating = Number(rating)
+    const validRating = Number.isFinite(numericRating) ? Math.max(0, Math.min(5, Math.floor(numericRating))) : 0
+    const emptyRating = Math.max(0, 5 - validRating)
+    return "\u2605".repeat(validRating) + "\u2606".repeat(emptyRating)
   }
 
   const handleSort = (key) => {
@@ -655,7 +661,13 @@ export default function RestaurantsList() {
                                   alt={restaurant.name}
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
-                                    e.target.src = "https://via.placeholder.com/40"
+                                    const img = e.currentTarget
+                                    if (img.dataset.fallbackApplied === "true") {
+                                      img.style.display = "none"
+                                      return
+                                    }
+                                    img.dataset.fallbackApplied = "true"
+                                    img.src = FALLBACK_RESTAURANT_IMAGE
                                   }}
                                 />
                               </div>
@@ -836,11 +848,17 @@ export default function RestaurantsList() {
                   <div className="flex items-start gap-6 pb-6 border-b border-slate-200">
                     <div className="w-24 h-24 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
                       <img
-                        src={restaurantDetails?.profileImage?.url || restaurantDetails?.logo || selectedRestaurant?.logo || selectedRestaurant?.originalData?.profileImage?.url || "https://via.placeholder.com/96"}
+                        src={restaurantDetails?.profileImage?.url || restaurantDetails?.logo || selectedRestaurant?.logo || selectedRestaurant?.originalData?.profileImage?.url || FALLBACK_RESTAURANT_IMAGE}
                         alt={restaurantDetails?.name || selectedRestaurant?.name || "Restaurant"}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.target.src = "https://via.placeholder.com/96"
+                          const img = e.currentTarget
+                          if (img.dataset.fallbackApplied === "true") {
+                            img.style.display = "none"
+                            return
+                          }
+                          img.dataset.fallbackApplied = "true"
+                          img.src = FALLBACK_RESTAURANT_IMAGE
                         }}
                       />
                     </div>
@@ -1357,7 +1375,13 @@ export default function RestaurantsList() {
                                 alt="Profile"
                                 className="w-32 h-32 rounded-lg object-cover border border-slate-200 hover:border-blue-500 transition-colors"
                                 onError={(e) => {
-                                  e.target.src = "https://via.placeholder.com/128"
+                                  const img = e.currentTarget
+                                  if (img.dataset.fallbackApplied === "true") {
+                                    img.style.display = "none"
+                                    return
+                                  }
+                                  img.dataset.fallbackApplied = "true"
+                                  img.src = FALLBACK_RESTAURANT_IMAGE
                                 }}
                               />
                             </a>
@@ -1564,3 +1588,4 @@ export default function RestaurantsList() {
     </div>
   )
 }
+

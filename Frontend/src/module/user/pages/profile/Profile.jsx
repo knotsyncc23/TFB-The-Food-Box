@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Settings as SettingsIcon,
   Power,
+  Trash2,
   ShoppingCart,
   UtensilsCrossed
 } from "lucide-react"
@@ -38,9 +39,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { authAPI } from "@/lib/api"
+import { authAPI, userAPI } from "@/lib/api"
 import { firebaseAuth } from "@/lib/firebase"
 import { clearModuleAuth } from "@/lib/utils/auth"
+import { removeFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
 
 export default function Profile() {
   const { userProfile, vegMode, setVegMode } = useProfile()
@@ -51,6 +53,7 @@ export default function Profile() {
   const [vegModeOpen, setVegModeOpen] = useState(false)
   const [appearanceOpen, setAppearanceOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
 
   // Settings states
   const [appearance, setAppearance] = useState(() => {
@@ -186,6 +189,12 @@ export default function Profile() {
     setIsLoggingOut(true)
 
     try {
+      try {
+        await removeFcmTokenForLoggedInUser()
+      } catch (fcmError) {
+        console.warn("FCM token removal failed:", fcmError)
+      }
+
       // Call backend logout API to invalidate refresh token
       try {
         await authAPI.logout()
@@ -238,6 +247,60 @@ export default function Profile() {
       navigate("/user/auth/sign-in", { replace: true })
     } finally {
       setIsLoggingOut(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (isDeletingAccount || isLoggingOut) return
+
+    const confirmed = window.confirm(
+      "Are you sure you want to delete your account? This cannot be undone.",
+    )
+    if (!confirmed) return
+
+    setIsDeletingAccount(true)
+
+    try {
+      try {
+        await removeFcmTokenForLoggedInUser()
+      } catch (fcmError) {
+        console.warn("FCM token removal failed before account deletion:", fcmError)
+      }
+
+      await userAPI.deleteAccount()
+
+      try {
+        const { signOut } = await import("firebase/auth")
+        if (firebaseAuth.currentUser) {
+          await signOut(firebaseAuth)
+        }
+      } catch (firebaseError) {
+        console.warn("Firebase logout failed during account deletion:", firebaseError)
+      }
+
+      clearModuleAuth("user")
+      localStorage.removeItem("accessToken")
+      localStorage.removeItem("user_authenticated")
+      localStorage.removeItem("user_user")
+      localStorage.removeItem("user")
+      localStorage.removeItem("userProfile")
+      localStorage.removeItem("appzeto_user_profile")
+      localStorage.removeItem("cart")
+      sessionStorage.removeItem("userAuthData")
+
+      window.dispatchEvent(new Event("userAuthChanged"))
+      window.dispatchEvent(new Event("userLogout"))
+
+      navigate("/user/auth/sign-in", { replace: true })
+    } catch (error) {
+      console.error("Error deleting user account:", error)
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to delete account. Please try again."
+      window.alert(message)
+    } finally {
+      setIsDeletingAccount(false)
     }
   }
 
@@ -433,10 +496,10 @@ export default function Profile() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+            </motion.div>
 
-          <motion.div
-            whileHover={{ x: 4, scale: 1.01 }}
+            <motion.div
+              whileHover={{ x: 4, scale: 1.01 }}
             transition={{ duration: 0.2, type: "spring", stiffness: 300 }}
           >
             <Card
@@ -762,6 +825,37 @@ export default function Profile() {
                     </motion.div>
                     <span className="text-base font-medium text-gray-900 dark:text-white">
                       {isLoggingOut ? 'Logging out...' : 'Log out'}
+                    </span>
+                  </div>
+                  <motion.div
+                    whileHover={{ x: 4 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ChevronRight className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  </motion.div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ x: 4, scale: 1.01 }}
+              transition={{ duration: 0.2, type: "spring", stiffness: 300 }}
+            >
+              <Card
+                className="bg-white dark:bg-[#1a1a1a] py-0 rounded-xl shadow-sm border-0 dark:border-gray-800 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleDeleteAccount}
+              >
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <motion.div
+                      className="bg-red-50 dark:bg-red-950/40 rounded-full p-2"
+                      whileHover={{ rotate: 15, scale: 1.1 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Trash2 className={`h-5 w-5 text-red-600 ${isDeletingAccount ? 'animate-pulse' : ''}`} />
+                    </motion.div>
+                    <span className="text-base font-medium text-red-600 dark:text-red-400">
+                      {isDeletingAccount ? 'Deleting account...' : 'Delete account'}
                     </span>
                   </div>
                   <motion.div

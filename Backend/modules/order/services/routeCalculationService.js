@@ -97,7 +97,12 @@ function dijkstra(nodes, edges, startId, endId) {
 export async function calculateRouteOSRM(startLat, startLng, endLat, endLng) {
   try {
     const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
-    const response = await fetch(url);
+    const controller = new AbortController();
+    const timeoutMs = 8000; // Keep backend responsive; fallback to haversine on slow OSRM
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
     const data = await response.json();
     
     if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
@@ -222,4 +227,3 @@ export async function calculateRoute(startLat, startLng, endLat, endLng, options
     return await calculateRouteOSRM(startLat, startLng, endLat, endLng);
   }
 }
-

@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from "react"
-import { FileText, Calendar, Package } from "lucide-react"
+import { useState, useEffect } from "react"
+import { FileText, Package } from "lucide-react"
 import { adminAPI } from "@/lib/api"
 import { toast } from "sonner"
 import OrdersTopbar from "../../components/orders/OrdersTopbar"
@@ -14,7 +14,6 @@ import { Loader2 } from "lucide-react"
 // Status configuration with titles, colors, and icons
 const statusConfig = {
   "all": { title: "All Orders", color: "rose", icon: FileText },
-  "scheduled": { title: "Scheduled Orders", color: "blue", icon: Calendar },
   "pending": { title: "Pending Orders", color: "amber", icon: Package },
   "accepted": { title: "Accepted Orders", color: "rose", icon: Package },
   "processing": { title: "Processing Orders", color: "orange", icon: Package },
@@ -35,9 +34,8 @@ export default function OrdersPage({ statusKey = "all" }) {
   const [processingRefund, setProcessingRefund] = useState(null)
   const [refundModalOpen, setRefundModalOpen] = useState(false)
   const [selectedOrderForRefund, setSelectedOrderForRefund] = useState(null)
-  
-  // Fetch orders from backend API (refetch when statusKey or appliedFilters change)
-  const [appliedFilters, setAppliedFilters] = useState({})
+
+  // Fetch orders from backend API for the selected status bucket.
   useEffect(() => {
     const fetchOrders = async () => {
       try {
@@ -49,14 +47,6 @@ export default function OrdersPage({ statusKey = "all" }) {
                  statusKey === "restaurant-cancelled" ? "cancelled" : statusKey,
           cancelledBy: statusKey === "restaurant-cancelled" ? "restaurant" : undefined
         }
-        // Apply each filter individually to API params
-        if (appliedFilters.paymentStatus) {
-          const paymentMap = { Paid: "completed", Unpaid: "pending", Failed: "failed", Refunded: "refunded" }
-          params.paymentStatus = paymentMap[appliedFilters.paymentStatus] || appliedFilters.paymentStatus.toLowerCase()
-        }
-        if (appliedFilters.fromDate) params.fromDate = appliedFilters.fromDate
-        if (appliedFilters.toDate) params.toDate = appliedFilters.toDate
-        if (appliedFilters.restaurant) params.restaurant = appliedFilters.restaurant
         
         const response = await adminAPI.getOrders(params)
         
@@ -78,7 +68,7 @@ export default function OrdersPage({ statusKey = "all" }) {
     }
 
     fetchOrders()
-  }, [statusKey, appliedFilters])
+  }, [statusKey])
 
   // Handle refund button click - show modal for wallet payments, confirm dialog for others
   const handleRefund = (order) => {
@@ -285,14 +275,8 @@ export default function OrdersPage({ statusKey = "all" }) {
         onClose={() => setIsFilterOpen(false)}
         filters={filters}
         setFilters={setFilters}
-        onApply={() => {
-          setAppliedFilters({ ...filters })
-          handleApplyFilters()
-        }}
-        onReset={() => {
-          setAppliedFilters({})
-          handleResetFilters()
-        }}
+        onApply={handleApplyFilters}
+        onReset={handleResetFilters}
         restaurants={restaurants}
       />
       <SettingsDialog

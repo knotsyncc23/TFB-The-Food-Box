@@ -13,17 +13,6 @@ const logger = winston.createLogger({
   ]
 });
 
-// Test phone numbers that should use default OTP
-const TEST_PHONE_NUMBERS = [
-  '7610416911',
-  '7691810506',
-  '9009925021',
-  '6375095971',
-];
-
-// Default OTP for test phone numbers
-const DEFAULT_TEST_OTP = '110211';
-
 /**
  * Extract phone number digits (without country code)
  * @param {string} phone - Phone number in format like "+91 9098569620" or "+91-9098569620"
@@ -40,16 +29,6 @@ const extractPhoneDigits = (phone) => {
   }
   // If exactly 10 digits or less, return as is
   return digits.length <= 10 ? digits : digits.slice(-10);
-};
-
-/**
- * Check if a phone number is a test number
- * @param {string} phone - Phone number in any format
- * @returns {boolean} - True if phone number is a test number
- */
-const isTestPhoneNumber = (phone) => {
-  const phoneDigits = extractPhoneDigits(phone);
-  return TEST_PHONE_NUMBERS.includes(phoneDigits);
 };
 
 /**
@@ -82,14 +61,22 @@ class OTPService {
       }
 
       const identifier = phone || email;
+
+      // DEFAULT LOGIN BYPASS - do not send SMS, success immediately
+      if (phone && extractPhoneDigits(phone) === '7610416911') {
+        logger.info(`Bypass OTP generation for default login number: ${phone}`);
+        return {
+          success: true,
+          message: 'OTP sent successfully to phone',
+          expiresIn: 300,
+          identifierType: 'phone'
+        };
+      }
+
       const identifierType = phone ? 'phone' : 'email';
 
       // Check rate limiting (default max 3 OTPs per identifier per hour) - using MongoDB
       if (process.env.NODE_ENV === 'production') {
-        // Never rate-limit configured test numbers (used for staging/support)
-        if (phone && isTestPhoneNumber(phone)) {
-          // Skip limiter entirely
-        } else {
         const configuredMax = parseInt(process.env.OTP_RATE_LIMIT_MAX_PER_HOUR || '', 10);
         const maxPerHour =
           typeof options?.maxPerHour === 'number' && Number.isFinite(options.maxPerHour)
@@ -107,11 +94,9 @@ class OTPService {
         if (recentOtpCount >= maxPerHour) {
           throw new Error('Too many OTP requests. Please try again after some time.');
         }
-        }
       }
 
-      // Generate OTP (use default for test phone numbers)
-      const otp = (phone && isTestPhoneNumber(phone)) ? DEFAULT_TEST_OTP : generateOTP();
+      const otp = generateOTP();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
       // Build query for invalidating previous OTPs
@@ -138,17 +123,7 @@ class OTPService {
 
       // Send OTP via SMS or Email
       if (phone) {
-        // Skip actual SMS sending for test phone numbers
-        if (!isTestPhoneNumber(phone)) {
-          // Use SMSIndia Hub for phone OTP
-          await smsIndiaHubService.sendOTP(phone, otp, purpose);
-        } else {
-          logger.info(`Skipping SMS for test phone number: ${phone}`, {
-            phone,
-            purpose,
-            otp
-          });
-        }
+        await smsIndiaHubService.sendOTP(phone, otp, purpose);
       } else if (email) {
         // Keep email service as is
         await emailService.sendOTP(email, otp, purpose);
@@ -193,19 +168,16 @@ class OTPService {
       }
 
       const identifier = phone || email;
-      const identifierType = phone ? 'phone' : 'email';
 
-      // Check if this is a test phone number and OTP matches default test OTP
-      if (phone && isTestPhoneNumber(phone) && otp === DEFAULT_TEST_OTP) {
-        logger.info(`Test OTP verified for ${phone}`, {
-          phone,
-          purpose
-        });
+      // DEFAULT LOGIN BYPASS
+      if (phone && extractPhoneDigits(phone) === '7610416911' && otp === '110211') {
+        logger.info(`OTP verified successfully via default login bypass for ${phone}`);
         return {
           success: true,
           message: 'OTP verified successfully'
         };
       }
+      const identifierType = phone ? 'phone' : 'email';
 
       // Verify OTP from database
       // For reset-password purpose, allow already-verified OTPs within 10 minutes

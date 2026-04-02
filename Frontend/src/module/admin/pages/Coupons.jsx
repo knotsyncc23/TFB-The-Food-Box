@@ -54,7 +54,7 @@ export default function Coupons() {
           <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
             <h1 className="text-2xl font-bold text-slate-900">Restaurant Offers & Coupons</h1>
             <a
-              href="/admin/dining-coupons"
+              href="/admin/dining-coupons?modal=create"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
             >
               ADD COUPON

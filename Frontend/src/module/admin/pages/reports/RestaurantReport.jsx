@@ -117,12 +117,15 @@ export default function RestaurantReport() {
   const activeFiltersCount = (filters.zone !== "All Zones" ? 1 : 0) + (filters.all !== "All" ? 1 : 0) + (filters.type !== "All types" ? 1 : 0) + (filters.time !== "All Time" ? 1 : 0)
 
   const renderStars = (rating, reviews) => {
-    if (rating === 0) {
+    let r = Number(rating) || 0;
+    r = Math.max(0, Math.min(5, r)); // Clamp between 0 and 5
+    if (r === 0) {
       return "★0"
     }
-    const fullStars = Math.floor(rating)
-    const hasHalfStar = rating % 1 !== 0
-    return "★".repeat(fullStars) + (hasHalfStar ? "½" : "") + "☆".repeat(5 - Math.ceil(rating)) + ` (${reviews})`
+    const fullStars = Math.floor(r)
+    const hasHalfStar = r % 1 !== 0
+    const emptyStars = Math.max(0, 5 - Math.ceil(r))
+    return "★".repeat(fullStars) + (hasHalfStar ? "½" : "") + "☆".repeat(emptyStars) + ` (${reviews})`
   }
 
   if (loading) {

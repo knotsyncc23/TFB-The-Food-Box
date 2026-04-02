@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Do not rewrite API and Socket.IO requests.
+  RewriteRule ^api/ - [L]
+  RewriteRule ^socket\.io/ - [L]
+
+  # Do not rewrite existing files/directories.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # SPA fallback for app routes.
+  RewriteRule ^ index.html [L]
+</IfModule>

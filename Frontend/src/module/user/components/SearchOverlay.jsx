@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { restaurantAPI } from "@/lib/api"
 import { foodImages } from "@/constants/images"
+import { toast } from "sonner"
 
 const SEARCH_HISTORY_KEY = "user_search_history_v1"
 const MAX_HISTORY_ITEMS = 10
@@ -297,12 +298,24 @@ export default function SearchOverlay({ isOpen, onClose, searchValue, onSearchCh
     recognition.onerror = (event) => {
       setIsListening(false)
       if (event.error === "not-allowed") {
-        console.warn("Microphone access denied")
+        toast.error("Microphone access denied. Allow microphone in browser settings.")
+      } else if (event.error === "no-speech") {
+        toast.message("No speech detected. Try again.")
+      } else if (event.error === "network") {
+        toast.error("Voice search needs a network connection.")
+      } else {
+        console.warn("Speech recognition error:", event.error)
       }
     }
 
     recognitionRef.current = recognition
-    recognition.start()
+    try {
+      recognition.start()
+    } catch (err) {
+      setIsListening(false)
+      console.warn("Speech recognition start failed:", err)
+      toast.error("Could not start voice search. Try typing instead.")
+    }
   }
 
   if (!isOpen) return null
@@ -348,6 +361,15 @@ export default function SearchOverlay({ isOpen, onClose, searchValue, onSearchCh
                 </Button>
               )}
             </div>
+            <Button
+              type="submit"
+              variant="default"
+              className="h-12 shrink-0 rounded-full bg-primary-orange hover:bg-primary-orange/90 text-white px-4 sm:px-5 disabled:opacity-50"
+              disabled={!searchValue.trim()}
+              aria-label="Run search"
+            >
+              Search
+            </Button>
             <Button
               type="button"
               variant="ghost"

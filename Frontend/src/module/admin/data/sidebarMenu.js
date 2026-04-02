@@ -85,7 +85,6 @@ export const sidebarMenuData = [
         icon: "FileText",
         subItems: [
           { label: "All", path: "/admin/orders/all" },
-          { label: "Scheduled", path: "/admin/orders/scheduled" },
           { label: "Pending", path: "/admin/orders/pending" },
           { label: "Accepted", path: "/admin/orders/accepted" },
           { label: "Processing", path: "/admin/orders/processing" },
@@ -346,6 +345,7 @@ export const sidebarMenuData = [
             label: "Privacy Policy",
             path: "/admin/pages-social-media/privacy",
           },
+          { label: "Contact Us", path: "/admin/pages-social-media/contact-us" },
           { label: "About Us", path: "/admin/pages-social-media/about" },
           { label: "Refund Policy", path: "/admin/pages-social-media/refund" },
           {

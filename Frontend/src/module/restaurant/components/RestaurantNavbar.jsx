@@ -190,6 +190,11 @@ export default function RestaurantNavbar({
         const savedStatus = localStorage.getItem('restaurant_online_status')
         if (savedStatus !== null) {
           const isOnline = JSON.parse(savedStatus)
+          if (isOnline && !restaurantData?.approvedAt) {
+            localStorage.setItem('restaurant_online_status', JSON.stringify(false))
+            setStatus("Offline")
+            return
+          }
           setStatus(isOnline ? "Online" : "Offline")
         } else {
           // Default to Offline if not set
@@ -219,7 +224,7 @@ export default function RestaurantNavbar({
       window.removeEventListener('restaurantStatusChanged', handleStatusChange)
       clearInterval(interval)
     }
-  }, [])
+  }, [restaurantData?.approvedAt])
 
   const handleStatusClick = () => {
     navigate("/restaurant/status")

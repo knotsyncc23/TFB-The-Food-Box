@@ -51,20 +51,8 @@ const auditLogSchema = new mongoose.Schema({
   
   // Transaction Details (for financial transactions)
   transactionDetails: {
-    amount: Number,
-    currency: { type: String, default: 'INR' },
-    type: String,
-    status: String,
-    orderId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Order',
-      sparse: true
-    },
-    walletType: {
-      type: String,
-      enum: ['user', 'restaurant', 'delivery', 'admin'],
-      sparse: true
-    }
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
   },
   
   // Commission Change Details
@@ -122,4 +110,3 @@ auditLogSchema.statics.createLog = async function(logData) {
 const AuditLog = mongoose.model('AuditLog', auditLogSchema);
 
 export default AuditLog;
-

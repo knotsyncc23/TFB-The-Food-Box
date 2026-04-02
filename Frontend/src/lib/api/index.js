@@ -21,6 +21,14 @@
 import apiClient from "./axios.js";
 import { API_ENDPOINTS } from "./config.js";
 
+const buildFcmTokenUrl = (basePath, platform, fcmToken) => {
+  const params = new URLSearchParams();
+  if (platform) params.set("platform", String(platform));
+  if (fcmToken) params.set("fcmToken", String(fcmToken));
+  const qs = params.toString();
+  return qs ? `${basePath}?${qs}` : basePath;
+};
+
 // Export the configured axios instance
 export default apiClient;
 
@@ -113,6 +121,22 @@ export const authAPI = {
       role,
     });
   },
+  firebaseSocialLogin: (idToken, role = "user", provider = "google") => {
+    return apiClient.post(API_ENDPOINTS.AUTH.FIREBASE_SOCIAL_LOGIN, {
+      idToken,
+      role,
+      provider,
+    });
+  },
+  getAppleConfig: () => {
+    return apiClient.get(API_ENDPOINTS.AUTH.APPLE_CONFIG);
+  },
+  // Login/Register via Apple identity token
+  appleLogin: (identityToken, role = "user", name = null) => {
+    const payload = { identityToken, role };
+    if (name) payload.name = name;
+    return apiClient.post(API_ENDPOINTS.AUTH.APPLE_LOGIN, payload);
+  },
 
   // Refresh token
   refreshToken: () => {
@@ -130,7 +154,7 @@ export const authAPI = {
       platform,
       hasToken: !!fcmToken,
     });
-    return apiClient.post(API_ENDPOINTS.AUTH.FCM_TOKEN, {
+    return apiClient.post(buildFcmTokenUrl(API_ENDPOINTS.AUTH.FCM_TOKEN, platform, fcmToken), {
       platform,
       fcmToken,
     });
@@ -139,7 +163,7 @@ export const authAPI = {
   // Remove FCM token for this platform on logout
   removeFcmToken: (platform = "web") => {
     console.log("[FCM] Removing token on backend for platform", platform);
-    return apiClient.delete(API_ENDPOINTS.AUTH.FCM_TOKEN, {
+    return apiClient.delete(buildFcmTokenUrl(API_ENDPOINTS.AUTH.FCM_TOKEN, platform), {
       data: { platform },
     });
   },
@@ -157,6 +181,16 @@ export const userAPI = {
     return apiClient.get(API_ENDPOINTS.USER.PROFILE);
   },
 
+  // Delete user account
+  deleteAccount: () => {
+    return apiClient.delete(API_ENDPOINTS.USER.PROFILE);
+  },
+
+  // Get user notifications
+  getNotifications: (params = {}) => {
+    return apiClient.get(API_ENDPOINTS.USER.NOTIFICATIONS, { params });
+  },
+
   // Update user profile
   updateProfile: (data) => {
     return apiClient.put(API_ENDPOINTS.USER.PROFILE, data);
@@ -171,6 +205,11 @@ export const userAPI = {
         "Content-Type": "multipart/form-data",
       },
     });
+  },
+
+  // Remove profile image (clears profileImage url)
+  removeProfileImage: () => {
+    return apiClient.delete("/user/profile/avatar");
   },
 
   // Get user addresses
@@ -284,7 +323,7 @@ export const locationAPI = {
     });
   },
   // Get nearby locations
-  getNearbyLocations: (lat, lng, radius = 500, query = "") => {
+  getNearbyLocations: (lat, lng, radius = 100, query = "") => {
     return apiClient.get(API_ENDPOINTS.LOCATION.NEARBY, {
       params: { lat, lng, radius, query },
     });
@@ -298,6 +337,10 @@ export const zoneAPI = {
     return apiClient.get(API_ENDPOINTS.ZONE.DETECT, {
       params: { lat, lng },
     });
+  },
+  // Get all active zones (public)
+  getActiveZones: () => {
+    return apiClient.get(API_ENDPOINTS.ZONE.ACTIVE);
   },
 };
 
@@ -393,7 +436,7 @@ export const restaurantAPI = {
       platform,
       hasToken: !!fcmToken,
     });
-    return apiClient.post(API_ENDPOINTS.RESTAURANT.AUTH.FCM_TOKEN, {
+    return apiClient.post(buildFcmTokenUrl(API_ENDPOINTS.RESTAURANT.AUTH.FCM_TOKEN, platform, fcmToken), {
       platform,
       fcmToken,
     });
@@ -405,7 +448,7 @@ export const restaurantAPI = {
       "[FCM][Restaurant] Removing token on backend for platform",
       platform,
     );
-    return apiClient.delete(API_ENDPOINTS.RESTAURANT.AUTH.FCM_TOKEN, {
+    return apiClient.delete(buildFcmTokenUrl(API_ENDPOINTS.RESTAURANT.AUTH.FCM_TOKEN, platform), {
       data: { platform },
     });
   },
@@ -556,6 +599,11 @@ export const restaurantAPI = {
     return apiClient.get(API_ENDPOINTS.RESTAURANT.ORDERS, { params });
   },
 
+  // Get restaurant review summary/list
+  getReviews: (params = {}) => {
+    return apiClient.get("/restaurant/reviews", { params });
+  },
+
   // Get order by ID
   getOrderById: (id) => {
     return apiClient.get(
@@ -641,12 +689,68 @@ export const restaurantAPI = {
 
   // Get all restaurants (for user module)
   getRestaurants: (params = {}) => {
-    return apiClient.get(API_ENDPOINTS.RESTAURANT.LIST, { params });
+    let enrichedParams = { ...params };
+
+    try {
+      const rawStoredLocation = localStorage.getItem("userLocation");
+      if (rawStoredLocation) {
+        const storedLocation = JSON.parse(rawStoredLocation);
+        const latitude = Number(
+          enrichedParams.latitude ?? enrichedParams.lat ?? storedLocation?.latitude,
+        );
+        const longitude = Number(
+          enrichedParams.longitude ?? enrichedParams.lng ?? storedLocation?.longitude,
+        );
+
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          enrichedParams = {
+            ...enrichedParams,
+            latitude,
+            longitude,
+          };
+        }
+      }
+    } catch {
+      // Ignore malformed cached location and fall back to explicit params only.
+    }
+
+    return apiClient.get(API_ENDPOINTS.RESTAURANT.LIST, {
+      params: enrichedParams,
+    });
   },
 
   // Get restaurants with dishes under ₹250
-  getRestaurantsUnder250: (zoneId) => {
-    const params = zoneId ? { zoneId } : {};
+  getRestaurantsUnder250: (zoneIdOrParams) => {
+    let params =
+      zoneIdOrParams && typeof zoneIdOrParams === "object"
+        ? { ...zoneIdOrParams }
+        : zoneIdOrParams
+          ? { zoneId: zoneIdOrParams }
+          : {};
+
+    try {
+      const rawStoredLocation = localStorage.getItem("userLocation");
+      if (rawStoredLocation) {
+        const storedLocation = JSON.parse(rawStoredLocation);
+        const latitude = Number(
+          params.latitude ?? params.lat ?? storedLocation?.latitude,
+        );
+        const longitude = Number(
+          params.longitude ?? params.lng ?? storedLocation?.longitude,
+        );
+
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          params = {
+            ...params,
+            latitude,
+            longitude,
+          };
+        }
+      }
+    } catch {
+      // Ignore malformed cached location and fall back to explicit params only.
+    }
+
     return apiClient.get(API_ENDPOINTS.RESTAURANT.UNDER_250, { params });
   },
 
@@ -845,13 +949,17 @@ export const deliveryAPI = {
     return apiClient.get(API_ENDPOINTS.DELIVERY.AUTH.ME);
   },
 
+  deleteAccount: () => {
+    return apiClient.delete(API_ENDPOINTS.DELIVERY.PROFILE);
+  },
+
   // Register / refresh FCM token for authenticated delivery partner
   registerFcmToken: (platform, fcmToken) => {
     console.log("[FCM][Delivery] Sending token to backend", {
       platform,
       hasToken: !!fcmToken,
     });
-    return apiClient.post(API_ENDPOINTS.DELIVERY.AUTH.FCM_TOKEN, {
+    return apiClient.post(buildFcmTokenUrl(API_ENDPOINTS.DELIVERY.AUTH.FCM_TOKEN, platform, fcmToken), {
       platform,
       fcmToken,
     });
@@ -860,7 +968,7 @@ export const deliveryAPI = {
   // Remove FCM token for this delivery platform on logout
   removeFcmToken: (platform = "web") => {
     console.log("[FCM][Delivery] Removing token on backend for platform", platform);
-    return apiClient.delete(API_ENDPOINTS.DELIVERY.AUTH.FCM_TOKEN, {
+    return apiClient.delete(buildFcmTokenUrl(API_ENDPOINTS.DELIVERY.AUTH.FCM_TOKEN, platform), {
       data: { platform },
     });
   },
@@ -976,6 +1084,12 @@ export const deliveryAPI = {
     return apiClient.patch(
       API_ENDPOINTS.DELIVERY.ORDER_ACCEPT.replace(":orderId", orderId),
       payload,
+    );
+  },
+  rejectOrder: (orderId, reason = "") => {
+    return apiClient.patch(
+      API_ENDPOINTS.DELIVERY.ORDER_REJECT.replace(":orderId", orderId),
+      { reason },
     );
   },
   confirmReachedPickup: (orderId) => {
@@ -1986,6 +2100,19 @@ export const orderAPI = {
   // Get user orders
   getOrders: (params = {}) => {
     return apiClient.get(API_ENDPOINTS.ORDER.LIST, { params });
+  },
+
+  // Order chat (Track Order live chat with delivery partner)
+  getOrderChat: (orderId) => {
+    return apiClient.get(
+      API_ENDPOINTS.USER.ORDER_CHAT.replace(":orderId", orderId),
+    );
+  },
+  sendOrderChatMessage: (orderId, message) => {
+    return apiClient.post(
+      API_ENDPOINTS.USER.ORDER_CHAT_MESSAGES.replace(":orderId", orderId),
+      { message },
+    );
   },
 
   // Complaint operations

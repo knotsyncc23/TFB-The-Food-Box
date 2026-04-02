@@ -1,5 +1,14 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  browserSessionPersistence,
+  getAuth,
+  inMemoryPersistence,
+  indexedDBLocalPersistence,
+  initializeAuth,
+} from "firebase/auth";
 
 // Firebase configuration - strict DB-only source (no frontend .env fallback).
 const firebaseConfig = {
@@ -132,7 +141,21 @@ async function ensureFirebaseInitialized() {
 
     // Initialize Auth
     if (!firebaseAuth) {
-      firebaseAuth = getAuth(app);
+      try {
+        firebaseAuth = initializeAuth(app, {
+          persistence: [
+            indexedDBLocalPersistence,
+            browserLocalPersistence,
+            browserSessionPersistence,
+            inMemoryPersistence,
+          ],
+          popupRedirectResolver: browserPopupRedirectResolver,
+        });
+      } catch (authInitError) {
+        // If Auth was already initialized elsewhere, fall back to the existing instance.
+        firebaseAuth = getAuth(app);
+        console.warn("⚠️ Falling back to getAuth after initializeAuth:", authInitError);
+      }
     }
 
     // Initialize Google Provider

@@ -174,7 +174,9 @@ export const approveFoodItem = asyncHandler(async (req, res) => {
     // Search for the item/addon across all menus
     for (const menu of menus) {
       // Check add-ons first
-      itemIndex = (menu.addons || []).findIndex((addon) => addon.id === id);
+      itemIndex = (menu.addons || []).findIndex(
+        (addon) => String(addon.id) === String(id),
+      );
       if (itemIndex !== -1) {
         foundItem = menu.addons[itemIndex];
         foundMenu = menu;
@@ -185,7 +187,9 @@ export const approveFoodItem = asyncHandler(async (req, res) => {
       // Check items in sections
       for (const section of menu.sections || []) {
         // Check items in section
-        itemIndex = section.items.findIndex((item) => item.id === id);
+        itemIndex = section.items.findIndex(
+          (item) => String(item.id) === String(id),
+        );
         if (itemIndex !== -1) {
           foundItem = section.items[itemIndex];
           foundMenu = menu;
@@ -195,7 +199,9 @@ export const approveFoodItem = asyncHandler(async (req, res) => {
 
         // Check items in subsections
         for (const subsection of section.subsections || []) {
-          itemIndex = subsection.items.findIndex((item) => item.id === id);
+          itemIndex = subsection.items.findIndex(
+            (item) => String(item.id) === String(id),
+          );
           if (itemIndex !== -1) {
             foundItem = subsection.items[itemIndex];
             foundMenu = menu;
@@ -414,7 +420,7 @@ export const rejectFoodItem = asyncHandler(async (req, res) => {
     for (const menu of menus) {
       // Check add-ons first
       const addonIndex = (menu.addons || []).findIndex(
-        (addon) => addon.id === id,
+        (addon) => String(addon.id) === String(id),
       );
       if (addonIndex !== -1) {
         foundItem = menu.addons[addonIndex];
@@ -426,7 +432,9 @@ export const rejectFoodItem = asyncHandler(async (req, res) => {
       // Check items in sections
       for (const section of menu.sections || []) {
         // Check items in section
-        const itemIndex = section.items.findIndex((item) => item.id === id);
+        const itemIndex = section.items.findIndex(
+          (item) => String(item.id) === String(id),
+        );
         if (itemIndex !== -1) {
           foundItem = section.items[itemIndex];
           foundMenu = menu;
@@ -437,7 +445,7 @@ export const rejectFoodItem = asyncHandler(async (req, res) => {
         // Check items in subsections
         for (const subsection of section.subsections || []) {
           const itemIndex = subsection.items.findIndex(
-            (item) => item.id === id,
+            (item) => String(item.id) === String(id),
           );
           if (itemIndex !== -1) {
             foundItem = subsection.items[itemIndex];

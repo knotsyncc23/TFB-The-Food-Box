@@ -10,17 +10,22 @@ import {
   RotateCcw,
   AlertCircle,
   Loader2,
-  Package
+  Package,
+  Trash2,
+  X
 } from "lucide-react"
 import { deliveryAPI } from "@/lib/api"
 import { toast } from "sonner"
 import { useCompanyName } from "@/lib/hooks/useCompanyName"
+import { getHiddenOrderIds, hideOrderId } from "@/lib/utils/orderVisibility"
 
 export default function MyOrders() {
   const navigate = useNavigate()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [activeMenuOrderId, setActiveMenuOrderId] = useState(null)
+  const [hiddenOrderIds, setHiddenOrderIds] = useState(() => new Set(getHiddenOrderIds("delivery")))
 
   // Fetch orders from API
   useEffect(() => {
@@ -192,6 +197,9 @@ export default function MyOrders() {
 
   // Filter orders by search query
   const filteredOrders = orders.filter(order => {
+    const orderId = String(order.orderId || order._id || "")
+    if (hiddenOrderIds.has(orderId)) return false
+
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
     const restaurantName = (order.restaurantName || order.restaurantId?.name || '').toLowerCase()
@@ -246,6 +254,19 @@ export default function MyOrders() {
       console.error("Voice search initialization failed:", error)
       toast.error("Voice search is not available right now.")
     }
+  }
+
+  const handleDeleteOrder = (order) => {
+    const orderId = String(order.orderId || order._id || "")
+    if (!orderId) return
+
+    const confirmed = window.confirm(`Do you want to delete order #${order.orderId || orderId}?`)
+    if (!confirmed) return
+
+    const nextHiddenOrderIds = hideOrderId("delivery", orderId)
+    setHiddenOrderIds(new Set(nextHiddenOrderIds))
+    setActiveMenuOrderId(null)
+    toast.success("Order deleted from your list")
   }
 
   return (
@@ -369,10 +390,49 @@ export default function MyOrders() {
         </div>
       </div>
 
-                    <button className="p-1 hover:bg-gray-100 rounded-full">
+                    <button
+                      type="button"
+                      onClick={() => setActiveMenuOrderId(current => current === orderKey ? null : orderKey)}
+                      className="p-1 hover:bg-gray-100 rounded-full"
+                    >
                       <MoreVertical className="w-5 h-5 text-gray-400" />
             </button>
         </div>
+
+                  {activeMenuOrderId === orderKey && (
+                    <>
+                      <button
+                        type="button"
+                        aria-label="Close order actions"
+                        onClick={() => setActiveMenuOrderId(null)}
+                        className="fixed inset-0 z-30 bg-black/30"
+                      />
+                      <div className="fixed inset-x-0 bottom-0 z-40 rounded-t-3xl bg-white px-4 pb-6 pt-3 shadow-2xl">
+                        <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-300" />
+                        <div className="mb-4 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{restaurantName}</p>
+                            <p className="text-xs text-gray-500">Order #{order.orderId || order._id}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setActiveMenuOrderId(null)}
+                            className="rounded-full p-2 hover:bg-gray-100"
+                          >
+                            <X className="h-5 w-5 text-gray-500" />
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteOrder(order)}
+                          className="flex w-full items-center justify-between rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-100"
+                        >
+                          Delete order
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </>
+                  )}
 
                   {/* Separator */}
                   <div className="border-t border-dashed border-gray-200 mx-4 my-1"></div>
@@ -382,8 +442,13 @@ export default function MyOrders() {
                     {order.items && order.items.map((item, idx) => (
                       <div key={item._id || item.itemId || idx} className="flex items-center gap-2 mt-1">
                         {/* Veg/Non-Veg Icon */}
-                        <div className={`w-4 h-4 border ${item.isVeg ? 'border-red-600' : 'border-red-600'} flex items-center justify-center p-[2px] shrink-0`}>
-                          <div className={`w-full h-full rounded-full ${item.isVeg ? 'bg-red-600' : 'bg-red-600'}`}></div>
+                        {/* Veg/Non-Veg indicator (Veg = green, Non-Veg = red) */}
+                        <div
+                          className={`w-4 h-4 border ${item.isVeg ? "border-green-600" : "border-red-600"} flex items-center justify-center p-[2px] shrink-0`}
+                        >
+                          <div
+                            className={`w-full h-full rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`}
+                          ></div>
               </div>
                         <span className="text-sm text-gray-700 font-medium">
                           {item.quantity || 1} x {item.name}

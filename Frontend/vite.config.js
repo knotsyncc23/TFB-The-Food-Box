@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import legacy from "@vitejs/plugin-legacy";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
@@ -40,7 +41,17 @@ function firebaseConfigPlugin() {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), firebaseConfigPlugin()],
+  plugins: [
+    react(),
+    // Legacy bundle helps iOS in-app browsers/webviews that fail on modern chunks.
+    legacy({
+      targets: ["defaults", "Safari >= 13", "iOS >= 13"],
+      renderLegacyChunks: true,
+      modernPolyfills: true,
+    }),
+    tailwindcss(),
+    firebaseConfigPlugin(),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -20,12 +20,15 @@ import BottomNavbar from "../components/BottomNavbar"
 import MenuOverlay from "../components/MenuOverlay"
 import { getFoodById, saveFood } from "../utils/foodManagement"
 import { openCameraViaFlutter, hasFlutterCameraBridge } from "@/lib/utils/cameraBridge"
+import { restaurantAPI } from "@/lib/api"
+import { toast } from "sonner"
 
 export default function EditFoodPage() {
   const navigate = useNavigate()
   const { id } = useParams()
   const isNewFood = id === "new" || !id
   const [showMenu, setShowMenu] = useState(false)
+  const [canEditMenu, setCanEditMenu] = useState(!isNewFood)
 
   // Lenis smooth scrolling
   useEffect(() => {
@@ -46,6 +49,43 @@ export default function EditFoodPage() {
       lenis.destroy()
     }
   }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadRestaurantStatus = async () => {
+      if (!isNewFood) {
+        setCanEditMenu(true)
+        return
+      }
+
+      try {
+        const res = await restaurantAPI.getCurrentRestaurant()
+        const restaurant =
+          res.data?.data?.restaurant || res.data?.restaurant || res.data?.data
+        if (!isMounted) return
+
+        const isVerified = !!restaurant?.approvedAt
+        setCanEditMenu(isVerified)
+
+        if (!isVerified) {
+          toast.error("You cannot add items until your restaurant is verified by admin.")
+          navigate("/restaurant/menu", { replace: true })
+        }
+      } catch (error) {
+        if (!isMounted) return
+        setCanEditMenu(false)
+        toast.error("You cannot add items until your restaurant is verified by admin.")
+        navigate("/restaurant/menu", { replace: true })
+      }
+    }
+
+    loadRestaurantStatus()
+
+    return () => {
+      isMounted = false
+    }
+  }, [isNewFood, navigate])
 
   // Default form data for new food
   const defaultFormData = {
@@ -124,6 +164,7 @@ export default function EditFoodPage() {
   const [newAllergy, setNewAllergy] = useState("")
 
   const handleInputChange = (field, value) => {
+    if (!canEditMenu && isNewFood) return
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -131,6 +172,7 @@ export default function EditFoodPage() {
   }
 
   const handleVariationChange = (id, field, value) => {
+    if (!canEditMenu && isNewFood) return
     setFormData(prev => ({
       ...prev,
       variations: prev.variations.map(v =>
@@ -140,6 +182,7 @@ export default function EditFoodPage() {
   }
 
   const handleAddVariation = () => {
+    if (!canEditMenu && isNewFood) return
     const newId = Math.max(...formData.variations.map(v => v.id), 0) + 1
     setFormData(prev => ({
       ...prev,
@@ -148,6 +191,7 @@ export default function EditFoodPage() {
   }
 
   const handleRemoveVariation = (id) => {
+    if (!canEditMenu && isNewFood) return
     setFormData(prev => ({
       ...prev,
       variations: prev.variations.filter(v => v.id !== id)
@@ -206,6 +250,7 @@ export default function EditFoodPage() {
   }
 
   const handleImageUpload = (field, file) => {
+    if (!canEditMenu && isNewFood) return
     if (file) {
       const reader = new FileReader()
       reader.onloadend = () => {
@@ -220,6 +265,12 @@ export default function EditFoodPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+
+    if (!canEditMenu && isNewFood) {
+      toast.error("You cannot add items until your restaurant is verified by admin.")
+      navigate("/restaurant/menu", { replace: true })
+      return
+    }
 
     // Validate required fields
     if (!formData.name || !formData.image || formData.price <= 0 || !formData.description) {
@@ -263,7 +314,7 @@ export default function EditFoodPage() {
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-4 py-3 flex items-center gap-4">
           <button
-            onClick={() => navigate(`/restaurant/food/${id}`)}
+            onClick={() => navigate(isNewFood ? "/restaurant/food/all" : `/restaurant/food/${id}`)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-gray-600" />

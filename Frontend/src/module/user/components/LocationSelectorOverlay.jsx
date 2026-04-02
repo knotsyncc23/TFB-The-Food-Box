@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react"
-import { useNavigate } from "react-router-dom"
+import { useLocation as useRouterLocation, useNavigate } from "react-router-dom"
 import { ChevronLeft, Search, ChevronRight, Plus, MapPin, MoreHorizontal, Navigation, Home, Building2, Briefcase, Phone, X, Crosshair } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,14 +40,43 @@ const getAddressIcon = (address) => {
   return Home
 }
 
+const buildSelectedLocationPayload = (address, fallbackCoordinates = {}) => {
+  const coordinates = address?.location?.coordinates || []
+  const longitude = Number(
+    fallbackCoordinates.longitude ?? address?.longitude ?? coordinates[0],
+  )
+  const latitude = Number(
+    fallbackCoordinates.latitude ?? address?.latitude ?? coordinates[1],
+  )
+
+  return {
+    selectionMode: "manual",
+    addressId: address?.id || address?._id || null,
+    city: address?.city || "",
+    state: address?.state || "",
+    street: address?.street || "",
+    address: [address?.street, address?.city].filter(Boolean).join(", "),
+    area: address?.additionalDetails || "",
+    zipCode: address?.zipCode || "",
+    latitude: Number.isFinite(latitude) ? latitude : null,
+    longitude: Number.isFinite(longitude) ? longitude : null,
+    formattedAddress: address?.additionalDetails
+      ? `${address.additionalDetails}, ${address.street}, ${address.city}, ${address.state}${address.zipCode ? ` ${address.zipCode}` : ""}`
+      : `${address?.street || ""}${address?.city ? `, ${address.city}` : ""}${address?.state ? `, ${address.state}` : ""}${address?.zipCode ? ` ${address.zipCode}` : ""}`,
+  }
+}
+
 export default function LocationSelectorOverlay({ isOpen, onClose }) {
   const navigate = useNavigate()
+  const routerLocation = useRouterLocation()
   const inputRef = useRef(null)
   const addressFormSearchRef = useRef(null) // Search input in "Select delivery location" form - for focus and Places Autocomplete
   const [searchValue, setSearchValue] = useState("")
   const { location, loading, requestLocation } = useGeoLocation()
-  const { addresses = [], addAddress, updateAddress, userProfile } = useProfile()
+  const { addresses = [], addAddress, userProfile, updateUserProfile } = useProfile()
   const [showAddressForm, setShowAddressForm] = useState(false)
+  const [showReceiverDetailsForm, setShowReceiverDetailsForm] = useState(false)
+  const [receiverName, setReceiverName] = useState("")
   const [mapPosition, setMapPosition] = useState([22.7196, 75.8577]) // Default Indore coordinates [lat, lng]
   const [addressFormData, setAddressFormData] = useState({
     street: "",
@@ -83,7 +112,7 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
   // Decide where to send user after closing this overlay.
   // If a page (like Cart) stored a custom return path in localStorage,
   // prefer that; otherwise, default to home ("/").
-  const navigateAfterClose = (fallbackPath = "/") => {
+  const navigateAfterClose = (fallbackPath = null) => {
     let targetPath = fallbackPath
     try {
       const stored = localStorage.getItem("locationReturnPath")
@@ -94,6 +123,9 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
       localStorage.removeItem("locationReturnPath")
     } catch {
       // ignore storage errors
+    }
+    if (!targetPath) {
+      targetPath = `${routerLocation.pathname}${routerLocation.search}${routerLocation.hash}` || "/"
     }
     navigate(targetPath)
   }
@@ -116,6 +148,19 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
       // ignore storage errors
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!showAddressForm) return
+    setReceiverName((prev) => prev || userProfile?.name || "")
+    setAddressFormData((prev) => (
+      prev.phone
+        ? prev
+        : {
+            ...prev,
+            phone: userProfile?.phone || "",
+          }
+    ))
+  }, [showAddressForm, userProfile?.name, userProfile?.phone])
 
   // Load Google Maps API key from backend
   useEffect(() => {
@@ -443,13 +488,27 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
 
     const initializeGoogleMap = async () => {
       try {
-        const loader = new Loader({
-          apiKey: GOOGLE_MAPS_API_KEY,
-          version: "weekly",
-          libraries: ["places", "geocoding"]
-        })
+        // Reuse already-loaded Google Maps if present to avoid duplicate script loads
+        let google = window.google
+        if (!google || !google.maps) {
+          if (window.__googleMapsPromise) {
+            try {
+              await window.__googleMapsPromise
+              google = window.google
+            } catch {
+              // ignore and fall back to loader
+            }
+          }
+        }
 
-        const google = await loader.load()
+        if (!google || !google.maps) {
+          const loader = new Loader({
+            apiKey: GOOGLE_MAPS_API_KEY,
+            version: "weekly",
+            libraries: ["places", "geometry", "drawing"]
+          })
+          google = await loader.load()
+        }
         googleMapsApiRef.current = google
 
         if (!isMounted || !mapContainerRef.current) return
@@ -708,7 +767,7 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
         placesAutocompleteRef.current = null
       }
     }
-  }, [showAddressForm, GOOGLE_MAPS_API_KEY, location?.latitude, location?.longitude])
+  }, [showAddressForm, GOOGLE_MAPS_API_KEY])
 
   // Fetch up to 4 place suggestions when user types in address-form search
   useEffect(() => {
@@ -834,6 +893,7 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
       )
 
       let locationData
+      let usedFallback = false
       try {
         locationData = await Promise.race([locationPromise, timeoutPromise])
 
@@ -844,6 +904,38 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
       } catch (raceError) {
         console.warn("⚠️ Location request failed or timed out:", raceError.message)
 
+        // Fallback: try direct geolocation with lower accuracy
+        try {
+          const lowAccPosition = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => resolve(pos),
+              (err) => reject(err),
+              { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+            )
+          })
+          locationData = {
+            latitude: lowAccPosition.coords.latitude,
+            longitude: lowAccPosition.coords.longitude,
+            accuracy: lowAccPosition.coords.accuracy,
+            address: "Current location",
+            formattedAddress: "Current location",
+            city: "",
+            state: "",
+            area: ""
+          }
+          usedFallback = true
+          console.log("📍 Using low-accuracy geolocation fallback:", locationData)
+          toast.info("Using low accuracy location", {
+            id: "location-request",
+            duration: 2000,
+          })
+        } catch (lowAccErr) {
+          // Continue to cached location fallback
+        }
+
+        if (locationData?.latitude && locationData?.longitude) {
+          // We already have a fallback location, skip cached/error path
+        } else {
         // If timeout or error, try to use cached location as fallback
         const stored = localStorage.getItem("userLocation")
         if (stored) {
@@ -895,6 +987,7 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
             duration: 5000,
           })
           return
+        }
         }
       }
 
@@ -1036,11 +1129,8 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
         duration: 2000,
       })
 
-      // Wait 2 seconds then redirect back to caller (cart/home/etc.)
-      setTimeout(() => {
-        onClose()
-        navigateAfterClose("/")
-      }, 2000)
+      // Keep the selector open after location update.
+      // This avoids any close/navigation side-effects and keeps users on the same screen.
     } catch (error) {
       // Handle permission denied or other errors
       if (error.code === 1 || error.message?.includes("denied") || error.message?.includes("permission")) {
@@ -2156,6 +2246,7 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
     }
 
     setLoadingAddress(true)
+    let addressToSave = null
     try {
       // Prepare address data matching backend format
       // Backend expects: label, street, additionalDetails, city, state, zipCode, latitude, longitude
@@ -2182,30 +2273,43 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
         return
       }
 
-      const addressToSave = {
+      const trimmedPhone = (addressFormData.phone || userProfile?.phone || "").trim()
+      const trimmedReceiverName = (receiverName || userProfile?.name || "").trim()
+
+      addressToSave = {
         label: normalizedLabel,
         street: trimmedStreet,
         additionalDetails: (addressFormData.additionalDetails || "").trim(),
         city: trimmedCity,
         state: trimmedState,
         zipCode: (addressFormData.zipCode || "").trim(),
+        phone: trimmedPhone,
         latitude: mapPosition[0], // latitude from mapPosition[0]
         longitude: mapPosition[1], // longitude from mapPosition[1]
       }
 
-      // Check if an address with the same label already exists
-      const existingAddressWithSameLabel = addresses.find(addr => addr.label === normalizedLabel)
+      console.log("💾 Saving new address:", addressToSave)
+      const savedAddress = await addAddress(addressToSave)
+      const activeAddress = savedAddress || addressToSave
+      const activeLocation = buildSelectedLocationPayload(activeAddress, {
+        latitude: mapPosition[0],
+        longitude: mapPosition[1],
+      })
+      localStorage.setItem("userLocation", JSON.stringify(activeLocation))
+      localStorage.setItem("userLocationMode", "manual")
+      localStorage.removeItem("userZoneId")
+      localStorage.removeItem("userZone")
+      await userAPI.updateLocation(activeLocation)
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("userLocationUpdated", { detail: activeLocation }))
+      }
+      toast.success(`Address saved as ${normalizedLabel}!`)
 
-      if (existingAddressWithSameLabel) {
-        // Update existing address instead of creating a new one
-        console.log("🔄 Updating existing address with label:", normalizedLabel)
-        await updateAddress(existingAddressWithSameLabel.id, addressToSave)
-        toast.success(`Address updated for ${normalizedLabel}!`)
-      } else {
-        // Create new address
-        console.log("💾 Saving new address:", addressToSave)
-        await addAddress(addressToSave)
-        toast.success(`Address saved as ${normalizedLabel}!`)
+      if (trimmedReceiverName || trimmedPhone) {
+        updateUserProfile({
+          ...(trimmedReceiverName ? { name: trimmedReceiverName } : {}),
+          ...(trimmedPhone ? { phone: trimmedPhone } : {}),
+        })
       }
 
       // Reset form
@@ -2218,12 +2322,14 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
         label: "Home",
         phone: "",
       })
+      setReceiverName("")
+      setShowReceiverDetailsForm(false)
       setShowAddressForm(false)
       setLoadingAddress(false)
 
       // Close overlay and redirect back to caller (cart/home/etc.)
       onClose()
-      navigateAfterClose("/")
+      navigateAfterClose()
     } catch (error) {
       console.error("❌ Error saving address:", error)
       console.error("❌ Error details:", {
@@ -2250,6 +2356,8 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
 
   const handleCancelAddressForm = () => {
     setShowAddressForm(false)
+    setShowReceiverDetailsForm(false)
+    setReceiverName("")
     setAddressFormData({
       street: "",
       city: "",
@@ -2259,41 +2367,33 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
       label: "Home",
       phone: "",
     })
-    navigateAfterClose("/")
+    navigateAfterClose()
   }
 
   const handleSelectSavedAddress = async (address) => {
     try {
-      // Get coordinates from address location
-      const coordinates = address.location?.coordinates || []
-      const longitude = coordinates[0]
-      const latitude = coordinates[1]
+      const locationData = buildSelectedLocationPayload(address)
+      const { latitude, longitude } = locationData
 
-      if (latitude && longitude) {
-        // Update location in backend
+      if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
         await userAPI.updateLocation({
           latitude,
           longitude,
-          address: `${address.street}, ${address.city}`,
-          city: address.city,
-          state: address.state,
-          area: address.additionalDetails || "",
-          formattedAddress: `${address.street}, ${address.city}, ${address.state}`
+          address: locationData.address,
+          city: locationData.city,
+          state: locationData.state,
+          area: locationData.area,
+          street: address.street || "",
+          postalCode: address.zipCode || "",
+          formattedAddress: locationData.formattedAddress,
         })
       }
 
       // Update the location in localStorage with this address
-      const locationData = {
-        city: address.city,
-        state: address.state,
-        address: `${address.street}, ${address.city}`,
-        area: address.additionalDetails || "",
-        zipCode: address.zipCode,
-        latitude,
-        longitude,
-        formattedAddress: `${address.street}, ${address.city}, ${address.state}`
-      }
       localStorage.setItem("userLocation", JSON.stringify(locationData))
+      localStorage.setItem("userLocationMode", "manual")
+      localStorage.removeItem("userZoneId")
+      localStorage.removeItem("userZone")
 
       // Broadcast updated location so Navbar and other components update immediately
       try {
@@ -2317,6 +2417,7 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
         label: address.label || "Home",
         phone: address.phone || "",
       })
+      setReceiverName(userProfile?.name || "")
 
       // Update Google Maps to show selected address
       if (googleMapRef.current && window.google && window.google.maps) {
@@ -2346,9 +2447,8 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
         }, 300)
       }
 
-      // Don't close overlay - keep user on select location page
-      // onClose()
-      // window.location.reload()
+      onClose()
+      navigateAfterClose()
     } catch (error) {
       console.error("Error selecting saved address:", error)
       toast.error("Failed to update location. Please try again.")
@@ -2551,15 +2651,49 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
               <Label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">
                 Receiver details for this address
               </Label>
-              <div className="bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowReceiverDetailsForm((prev) => !prev)}
+                className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex items-center gap-3 text-left"
+              >
                 <Phone className="h-5 w-5 text-gray-600 dark:text-gray-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {userProfile?.name || "User"}, {addressFormData.phone || userProfile?.phone || "Add phone"}
+                    {receiverName || userProfile?.name || "User"}, {addressFormData.phone || userProfile?.phone || "Add phone"}
                   </p>
                 </div>
-                <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
-              </div>
+                <ChevronRight className={`h-5 w-5 text-gray-400 flex-shrink-0 transition-transform ${showReceiverDetailsForm ? "rotate-90" : ""}`} />
+              </button>
+              {showReceiverDetailsForm && (
+                <div className="mt-3 grid gap-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-[#1a1a1a]">
+                  <div>
+                    <Label htmlFor="receiverName" className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Name
+                    </Label>
+                    <Input
+                      id="receiverName"
+                      value={receiverName}
+                      onChange={(e) => setReceiverName(e.target.value)}
+                      placeholder="Receiver name"
+                      className="mt-1 bg-white dark:bg-[#111111] border-gray-200 dark:border-gray-700"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="receiverPhone" className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Phone number
+                    </Label>
+                    <Input
+                      id="receiverPhone"
+                      name="phone"
+                      value={addressFormData.phone}
+                      onChange={handleAddressFormChange}
+                      placeholder="Receiver phone number"
+                      inputMode="tel"
+                      className="mt-1 bg-white dark:bg-[#111111] border-gray-200 dark:border-gray-700"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Save Address As */}
@@ -2648,7 +2782,7 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
               size="icon"
               onClick={() => {
                 onClose()
-                navigateAfterClose("/")
+                navigateAfterClose()
               }}
               className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 -ml-2"
             >
@@ -2728,16 +2862,11 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
               </div>
               <div className="bg-white dark:bg-[#1a1a1a]">
                 {addresses
-                  .filter((address, index, self) => {
-                    // Filter out duplicate addresses with same label - keep only first occurrence
-                    const firstIndex = self.findIndex(addr => addr.label === address.label)
-                    return index === firstIndex
-                  })
                   .map((address, index) => {
                     const IconComponent = getAddressIcon(address)
                     return (
                       <div
-                        key={address.id}
+                        key={address.id || address._id || `${address.label}-${index}`}
                         className="px-4 sm:px-6 lg:px-8"
                         style={{ animation: `slideUp 0.3s ease-out ${0.25 + index * 0.05}s both` }}
                       >
@@ -2754,10 +2883,10 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-gray-900 dark:text-white">
+                              <p className="font-semibold text-gray-900 dark:text-white truncate">
                                 {address.label || address.additionalDetails || "Home"}
                               </p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                              <p className="text-sm text-gray-500 dark:text-gray-400 break-words line-clamp-2">
                                 {[
                                   address.additionalDetails,
                                   address.street,
@@ -2766,7 +2895,7 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
                                   address.zipCode
                                 ].filter(Boolean).join(", ")}
                               </p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                                 Phone number: {address.phone || userProfile?.phone || "Not provided"}
                               </p>
                             </div>
@@ -2869,6 +2998,3 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
     </div>
   )
 }
-
-
-
