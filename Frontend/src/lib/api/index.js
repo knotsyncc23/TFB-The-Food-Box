@@ -405,6 +405,11 @@ export const restaurantAPI = {
       idToken,
     });
   },
+  firebaseAppleLogin: (idToken) => {
+    return apiClient.post(API_ENDPOINTS.RESTAURANT.AUTH.FIREBASE_APPLE_LOGIN, {
+      idToken,
+    });
+  },
 
   refreshToken: () => {
     return apiClient.post(API_ENDPOINTS.RESTAURANT.AUTH.REFRESH_TOKEN);

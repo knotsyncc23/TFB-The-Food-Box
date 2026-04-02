@@ -38,6 +38,38 @@ import { orderAPI, restaurantAPI } from "@/lib/api"
 import { shareContent } from "@/lib/utils/share"
 import circleIcon from "@/assets/circleicon.png"
 
+const deriveOrderItemIsVeg = (item) => {
+  const explicitFoodType = item?.foodType || item?.variationFoodType || item?.selectedVariation?.foodType
+
+  if (typeof explicitFoodType === "string") {
+    const normalized = explicitFoodType.trim().toLowerCase()
+
+    if (normalized === "veg" || normalized === "vegetarian") return true
+    if (
+      normalized === "non-veg" ||
+      normalized === "non veg" ||
+      normalized === "nonveg" ||
+      normalized === "egg"
+    ) {
+      return false
+    }
+  }
+
+  if (item?.isVeg === true) return true
+  if (item?.isVeg === false) return false
+
+  const categoryOrType = [item?.category, item?.type]
+    .filter((value) => typeof value === "string")
+    .map((value) => value.trim().toLowerCase())
+
+  if (categoryOrType.includes("veg")) return true
+  if (categoryOrType.includes("non-veg") || categoryOrType.includes("non veg") || categoryOrType.includes("nonveg")) {
+    return false
+  }
+
+  return false
+}
+
 // Animated checkmark component
 const AnimatedCheckmark = ({ delay = 0 }) => (
   <motion.svg
@@ -478,7 +510,8 @@ export default function OrderTracking() {
             items: apiOrder.items?.map(item => ({
               name: item.name,
               quantity: item.quantity,
-              price: item.price
+              price: item.price,
+              isVeg: deriveOrderItemIsVeg(item),
             })) || [],
             total: apiOrder.pricing?.total || 0,
             status: apiOrder.status || 'pending',
@@ -875,7 +908,8 @@ export default function OrderTracking() {
           items: apiOrder.items?.map(item => ({
             name: item.name,
             quantity: item.quantity,
-            price: item.price
+            price: item.price,
+            isVeg: deriveOrderItemIsVeg(item),
           })) || [],
           total: apiOrder.pricing?.total || 0,
           status: apiOrder.status || 'pending',
@@ -1393,8 +1427,14 @@ export default function OrderTracking() {
                 <div className="mt-2 space-y-1">
                   {order?.items?.map((item, index) => (
                     <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
-                      <span className="w-4 h-4 rounded border border-red-600 flex items-center justify-center">
-                        <span className="w-2 h-2 rounded-full bg-red-600" />
+                      <span
+                        className={`w-4 h-4 rounded border flex items-center justify-center ${
+                          item.isVeg ? "border-green-600" : "border-red-600"
+                        }`}
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`}
+                        />
                       </span>
                       <span>{item.quantity} x {item.name}</span>
                     </div>

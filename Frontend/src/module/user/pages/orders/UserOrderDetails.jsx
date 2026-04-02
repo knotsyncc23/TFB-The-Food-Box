@@ -21,6 +21,39 @@ import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
 import { getCompanyNameAsync } from "@/lib/utils/businessSettings"
 
+const deriveOrderItemIsVeg = (item) => {
+  const explicitFoodType = item?.foodType || item?.variationFoodType || item?.selectedVariation?.foodType
+
+  if (typeof explicitFoodType === "string") {
+    const normalized = explicitFoodType.trim().toLowerCase()
+
+    if (normalized === "veg" || normalized === "vegetarian") return true
+    if (
+      normalized === "non-veg" ||
+      normalized === "non veg" ||
+      normalized === "nonveg" ||
+      normalized === "egg"
+    ) {
+      return false
+    }
+  }
+
+  if (item?.isVeg === true) return true
+  if (item?.isVeg === false) return false
+
+  const categoryOrType = [item?.category, item?.type]
+    .filter((value) => typeof value === "string")
+    .map((value) => value.trim().toLowerCase())
+
+  if (categoryOrType.includes("veg")) return true
+  if (categoryOrType.includes("non-veg") || categoryOrType.includes("non veg") || categoryOrType.includes("nonveg")) {
+    return false
+  }
+
+  // Unknown items default to non-veg so we never incorrectly show a green marker.
+  return false
+}
+
 export default function UserOrderDetails() {
   const navigate = useNavigate()
   const { orderId } = useParams()
@@ -188,7 +221,12 @@ export default function UserOrderDetails() {
     return "Address not available"
   })()
 
-  const items = Array.isArray(order.items) ? order.items : []
+  const items = Array.isArray(order.items)
+    ? order.items.map((item) => ({
+      ...item,
+      isVeg: deriveOrderItemIsVeg(item),
+    }))
+    : []
   const pricing = order.pricing || {}
 
   const userName = order.userName || ""

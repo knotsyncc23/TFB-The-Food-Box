@@ -11,10 +11,6 @@ import { firebaseAuth, ensureFirebaseInitialized } from "@/lib/firebase"
 import { resolveFirebaseRedirectUser } from "@/lib/utils/firebaseRedirectRecovery"
 import { appendAppleDebugLog, getAppleDebugLog } from "@/lib/utils/appleDebugLog"
 
-const redirectToUserHome = () => {
-  window.location.replace("/")
-}
-
 const logAppleCallback = (message, details = null) => {
   appendAppleDebugLog(message, details)
   if (details) {
@@ -26,6 +22,9 @@ const logAppleCallback = (message, details = null) => {
 
 export default function AuthCallback() {
   const navigate = useNavigate()
+  const redirectToUserHome = () => {
+    navigate("/", { replace: true })
+  }
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState("loading") // "loading", "success", "error"
   const [error, setError] = useState("")

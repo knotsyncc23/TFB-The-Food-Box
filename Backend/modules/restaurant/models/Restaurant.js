@@ -46,7 +46,7 @@ const restaurantSchema = new mongoose.Schema(
     email: {
       type: String,
       required: function () {
-        return !this.phone && !this.googleId;
+        return !this.phone && !this.googleId && !this.appleId;
       },
       lowercase: true,
       trim: true,
@@ -55,7 +55,7 @@ const restaurantSchema = new mongoose.Schema(
     phone: {
       type: String,
       required: function () {
-        return !this.email && !this.googleId;
+        return !this.email && !this.googleId && !this.appleId;
       },
       trim: true,
     },
@@ -74,9 +74,12 @@ const restaurantSchema = new mongoose.Schema(
       type: String,
       sparse: true,
     },
+    appleId: {
+      type: String,
+    },
     signupMethod: {
       type: String,
-      enum: ["google", "phone", "email"],
+      enum: ["google", "apple", "phone", "email"],
       default: null,
     },
     // Owner information (now stored directly in restaurant)
@@ -367,6 +370,7 @@ const restaurantSchema = new mongoose.Schema(
 restaurantSchema.index({ email: 1 }, { unique: true, sparse: true });
 restaurantSchema.index({ phone: 1 }, { unique: true, sparse: true });
 restaurantSchema.index({ googleId: 1 }, { unique: true, sparse: true });
+restaurantSchema.index({ appleId: 1 }, { unique: true, sparse: true });
 // Geospatial index for nearby restaurant search
 restaurantSchema.index({ "location.coordinates": "2dsphere" });
 

@@ -1065,12 +1065,28 @@ export const reverifyRestaurant = asyncHandler(async (req, res) => {
   }
 });
 
-/**
- * Login / register using Firebase Google ID token
- * POST /api/restaurant/auth/firebase/google-login
- */
-export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
+const FIREBASE_SOCIAL_PROVIDER_CONFIG = {
+  google: {
+    displayName: "Google",
+    tokenProviderId: "google.com",
+    uidField: "googleId",
+    emailField: "googleEmail",
+    signupMethod: "google",
+    defaultName: "Restaurant",
+  },
+  apple: {
+    displayName: "Apple",
+    tokenProviderId: "apple.com",
+    uidField: "appleId",
+    emailField: null,
+    signupMethod: "apple",
+    defaultName: "Restaurant",
+  },
+};
+
+const handleFirebaseSocialLogin = async (req, res, provider) => {
   const { idToken } = req.body;
+  const providerConfig = FIREBASE_SOCIAL_PROVIDER_CONFIG[provider];
 
   if (!idToken) {
     return errorResponse(res, 400, "Firebase ID token is required");
@@ -1089,62 +1105,73 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
   try {
     // Verify Firebase ID token
     const decoded = await firebaseAuthService.verifyIdToken(idToken);
+    const tokenProviderId = decoded?.firebase?.sign_in_provider || "";
+
+    if (tokenProviderId && tokenProviderId !== providerConfig.tokenProviderId) {
+      return errorResponse(
+        res,
+        400,
+        `This Firebase token was issued for ${tokenProviderId}, not ${providerConfig.tokenProviderId}.`,
+      );
+    }
 
     const firebaseUid = decoded.uid;
     const email = decoded.email || null;
-    const name = decoded.name || decoded.display_name || "Restaurant";
+    const name = decoded.name || decoded.display_name || providerConfig.defaultName;
     const picture = decoded.picture || decoded.photo_url || null;
     const emailVerified = !!decoded.email_verified;
 
     // Validate email is present
     if (!email) {
-      logger.error("Firebase Google login failed: Email not found in token", {
+      logger.error(`Firebase ${providerConfig.displayName} login failed: Email not found in token`, {
         uid: firebaseUid,
       });
       return errorResponse(
         res,
         400,
-        "Email not found in Firebase user. Please ensure email is available in your Google account.",
+        `Email not found in Firebase user. Please ensure email is available in your ${providerConfig.displayName} account.`,
       );
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      logger.error("Firebase Google login failed: Invalid email format", {
+      logger.error(`Firebase ${providerConfig.displayName} login failed: Invalid email format`, {
         email,
       });
       return errorResponse(
         res,
         400,
-        "Invalid email format received from Google.",
+        `Invalid email format received from ${providerConfig.displayName}.`,
       );
     }
 
-    // Find existing restaurant by firebase UID (stored in googleId) or email
+    // Find existing restaurant by Firebase provider UID or email
     let restaurant = await Restaurant.findOne({
-      $or: [{ googleId: firebaseUid }, { email }],
+      $or: [{ [providerConfig.uidField]: firebaseUid }, { email }],
     });
 
     if (restaurant) {
-      // If restaurant exists but googleId not linked yet, link it
-      if (!restaurant.googleId) {
-        restaurant.googleId = firebaseUid;
-        restaurant.googleEmail = email;
+      // If restaurant exists but provider uid not linked yet, link it
+      if (!restaurant[providerConfig.uidField]) {
+        restaurant[providerConfig.uidField] = firebaseUid;
+        if (providerConfig.emailField && email) {
+          restaurant[providerConfig.emailField] = email;
+        }
         if (!restaurant.profileImage && picture) {
           restaurant.profileImage = { url: picture };
         }
         if (!restaurant.signupMethod) {
-          restaurant.signupMethod = "google";
+          restaurant.signupMethod = providerConfig.signupMethod;
         }
         await restaurant.save();
-        logger.info("Linked Google account to existing restaurant", {
+        logger.info(`Linked ${providerConfig.displayName} account to existing restaurant`, {
           restaurantId: restaurant._id,
           email,
         });
       }
 
-      logger.info("Existing restaurant logged in via Firebase Google", {
+      logger.info(`Existing restaurant logged in via Firebase ${providerConfig.displayName}`, {
         restaurantId: restaurant._id,
         email,
       });
@@ -1153,9 +1180,8 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
       const restaurantData = {
         name: name.trim(),
         email: email.toLowerCase().trim(),
-        googleId: firebaseUid,
-        googleEmail: email.toLowerCase().trim(),
-        signupMethod: "google",
+        [providerConfig.uidField]: firebaseUid,
+        signupMethod: providerConfig.signupMethod,
         profileImage: picture ? { url: picture } : null,
         ownerName: name.trim(),
         ownerEmail: email.toLowerCase().trim(),
@@ -1163,11 +1189,14 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
         // Auto-approve in development
         isActive: process.env.NODE_ENV === "development",
       };
+      if (providerConfig.emailField) {
+        restaurantData[providerConfig.emailField] = email.toLowerCase().trim();
+      }
 
       try {
         restaurant = await Restaurant.create(restaurantData);
 
-        logger.info("New restaurant registered via Firebase Google login", {
+        logger.info(`New restaurant registered via Firebase ${providerConfig.displayName} login`, {
           firebaseUid,
           email,
           restaurantId: restaurant._id,
@@ -1187,20 +1216,22 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
             });
             throw createError;
           }
-          // Link Google ID if not already linked
-          if (!restaurant.googleId) {
-            restaurant.googleId = firebaseUid;
-            restaurant.googleEmail = email;
+          // Link provider ID if not already linked
+          if (!restaurant[providerConfig.uidField]) {
+            restaurant[providerConfig.uidField] = firebaseUid;
+            if (providerConfig.emailField && email) {
+              restaurant[providerConfig.emailField] = email;
+            }
             if (!restaurant.profileImage && picture) {
               restaurant.profileImage = { url: picture };
             }
             if (!restaurant.signupMethod) {
-              restaurant.signupMethod = "google";
+              restaurant.signupMethod = providerConfig.signupMethod;
             }
             await restaurant.save();
           }
         } else {
-          logger.error("Error creating restaurant via Firebase Google login", {
+          logger.error(`Error creating restaurant via Firebase ${providerConfig.displayName} login`, {
             error: createError.message,
             email,
           });
@@ -1225,7 +1256,7 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
     return successResponse(
       res,
       200,
-      "Firebase Google authentication successful",
+      `Firebase ${providerConfig.displayName} authentication successful`,
       {
         accessToken: tokens.accessToken,
         restaurant: {
@@ -1243,11 +1274,27 @@ export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
       },
     );
   } catch (error) {
-    logger.error(`Error in Firebase Google login: ${error.message}`);
+    logger.error(`Error in Firebase ${providerConfig.displayName} login: ${error.message}`);
     return errorResponse(
       res,
       400,
-      error.message || "Firebase Google authentication failed",
+      error.message || `Firebase ${providerConfig.displayName} authentication failed`,
     );
   }
+}
+
+/**
+ * Login / register using Firebase Google ID token
+ * POST /api/restaurant/auth/firebase/google-login
+ */
+export const firebaseGoogleLogin = asyncHandler(async (req, res) => {
+  return handleFirebaseSocialLogin(req, res, "google");
+});
+
+/**
+ * Login / register using Firebase Apple ID token
+ * POST /api/restaurant/auth/firebase/apple-login
+ */
+export const firebaseAppleLogin = asyncHandler(async (req, res) => {
+  return handleFirebaseSocialLogin(req, res, "apple");
 });

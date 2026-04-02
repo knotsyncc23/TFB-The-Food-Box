@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react"
 import { useNavigate, Link } from "react-router-dom"
-import { Mail, ChevronDown, Phone } from "lucide-react"
+import { Mail, ChevronDown, Phone, Apple } from "lucide-react"
 import { setAuthData } from "@/lib/utils/auth"
 import {
   Select,
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { restaurantAPI } from "@/lib/api"
-import { firebaseAuth, googleProvider, ensureFirebaseInitialized } from "@/lib/firebase"
+import { firebaseAuth, googleProvider, appleProvider, ensureFirebaseInitialized } from "@/lib/firebase"
 import { hasFlutterGoogleBridge, nativeGoogleSignIn } from "@/lib/utils/flutterGoogleAuthBridge"
 import { useCompanyName } from "@/lib/hooks/useCompanyName"
 
@@ -57,6 +57,7 @@ export default function RestaurantLogin() {
     email: false,
   })
   const [isSending, setIsSending] = useState(false)
+  const [isAppleLoading, setIsAppleLoading] = useState(false)
   const [apiError, setApiError] = useState("")
   const isIOSBrowser = /iPad|iPhone|iPod/i.test(
     typeof navigator !== "undefined" ? navigator.userAgent : "",
@@ -252,16 +253,29 @@ export default function RestaurantLogin() {
 
   const redirectHandledRef = useRef(false)
 
+  const resolveFirebaseProvider = (user, providerOverride = null) => {
+    if (providerOverride) return providerOverride
+
+    const providerId = (user?.providerData || [])
+      .find((providerData) => ["google.com", "apple.com"].includes(providerData?.providerId))
+      ?.providerId
+
+    return providerId === "apple.com" ? "apple" : "google"
+  }
+
   // Helper function to process signed-in user
-  const processSignedInUser = async (user, source = "unknown") => {
+  const processSignedInUser = async (user, source = "unknown", providerOverride = null) => {
     if (redirectHandledRef.current) return
     redirectHandledRef.current = true
     setIsSending(true)
     setApiError("")
 
     try {
-      const idToken = await user.getIdToken()
-      const response = await restaurantAPI.firebaseGoogleLogin(idToken)
+      const provider = resolveFirebaseProvider(user, providerOverride)
+      const idToken = await user.getIdToken(true)
+      const response = provider === "apple"
+        ? await restaurantAPI.firebaseAppleLogin(idToken)
+        : await restaurantAPI.firebaseGoogleLogin(idToken)
       const data = response?.data?.data || {}
 
       const accessToken = data.accessToken
@@ -275,9 +289,10 @@ export default function RestaurantLogin() {
         throw new Error("Invalid response from server")
       }
     } catch (error) {
-      console.error(`❌ Error processing user from ${source}:`, error)
+      console.error(`Authentication error from ${source}:`, error)
       redirectHandledRef.current = false
       setIsSending(false)
+      setIsAppleLoading(false)
       setApiError(error?.response?.data?.message || error?.message || "Authentication failed")
     }
   }
@@ -427,6 +442,49 @@ export default function RestaurantLogin() {
       if (error?.code !== "auth/popup-closed-by-user") {
         setApiError(error?.message || "Google sign-in failed")
       }
+    }
+  }
+
+  const handleAppleLogin = async () => {
+    setApiError("")
+    setIsAppleLoading(true)
+    redirectHandledRef.current = false
+
+    try {
+      await ensureFirebaseInitialized()
+
+      if (!firebaseAuth || !appleProvider) {
+        throw new Error("Firebase is not configured correctly for Apple login")
+      }
+
+      const {
+        browserLocalPersistence,
+        setPersistence,
+        signInWithPopup,
+      } = await import("firebase/auth")
+
+      await setPersistence(firebaseAuth, browserLocalPersistence)
+
+      const result = await signInWithPopup(firebaseAuth, appleProvider)
+      if (result?.user) {
+        await processSignedInUser(result.user, "apple-popup-result", "apple")
+        return
+      }
+
+      throw new Error("Apple sign-in completed without returning a Firebase user")
+    } catch (error) {
+      console.error("Firebase Apple login error:", error)
+      redirectHandledRef.current = false
+      setApiError(
+        error?.code === "auth/popup-blocked"
+          ? "Popup was blocked. Please allow popups and try again."
+          : error?.code === "auth/popup-closed-by-user"
+            ? "Apple sign-in was cancelled."
+            : error?.message || "Apple sign-in failed",
+      )
+    } finally {
+      setIsAppleLoading(false)
+      setIsSending(false)
     }
   }
 
@@ -642,6 +700,7 @@ export default function RestaurantLogin() {
             {/* Login with Google Button */}
             <Button
               onClick={handleGoogleLogin}
+              disabled={isSending || isAppleLoading}
               variant="outline"
               className="w-full h-12 rounded-lg border border-gray- hover:border-gray-400 hover:bg-gray-50 text-gray-900 font-semibold text-base flex items-center justify-center gap-3"
             >
@@ -665,6 +724,18 @@ export default function RestaurantLogin() {
                 />
               </svg>
               <span className="mr-auto text-gray-900">Login with Google</span>
+            </Button>
+
+            <Button
+              onClick={handleAppleLogin}
+              disabled={isSending || isAppleLoading}
+              variant="outline"
+              className="w-full h-12 rounded-lg border border-gray- hover:border-gray-400 hover:bg-gray-50 text-gray-900 font-semibold text-base flex items-center justify-center gap-3"
+            >
+              <Apple className="w-5 h-5 mr-auto text-black" />
+              <span className="mr-auto text-gray-900">
+                {isAppleLoading ? "Signing in with Apple" : "Login with Apple"}
+              </span>
             </Button>
           </div>
         </div>

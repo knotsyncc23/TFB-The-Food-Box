@@ -1,6 +1,7 @@
 import { initializeApp, getApps } from "firebase/app";
 import {
   GoogleAuthProvider,
+  OAuthProvider,
   browserLocalPersistence,
   browserPopupRedirectResolver,
   browserSessionPersistence,
@@ -99,7 +100,7 @@ let app;
 let firebaseAuth;
 let googleProvider;
 const FIREBASE_HOSTING_AUTH_DOMAIN = "tifunbox.firebaseapp.com";
-
+let appleProvider;
 const getPreferredAuthDomain = () => {
   const configuredAuthDomain = firebaseConfig.originalAuthDomain || firebaseConfig.authDomain || "";
 
@@ -183,6 +184,11 @@ async function ensureFirebaseInitialized() {
       googleProvider.addScope("email");
       googleProvider.addScope("profile");
     }
+    if (!appleProvider) {
+      appleProvider = new OAuthProvider("apple.com");
+      appleProvider.addScope("email");
+      appleProvider.addScope("name");
+    }
   } catch (error) {
     console.error("❌ Firebase initialization error:", error);
   }
@@ -207,4 +213,4 @@ export function getFirebaseAuthConfig() {
   }
 }
 
-export { firebaseAuth, googleProvider, ensureFirebaseInitialized };
+export { firebaseAuth, googleProvider, appleProvider, ensureFirebaseInitialized };

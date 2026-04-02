@@ -10,6 +10,7 @@ import {
   getCurrentRestaurant,
   reverifyRestaurant,
   firebaseGoogleLogin,
+  firebaseAppleLogin,
 } from "../controllers/restaurantAuthController.js";
 import {
   registerRestaurantFcmToken,
@@ -115,6 +116,9 @@ const resetPasswordSchema = Joi.object({
 const firebaseGoogleLoginSchema = Joi.object({
   idToken: Joi.string().required()
 });
+const firebaseAppleLoginSchema = Joi.object({
+  idToken: Joi.string().required()
+});
 
 // Public routes
 router.post("/send-otp", validate(sendOTPSchema), sendOTP);
@@ -126,6 +130,11 @@ router.post(
   "/firebase/google-login",
   validate(firebaseGoogleLoginSchema),
   firebaseGoogleLogin,
+);
+router.post(
+  "/firebase/apple-login",
+  validate(firebaseAppleLoginSchema),
+  firebaseAppleLogin,
 );
 
 // Protected routes

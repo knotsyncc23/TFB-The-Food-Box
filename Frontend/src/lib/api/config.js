@@ -198,6 +198,7 @@ export const API_ENDPOINTS = {
       REGISTER: "/restaurant/auth/register",
       LOGIN: "/restaurant/auth/login",
       FIREBASE_GOOGLE_LOGIN: "/restaurant/auth/firebase/google-login",
+      FIREBASE_APPLE_LOGIN: "/restaurant/auth/firebase/apple-login",
       REFRESH_TOKEN: "/restaurant/auth/refresh-token",
       LOGOUT: "/restaurant/auth/logout",
       ME: "/restaurant/auth/me",

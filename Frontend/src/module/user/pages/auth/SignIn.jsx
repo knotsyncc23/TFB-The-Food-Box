@@ -17,7 +17,7 @@ import { firebaseAuth, googleProvider, ensureFirebaseInitialized } from "@/lib/f
 import { hasFlutterGoogleBridge, nativeGoogleSignIn } from "@/lib/utils/flutterGoogleAuthBridge"
 import { setAuthData } from "@/lib/utils/auth"
 import { registerFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
-import { appendAppleDebugLog, clearAppleDebugLog, getAppleDebugLog } from "@/lib/utils/appleDebugLog"
+import { appendAppleDebugLog } from "@/lib/utils/appleDebugLog"
 import { useFirebaseUserSession } from "@/lib/firebaseUserSession"
 import loginBanner from "@/assets/loginbanner.jpg"
 import tifunboxLogo from "@/assets/tifunboxlogo.png"
@@ -46,10 +46,6 @@ const countryCodes = [
   { code: "+46", country: "SE", flag: "🇸🇪" },
 ]
 
-const redirectToUserHome = () => {
-  window.location.replace("/")
-}
-
 const logAppleDebug = (message, details = null) => {
   appendAppleDebugLog(message, details)
   if (details) {
@@ -61,6 +57,9 @@ const logAppleDebug = (message, details = null) => {
 
 export default function SignIn() {
   const navigate = useNavigate()
+  const redirectToUserHome = () => {
+    navigate("/", { replace: true })
+  }
   const [searchParams] = useSearchParams()
   const isSignUp = searchParams.get("mode") === "signup"
 
@@ -149,7 +148,6 @@ export default function SignIn() {
   const redirectHandledRef = useRef(false)
   const [isAppleLoading, setIsAppleLoading] = useState(false)
   const [appleError, setAppleError] = useState("")
-  const [appleDebugEntries, setAppleDebugEntries] = useState(() => getAppleDebugLog())
   const isIOSBrowser = /iPad|iPhone|iPod/i.test(
     typeof navigator !== "undefined" ? navigator.userAgent : "",
   )
@@ -171,21 +169,6 @@ export default function SignIn() {
       )
     ) {
       setIsAppleLoading(true)
-    }
-  }, [])
-
-  useEffect(() => {
-    const syncAppleLogs = () => {
-      setAppleDebugEntries(getAppleDebugLog())
-    }
-
-    syncAppleLogs()
-    window.addEventListener("focus", syncAppleLogs)
-    document.addEventListener("visibilitychange", syncAppleLogs)
-
-    return () => {
-      window.removeEventListener("focus", syncAppleLogs)
-      document.removeEventListener("visibilitychange", syncAppleLogs)
     }
   }, [])
 
@@ -212,7 +195,6 @@ export default function SignIn() {
 
     if (pendingProvider === "apple" && firebaseUserSession.lastError) {
       setAppleError(firebaseUserSession.lastError.message || "Apple sign-in restore failed.")
-      setAppleDebugEntries(getAppleDebugLog())
     }
   }, [
     firebaseUserSession.authDomain,
@@ -812,8 +794,6 @@ export default function SignIn() {
   }
 
   const handleAppleSignIn = async () => {
-    clearAppleDebugLog()
-    setAppleDebugEntries([])
     setAppleError("")
     setIsAppleLoading(true)
     setPendingProvider("apple")
@@ -887,10 +867,8 @@ export default function SignIn() {
       }
 
       setAppleError(message)
-      setAppleDebugEntries(getAppleDebugLog())
     } finally {
       setIsAppleLoading(false)
-      setAppleDebugEntries(getAppleDebugLog())
     }
   }
 
@@ -1177,42 +1155,6 @@ export default function SignIn() {
             <div className="text-center space-y-1">
               {appleError && <p className="text-xs text-red-600 font-medium">{appleError}</p>}
             </div>
-
-          {(appleDebugEntries.length > 0 || isAppleLoading) && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
-                  Apple Debug
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearAppleDebugLog()
-                    setAppleDebugEntries([])
-                  }}
-                  className="text-[11px] font-medium text-amber-700 underline"
-                >
-                  Clear
-                </button>
-              </div>
-              <div className="max-h-40 space-y-1 overflow-y-auto rounded bg-white/70 p-2">
-                {appleDebugEntries.length === 0 ? (
-                  <p className="text-[11px] text-amber-700">Waiting for Apple sign-in logs...</p>
-                ) : (
-                  appleDebugEntries.map((entry, index) => (
-                    <div key={`${entry.timestamp}-${index}`} className="text-[11px] text-gray-700">
-                      <p className="font-medium">{entry.message}</p>
-                      {entry.details && (
-                        <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] text-gray-600">
-                          {JSON.stringify(entry.details, null, 2)}
-                        </pre>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Legal Disclaimer */}
           <div className="text-center text-xs md:text-sm text-gray-500 dark:text-gray-400 pt-4 md:pt-6">
