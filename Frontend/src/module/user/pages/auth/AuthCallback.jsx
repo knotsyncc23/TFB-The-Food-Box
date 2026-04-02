@@ -43,7 +43,7 @@ export default function AuthCallback() {
         // Get provider from URL params
         const providerParam =
           searchParams.get("provider") ||
-          (window.location.pathname.includes("/auth/apple/callback") ? "apple" : "google")
+          (window.location.pathname.includes("apple") || searchParams.has("id_token") ? "apple" : "google")
         setProvider(providerParam)
         if (providerParam === "apple") {
           logAppleCallback("Callback handler started", {

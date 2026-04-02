@@ -402,8 +402,9 @@ export default function UserRouter() {
           {/* Auth */}
           <Route path="/auth/sign-in" element={<AuthRedirect module="user"><SignIn /></AuthRedirect>} />
           <Route path="/auth/otp" element={<AuthRedirect module="user"><OTP /></AuthRedirect>} />
-          <Route path="/auth/apple/callback" element={<AuthRedirect module="user"><AuthCallback /></AuthRedirect>} />
-          <Route path="/auth/callback" element={<AuthRedirect module="user"><AuthCallback /></AuthRedirect>} />
+          <Route path="/auth/apple/callback" element={<AuthCallback />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/callback" element={<AuthCallback />} />
 
           {/* Help */}
           <Route path="/help" element={<Help />} />
