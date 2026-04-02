@@ -56,8 +56,7 @@ const attemptChunkRecoveryReload = () => {
   const onceKey = "tfb_chunk_recovery_once"
   if (safeSessionGet(onceKey) === "1") return
   safeSessionSet(onceKey, "1")
-  // Do not auto-navigate on iOS/in-app contexts to avoid browser handoff behavior.
-  if (isIOS() || isGoogleInAppBrowser()) return
+  
   try {
     // Use in-place reload to avoid cross-browser handoff restrictions on iOS in-app browsers.
     window.location.reload()
@@ -73,7 +72,9 @@ const isLikelyChunkLoadError = (message = "") => {
     text.includes("failed to fetch dynamically imported module") ||
     text.includes("importing a module script failed") ||
     text.includes("loading chunk") ||
-    text.includes("chunkloaderror")
+    text.includes("chunkloaderror") ||
+    text.includes("failed to load module script") ||
+    text.includes("expected a javascript-or-wasm module script")
   )
 }
 
@@ -292,8 +293,8 @@ window.addEventListener('unhandledrejection', (event) => {
     return
   }
 
-  // iOS Google in-app browser is more prone to stale chunk cache after deploy.
-  if ((isIOS() || isGoogleInAppBrowser()) && isLikelyChunkLoadError(errorMsg || errorStr)) {
+  // Handle stale chunk cache after deploy by reloading the page.
+  if (isLikelyChunkLoadError(errorMsg || errorStr)) {
     event.preventDefault()
     attemptChunkRecoveryReload()
     return
@@ -313,9 +314,14 @@ window.addEventListener('unhandledrejection', (event) => {
 
 window.addEventListener("error", (event) => {
   const message = event?.message || ""
-  if ((isIOS() || isGoogleInAppBrowser()) && isLikelyChunkLoadError(message)) {
+  if (isLikelyChunkLoadError(message)) {
     attemptChunkRecoveryReload()
   }
+})
+
+// Vite-specific preload error listener
+window.addEventListener('vite:preloadError', (event) => {
+  attemptChunkRecoveryReload()
 })
 
 const rootElement = document.getElementById('root')
