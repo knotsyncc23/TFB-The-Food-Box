@@ -4,7 +4,6 @@ import BottomNavigation from "./BottomNavigation"
 import { getUnreadDeliveryNotificationCount } from "../utils/deliveryNotifications"
 import { isModuleAuthenticated } from "@/lib/utils/auth"
 import { getWebNotificationPermission, registerFcmTokenForDelivery } from "@/lib/notifications/fcmWeb"
-import PullToRefresh from "@/components/PullToRefresh"
 
 export default function DeliveryLayout({
   children,
@@ -90,11 +89,9 @@ export default function DeliveryLayout({
           </button>
         </div>
       ) : null}
-      <PullToRefresh>
-        <main>
-          {children}
-        </main>
-      </PullToRefresh>
+      <main>
+        {children}
+      </main>
       {showBottomNav && (
         <BottomNavigation
           showGig={showGig}

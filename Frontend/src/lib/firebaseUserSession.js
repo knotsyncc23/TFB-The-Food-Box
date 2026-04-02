@@ -5,8 +5,8 @@ import { getModuleToken, setAuthData } from "@/lib/utils/auth"
 
 const PENDING_PROVIDER_KEY = "pendingSocialProvider"
 const APPLE_REDIRECT_IN_PROGRESS_KEY = "appleRedirectInProgress"
-const DEFAULT_RESTORE_TIMEOUT_MS = 10000 // Increased for better redirect recovery
-const IOS_SAFARI_RESTORE_TIMEOUT_MS = 10000 // Increased for Safari specifically
+const DEFAULT_RESTORE_TIMEOUT_MS = 4000
+const IOS_SAFARI_RESTORE_TIMEOUT_MS = 2500
 
 const listeners = new Set()
 

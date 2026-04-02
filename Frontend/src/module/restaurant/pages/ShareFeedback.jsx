@@ -15,7 +15,7 @@ export default function ShareFeedback() {
   const [showThanks, setShowThanks] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const numbers = Array.from({ length: 5 }, (_, i) => i + 1)
+  const numbers = Array.from({ length: 11 }, (_, i) => i)
 
   const handleClose = () => {
     navigate(-1)
@@ -71,7 +71,7 @@ export default function ShareFeedback() {
 
         {/* Rating scale */}
         <div className="mb-3">
-          <div className="grid grid-cols-5 gap-1 rounded-xl border border-gray-300 bg-white overflow-hidden">
+          <div className="grid grid-cols-11 gap-1 rounded-xl border border-gray-300 bg-white overflow-hidden">
             {numbers.map((num) => {
               const isActive = rating === num
               const intensity =
@@ -110,7 +110,7 @@ export default function ShareFeedback() {
             >
               You rated your experience{" "}
               <span className="font-semibold text-gray-900">
-                {rating}/5
+                {rating}/10
               </span>
               .
             </motion.p>

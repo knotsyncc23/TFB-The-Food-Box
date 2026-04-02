@@ -43,7 +43,6 @@ export const shareContent = async ({ title, text, url }) => {
   if (url) shareData.url = url
   const fallbackMessage = buildShareMessage({ title, text, url })
 
-  // Try native share first (only works on secure contexts + mobile browsers)
   try {
     if (
       navigator.share &&
@@ -56,35 +55,30 @@ export const shareContent = async ({ title, text, url }) => {
     if (error?.name === "AbortError") {
       return { method: "cancelled" }
     }
-    // Continue to next fallback if native share fails for other reasons
   }
 
-  // Priority 2: Try WhatsApp Share (Better UX for social sharing)
-  const whatsappUrl = buildWhatsAppShareUrl({ title, text, url })
-  if (whatsappUrl) {
-    try {
-      const shareWindow = window.open(whatsappUrl, "_blank", "noopener,noreferrer")
-      if (shareWindow) {
-        return { method: "whatsapp" }
-      }
-      
-      // If open() failed (popup blocker), try a direct link implementation
-      const link = document.createElement("a")
-      link.href = whatsappUrl
-      link.target = "_blank"
-      link.rel = "noopener noreferrer"
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      return { method: "whatsapp" }
-    } catch (e) {
-      // If WhatsApp fails, move to clipboard
-    }
-  }
-
-  // Final Resort: Copy to clipboard
+  // Try clipboard first, then a legacy copy fallback that works on more browsers.
   if (await copyTextFallback(fallbackMessage)) {
     return { method: "clipboard" }
+  }
+
+  const whatsappUrl = buildWhatsAppShareUrl({ title, text, url })
+  const shareWindow = window.open(whatsappUrl, "_blank", "noopener,noreferrer")
+
+  if (shareWindow) {
+    return { method: "whatsapp" }
+  }
+
+  // Last-resort fallback for aggressive popup blockers.
+  if (whatsappUrl) {
+    const link = document.createElement("a")
+    link.href = whatsappUrl
+    link.target = "_blank"
+    link.rel = "noopener noreferrer"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    return { method: "whatsapp" }
   }
 
   if (fallbackMessage) {

@@ -36,13 +36,6 @@ export default function DesktopNavbar() {
   const isProfile = location.pathname.startsWith("/profile") || location.pathname.startsWith("/user/profile")
   const isDelivery = !isDining && !isUnder250 && !isProfile && (location.pathname === "/" || location.pathname === "/user" || (location.pathname.startsWith("/") && !location.pathname.startsWith("/restaurant") && !location.pathname.startsWith("/delivery") && !location.pathname.startsWith("/admin") && !location.pathname.startsWith("/usermain")))
 
-  const handleRefresh = (e, isActive) => {
-    if (isActive) {
-      e.preventDefault()
-      window.location.reload()
-    }
-  }
-
   // Reset visibility and scroll position when route changes
   useEffect(() => {
     setIsVisible(true)
@@ -139,7 +132,6 @@ export default function DesktopNavbar() {
               {/* Delivery Tab */}
               <Link
                 to="/"
-                onClick={(e) => handleRefresh(e, isDelivery)}
                 className={`px-6 py-2.5 text-sm font-medium transition-all duration-200 relative ${isDelivery
                   ? "text-red-600 dark:text-red-500"
                   : "text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-500"
@@ -157,7 +149,6 @@ export default function DesktopNavbar() {
               {/* Under 250 Tab */}
               <Link
                 to="/under-250"
-                onClick={(e) => handleRefresh(e, isUnder250)}
                 className={`px-6 py-2.5 text-sm font-medium transition-all duration-200 relative ${isUnder250
                   ? "text-red-600 dark:text-red-500"
                   : "text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-500"
@@ -175,7 +166,6 @@ export default function DesktopNavbar() {
               {/* Dining Tab */}
               <Link
                 to="/user/dining"
-                onClick={(e) => handleRefresh(e, isDining)}
                 className={`px-6 py-2.5 text-sm font-medium transition-all duration-200 relative ${isDining
                   ? "text-red-600 dark:text-red-500"
                   : "text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-500"
@@ -193,7 +183,6 @@ export default function DesktopNavbar() {
               {/* Profile Tab */}
               <Link
                 to="/user/profile"
-                onClick={(e) => handleRefresh(e, isProfile)}
                 className={`px-6 py-2.5 text-sm font-medium transition-all duration-200 relative ${isProfile
                   ? "text-red-600 dark:text-red-500"
                   : "text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-500"

@@ -10,13 +10,6 @@ export default function BottomNavigation() {
   const isProfile = location.pathname.startsWith("/profile") || location.pathname.startsWith("/user/profile")
   const isDelivery = !isDining && !isUnder250 && !isProfile && (location.pathname === "/" || location.pathname === "/user" || (location.pathname.startsWith("/") && !location.pathname.startsWith("/restaurant") && !location.pathname.startsWith("/delivery") && !location.pathname.startsWith("/admin") && !location.pathname.startsWith("/usermain")))
 
-  const handleRefresh = (e, isActive) => {
-    if (isActive) {
-      e.preventDefault()
-      window.location.reload()
-    }
-  }
-
   return (
     <div
       className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1a1a1a] border-t border-gray-200 dark:border-gray-800 z-50 shadow-lg"
@@ -25,7 +18,6 @@ export default function BottomNavigation() {
         {/* Delivery Tab */}
         <Link
           to="/"
-          onClick={(e) => handleRefresh(e, isDelivery)}
           className={`flex flex-col items-center gap-1.5 px-4 sm:px-5 py-2 transition-all duration-200 relative ${isDelivery
             ? "text-[#671E1F]"
             : "text-gray-600 dark:text-gray-400"
@@ -46,7 +38,6 @@ export default function BottomNavigation() {
         {/* Under 250 Tab */}
         <Link
           to="/under-250"
-          onClick={(e) => handleRefresh(e, isUnder250)}
           className={`flex flex-col items-center gap-1.5 px-4 sm:px-5 py-2 transition-all duration-200 relative ${isUnder250
             ? "text-[#671E1F]"
             : "text-gray-600 dark:text-gray-400"
@@ -67,7 +58,6 @@ export default function BottomNavigation() {
         {/* Dining Tab */}
         <Link
           to="/user/dining"
-          onClick={(e) => handleRefresh(e, isDining)}
           className={`flex flex-col items-center gap-1.5 px-4 sm:px-5 py-2 transition-all duration-200 relative ${isDining
             ? "text-[#671E1F]"
             : "text-gray-600 dark:text-gray-400"
@@ -88,7 +78,6 @@ export default function BottomNavigation() {
         {/* Profile Tab */}
         <Link
           to="/user/profile"
-          onClick={(e) => handleRefresh(e, isProfile)}
           className={`flex flex-col items-center gap-1.5 px-4 sm:px-5 py-2 transition-all duration-200 relative ${isProfile
             ? "text-[#671E1F]"
             : "text-gray-600 dark:text-gray-400"

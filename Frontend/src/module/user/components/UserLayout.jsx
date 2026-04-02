@@ -10,7 +10,6 @@ const SearchOverlay = lazy(() => import("./SearchOverlay"))
 const LocationSelectorOverlay = lazy(() => import("./LocationSelectorOverlay"))
 import BottomNavigation from "./BottomNavigation"
 import DesktopNavbar from "./DesktopNavbar"
-import PullToRefresh from "@/components/PullToRefresh"
 
 // Create SearchOverlay context with default value
 const SearchOverlayContext = createContext({
@@ -192,11 +191,9 @@ export default function UserLayout() {
                 ) : null}
                 {/* <Navbar /> */}
                 {showBottomNav && <DesktopNavbar />}
-                <PullToRefresh>
-                  <main className={isAuthRoute ? "min-h-screen" : ""}>
-                    <Outlet />
-                  </main>
-                </PullToRefresh>
+                <main className={isAuthRoute ? "min-h-screen" : ""}>
+                  <Outlet />
+                </main>
                 {showBottomNav && <BottomNavigation />}
               </LocationSelectorProvider>
             </SearchOverlayProvider>

@@ -159,10 +159,7 @@ export default function SignIn() {
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
     hostname.endsWith(".local")
-  const isSafari = typeof navigator !== "undefined" &&
-    /Safari/i.test(navigator.userAgent) &&
-    !/Chrome|CriOS/i.test(navigator.userAgent)
-  const shouldUsePopupForApple = !isSafari && !isIOSBrowser
+  const shouldUsePopupForApple = true
 
   useEffect(() => {
     if (typeof sessionStorage === "undefined") return
