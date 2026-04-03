@@ -465,6 +465,13 @@ export default function RestaurantLogin() {
 
       await setPersistence(firebaseAuth, browserLocalPersistence)
 
+      // iOS browsers have trouble with cross-tab communication after popup cancel
+      if (isIOSBrowser) {
+        const { signInWithRedirect } = await import("firebase/auth")
+        await signInWithRedirect(firebaseAuth, appleProvider)
+        return
+      }
+
       const result = await signInWithPopup(firebaseAuth, appleProvider)
       if (result?.user) {
         await processSignedInUser(result.user, "apple-popup-result", "apple")

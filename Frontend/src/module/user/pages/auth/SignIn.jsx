@@ -157,7 +157,7 @@ export default function SignIn() {
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
     hostname.endsWith(".local")
-  const shouldUsePopupForApple = true
+  const shouldUsePopupForApple = !isIOSBrowser
 
   useEffect(() => {
     if (typeof sessionStorage === "undefined") return
@@ -843,6 +843,13 @@ export default function SignIn() {
 
         throw new Error("Apple popup completed without returning a Firebase user.")
       }
+
+      logAppleDebug("Using Apple redirect flow", {
+        reason: "Prefer redirect on some mobile browsers where popups remain stuck in tabs",
+      })
+      const { signInWithRedirect } = await import("firebase/auth")
+      await signInWithRedirect(firebaseAuth, appleProvider)
+      return
 
     } catch (error) {
       console.error("Apple sign-in failed:", error)
