@@ -152,12 +152,6 @@ export default function SignIn() {
     typeof navigator !== "undefined" ? navigator.userAgent : "",
   )
   const firebaseUserSession = useFirebaseUserSession()
-  const hostname = typeof window !== "undefined" ? window.location.hostname : ""
-  const shouldUsePopupForGoogle =
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname.endsWith(".local")
-  const shouldUsePopupForApple = true
 
   useEffect(() => {
     if (typeof sessionStorage === "undefined") return
@@ -714,7 +708,6 @@ export default function SignIn() {
       const {
         browserLocalPersistence,
         setPersistence,
-        signInWithPopup,
         signInWithRedirect,
       } = await import("firebase/auth")
 
@@ -725,32 +718,14 @@ export default function SignIn() {
         path: window.location.pathname,
         origin: window.location.origin,
         isIOSBrowser,
-        shouldUsePopupForGoogle,
       })
       await setPersistence(firebaseAuth, browserLocalPersistence)
       console.log("[GoogleAuth] Configured Firebase persistence for Google sign-in", {
         persistence: "browserLocalPersistence",
       })
 
-      if (shouldUsePopupForGoogle) {
-        console.log("[GoogleAuth] Using Google popup flow", {
-          reason: "Local development cannot reliably restore cross-domain redirect auth",
-        })
-        const result = await signInWithPopup(firebaseAuth, googleProvider)
-
-        console.log("✅ Popup sign-in successful:", {
-          user: result?.user?.email,
-          operationType: result?.operationType,
-        })
-
-        if (result?.user) {
-          await processSignedInUser(result.user, "popup-result", "google")
-          return
-        }
-      }
-
       console.log("[GoogleAuth] Using Google redirect flow", {
-        reason: "Firebase Hosting auth flow standardized on redirect",
+        reason: "Redirect-first auth flow for browser compatibility",
       })
       await signInWithRedirect(firebaseAuth, googleProvider)
       return
@@ -770,13 +745,6 @@ export default function SignIn() {
         message = "Firebase configuration error. Please ensure your domain is authorized in Firebase Console. Current domain: " + window.location.hostname
       } else if (errorCode === "auth/operation-not-allowed") {
         message = "This sign-in method is disabled. Please enable it in the Firebase Console."
-      } else if (errorCode === "auth/popup-blocked") {
-        try {
-          const { signInWithRedirect } = await import("firebase/auth")
-          await signInWithRedirect(firebaseAuth, googleProvider)
-          return
-        } catch (_) {}
-        message = "Popup was blocked. Please allow popups and try again."
       } else if (errorCode === "auth/popup-closed-by-user") {
         message = "Sign-in was cancelled. Please try again."
       } else if (errorCode === "auth/network-request-failed") {
@@ -803,7 +771,6 @@ export default function SignIn() {
       path: window.location.pathname,
       origin: window.location.origin,
       isIOSBrowser,
-      shouldUsePopupForApple,
     })
 
     try {
@@ -817,7 +784,7 @@ export default function SignIn() {
         OAuthProvider,
         browserLocalPersistence,
         setPersistence,
-        signInWithPopup,
+        signInWithRedirect,
       } = await import("firebase/auth")
       const appleProvider = new OAuthProvider("apple.com")
       appleProvider.addScope("email")
@@ -830,19 +797,11 @@ export default function SignIn() {
         persistence: "browserLocalPersistence",
       })
 
-      if (shouldUsePopupForApple) {
-        logAppleDebug("Using Apple popup flow", {
-          reason: "Prefer popup on all browsers to avoid iOS redirect restore stalls",
-        })
-
-        const result = await signInWithPopup(firebaseAuth, appleProvider)
-        if (result?.user) {
-          await processSignedInUser(result.user, "apple-popup-result", "apple")
-          return
-        }
-
-        throw new Error("Apple popup completed without returning a Firebase user.")
-      }
+      logAppleDebug("Using Apple redirect flow", {
+        reason: "Redirect-first auth flow for browser compatibility",
+      })
+      await signInWithRedirect(firebaseAuth, appleProvider)
+      return
 
     } catch (error) {
       console.error("Apple sign-in failed:", error)
@@ -856,8 +815,6 @@ export default function SignIn() {
         message = "Firebase Apple sign-in is not configured for this domain. Enable Apple in Firebase Console and authorize this domain."
       } else if (error?.code === "auth/operation-not-allowed") {
         message = "Apple sign-in is disabled in Firebase Console."
-      } else if (error?.code === "auth/popup-blocked") {
-        message = "Popup was blocked. Please allow popups and try again."
       } else if (error?.error === "popup_closed_by_user" || error?.code === "popup_closed_by_user" || error?.code === "auth/popup-closed-by-user") {
         message = "Apple sign-in was cancelled."
       } else if (error?.response?.data?.message) {

@@ -11,12 +11,12 @@ const STORAGE_PREFIX = "delivery_signup_documents"
 function getDocumentsStorageKey() {
   try {
     const authRaw = sessionStorage.getItem("deliveryAuthData")
-    if (!authRaw) return STORAGE_PREFIX
+    if (!authRaw) return null
     const auth = JSON.parse(authRaw)
     const phone = String(auth?.phone || "").replace(/\D/g, "")
-    return phone ? `${STORAGE_PREFIX}_${phone}` : STORAGE_PREFIX
+    return phone ? `${STORAGE_PREFIX}_${phone}` : null
   } catch {
-    return STORAGE_PREFIX
+    return null
   }
 }
 
@@ -178,7 +178,9 @@ export default function SignupStep2() {
 
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(getDocumentsStorageKey())
+      const storageKey = getDocumentsStorageKey()
+      if (!storageKey) return
+      const raw = sessionStorage.getItem(storageKey)
       if (!raw) return
       const parsed = JSON.parse(raw)
       if (parsed?.uploadedDocs && typeof parsed.uploadedDocs === "object") {
@@ -191,8 +193,10 @@ export default function SignupStep2() {
 
   useEffect(() => {
     try {
+      const storageKey = getDocumentsStorageKey()
+      if (!storageKey) return
       sessionStorage.setItem(
-        getDocumentsStorageKey(),
+        storageKey,
         JSON.stringify({ uploadedDocs }),
       )
     } catch {
@@ -280,7 +284,10 @@ export default function SignupStep2() {
 
       if (response?.data?.success) {
         try {
-          sessionStorage.removeItem(getDocumentsStorageKey())
+          const storageKey = getDocumentsStorageKey()
+          if (storageKey) {
+            sessionStorage.removeItem(storageKey)
+          }
         } catch {
           /* ignore */
         }
