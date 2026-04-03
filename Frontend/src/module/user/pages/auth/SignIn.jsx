@@ -147,6 +147,28 @@ export default function SignIn() {
     return message.includes("cancel") || message.includes("popup") && message.includes("closed")
   }
 
+  const [appleAuthReady, setAppleAuthReady] = useState(false)
+  const appleProviderRef = useRef(null)
+  const firebaseAuthLibRef = useRef(null)
+
+  useEffect(() => {
+    const preload = async () => {
+      try {
+        await ensureFirebaseInitialized()
+        const lib = await import("firebase/auth")
+        firebaseAuthLibRef.current = lib
+        const provider = new lib.OAuthProvider("apple.com")
+        provider.addScope("email")
+        provider.addScope("name")
+        appleProviderRef.current = provider
+        setAppleAuthReady(true)
+      } catch (err) {
+        console.error("Failed to preload Apple Auth:", err)
+      }
+    }
+    preload()
+  }, [])
+
   const [authMethod, setAuthMethod] = useState("phone") // "phone" or "email"
   const [formData, setFormData] = useState({
     phone: "",
@@ -925,70 +947,50 @@ export default function SignIn() {
     })
 
     try {
-      await ensureFirebaseInitialized()
+      // Use pre-loaded auth and provider to avoid async gesture loss in Safari
+      let auth = firebaseAuth
+      let lib = firebaseAuthLibRef.current
+      let provider = appleProviderRef.current
 
-      if (!firebaseAuth) {
-        throw new Error("Firebase Auth is not initialized. Please check your Firebase configuration.")
+      if (!auth || !lib || !provider) {
+        logAppleDebug("Pre-loaded auth not ready, initializing during click...")
+        await ensureFirebaseInitialized()
+        auth = firebaseAuth
+        lib = await import("firebase/auth")
+        provider = new lib.OAuthProvider("apple.com")
+        provider.addScope("email")
+        provider.addScope("name")
       }
 
-      const {
-        OAuthProvider,
-        browserLocalPersistence,
-        setPersistence,
-        signInWithPopup,
-      } = await import("firebase/auth")
-      const appleProvider = new OAuthProvider("apple.com")
-      appleProvider.addScope("email")
-      appleProvider.addScope("name")
-
-      // Apple often falls back to a full-page redirect on mobile/Safari, so we
-      // force persistent auth storage before starting the OAuth flow.
-      await setPersistence(firebaseAuth, browserLocalPersistence)
-      logAppleDebug("Configured Firebase persistence for Apple sign-in", {
-        persistence: "browserLocalPersistence",
-      })
+      await lib.setPersistence(auth, lib.browserLocalPersistence)
 
       if (shouldUsePopupForApple) {
-        logAppleDebug("Using Apple popup flow", {
-          reason: "Prefer popup on desktop/standard browsers",
-        })
-
+        logAppleDebug("Using Apple popup flow (Optimized)")
         try {
-          const result = await signInWithPopup(firebaseAuth, appleProvider)
+          const result = await lib.signInWithPopup(auth, provider)
           if (result?.user) {
             await processSignedInUser(result.user, "apple-popup-result", "apple")
             return
           }
         } catch (popupError) {
-          if (popupError?.code === "auth/popup-blocked") {
-            logAppleDebug("Apple popup blocked, falling back to redirect")
-          } else if (
-            popupError?.code === "auth/popup-closed-by-user" ||
-            popupError?.code === "auth/cancelled-popup-request"
-          ) {
-            logAppleDebug("Apple popup closed by user")
-            throw popupError // Let the main catch block handle it
-          } else {
-            logAppleDebug("Apple popup failed, trying redirect fallback", {
-              code: popupError?.code,
-              message: popupError?.message,
-            })
+          if (isAppleCancelError(popupError)) {
+            logAppleDebug("Apple popup cancelled by user")
+            throw popupError
           }
-          // Fall through to redirect
+          logAppleDebug("Apple popup failed or blocked, falling through to redirect", {
+            code: popupError?.code,
+          })
+          // Fall through
         }
       }
 
-      const { signInWithRedirect } = await import("firebase/auth")
-      logAppleDebug("Using Apple redirect flow", {
-        reason: isWebView ? "WebView detected" : "Popup failed or blocked",
-      })
-
-      // Set these only for redirect, so simple popup cancel doesn't trigger "stuck loader" on reload
+      logAppleDebug("Using Apple redirect flow")
       setPendingProvider("apple")
+      safeSessionSet(APPLE_SIGNIN_STARTED_KEY, "1")
       safeSessionSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
       safeLocalSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
 
-      await signInWithRedirect(firebaseAuth, appleProvider)
+      await lib.signInWithRedirect(auth, provider)
       return
 
     } catch (error) {
@@ -1000,11 +1002,7 @@ export default function SignIn() {
 
       let message = "Apple sign-in failed. Please try again."
 
-      if (
-        error?.code === "auth/popup-closed-by-user" ||
-        error?.code === "auth/cancelled-popup-request" ||
-        error?.error === "popup_closed_by_user"
-      ) {
+      if (isAppleCancelError(error)) {
         message = "Apple sign-in was cancelled."
         // Clear pending flags so user doesn't see a loader if they refresh
         clearPendingProvider()

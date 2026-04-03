@@ -103,6 +103,15 @@ const FIREBASE_HOSTING_AUTH_DOMAIN = "tifunbox.firebaseapp.com";
 let appleProvider;
 const getPreferredAuthDomain = () => {
   const configuredAuthDomain = firebaseConfig.originalAuthDomain || firebaseConfig.authDomain || "";
+  
+  // If we are currently on a firebase-hosted domain, use the current hostname
+  // as the authDomain to avoid cross-domain confirmation widgets ("CONTINUE TO THE APP").
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname.endsWith(".firebaseapp.com") || hostname.endsWith(".web.app")) {
+      return hostname;
+    }
+  }
 
   if (configuredAuthDomain && configuredAuthDomain !== FIREBASE_HOSTING_AUTH_DOMAIN) {
     console.warn("⚠️ Overriding Firebase authDomain to Firebase Hosting domain for redirect auth", {
