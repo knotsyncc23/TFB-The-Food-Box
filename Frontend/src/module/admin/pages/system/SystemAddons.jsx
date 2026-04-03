@@ -49,7 +49,7 @@ export default function SystemAddons() {
     // APPLE_REDIRECT_URI: "",
 
     APPLE_CLIENT_ID: "app.tifunbox.com",
-    APPLE_REDIRECT_URI: "https://tifunbox.firebaseapp.com/__/auth/handler",
+    APPLE_REDIRECT_URI: "https://app.tifunbox.com/__/auth/handler",
 
 
 
