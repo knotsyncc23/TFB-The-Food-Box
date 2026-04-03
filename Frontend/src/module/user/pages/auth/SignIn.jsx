@@ -15,7 +15,7 @@ import {
 import { authAPI } from "@/lib/api"
 import { firebaseAuth, googleProvider, ensureFirebaseInitialized } from "@/lib/firebase"
 import { hasFlutterGoogleBridge, nativeGoogleSignIn } from "@/lib/utils/flutterGoogleAuthBridge"
-import { setAuthData } from "@/lib/utils/auth"
+import { getModuleToken, setAuthData } from "@/lib/utils/auth"
 import { registerFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
 import { appendAppleDebugLog } from "@/lib/utils/appleDebugLog"
 import { useFirebaseUserSession } from "@/lib/firebaseUserSession"
@@ -65,6 +65,7 @@ export default function SignIn() {
 
   const PENDING_PROVIDER_KEY = "pendingSocialProvider"
   const APPLE_REDIRECT_IN_PROGRESS_KEY = "appleRedirectInProgress"
+  const APPLE_SIGNIN_STARTED_KEY = "apple_signin_started"
   const safeLocalSet = (key, value) => {
     try {
       if (typeof localStorage === "undefined") return
@@ -125,8 +126,25 @@ export default function SignIn() {
   const clearPendingProvider = () => {
     safeSessionRemove(PENDING_PROVIDER_KEY)
     safeSessionRemove(APPLE_REDIRECT_IN_PROGRESS_KEY)
+    safeSessionRemove(APPLE_SIGNIN_STARTED_KEY)
     safeLocalRemove(PENDING_PROVIDER_KEY)
     safeLocalRemove(APPLE_REDIRECT_IN_PROGRESS_KEY)
+  }
+  const isAppleCancelError = (error) => {
+    const code = String(error?.code || error?.error || "").toLowerCase()
+    const message = String(error?.message || "").toLowerCase()
+
+    if (
+      code === "auth/user-cancelled" ||
+      code === "auth/popup-closed-by-user" ||
+      code === "popup_closed_by_user" ||
+      code === "auth/cancelled-popup-request" ||
+      code === "auth/no-auth-event"
+    ) {
+      return true
+    }
+
+    return message.includes("cancel") || message.includes("popup") && message.includes("closed")
   }
 
   const [authMethod, setAuthMethod] = useState("phone") // "phone" or "email"
@@ -184,6 +202,86 @@ export default function SignIn() {
   }, [])
 
   useEffect(() => {
+    let isMounted = true
+
+    const handleAppleRedirectOnSignInLoad = async () => {
+      const appleSignInStarted = safeSessionGet(APPLE_SIGNIN_STARTED_KEY) === "1"
+      const pendingProvider = getPendingProvider()
+      const shouldHandleAppleRedirect = appleSignInStarted || pendingProvider === "apple"
+
+      if (!shouldHandleAppleRedirect) return
+
+      setIsAppleLoading(true)
+      setAppleError("")
+
+      try {
+        await ensureFirebaseInitialized()
+
+        if (!firebaseAuth) {
+          clearPendingProvider()
+          if (isMounted) {
+            setIsAppleLoading(false)
+          }
+          return
+        }
+
+        const { getRedirectResult } = await import("firebase/auth")
+        const redirectResult = await getRedirectResult(firebaseAuth)
+        const redirectUser = redirectResult?.user || firebaseAuth.currentUser || null
+
+        if (redirectUser) {
+          await processSignedInUser(
+            redirectUser,
+            redirectResult?.user ? "apple-redirect-result" : "apple-current-user",
+            "apple",
+          )
+          clearPendingProvider()
+          if (isMounted) {
+            setIsAppleLoading(false)
+          }
+          return
+        }
+
+        if (appleSignInStarted || pendingProvider === "apple") {
+          clearPendingProvider()
+          if (isMounted) {
+            setAppleError("")
+            setIsAppleLoading(false)
+            if (!getModuleToken("user")) {
+              navigate("/user/auth/sign-in", { replace: true })
+            }
+          }
+        }
+      } catch (error) {
+        const cancelled = isAppleCancelError(error)
+        if (cancelled) {
+          clearPendingProvider()
+          if (isMounted) {
+            setAppleError("")
+            setIsAppleLoading(false)
+            if (!getModuleToken("user")) {
+              navigate("/user/auth/sign-in", { replace: true })
+            }
+          }
+          return
+        }
+
+        clearPendingProvider()
+        if (isMounted) {
+          setAppleError("Apple sign-in failed. Please try again.")
+          setIsAppleLoading(false)
+        }
+      }
+    }
+
+    handleAppleRedirectOnSignInLoad()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
     const pendingProvider = getPendingProvider()
     if (!pendingProvider) return
 
@@ -205,7 +303,13 @@ export default function SignIn() {
     }
 
     if (pendingProvider === "apple" && firebaseUserSession.lastError) {
-      setAppleError(firebaseUserSession.lastError.message || "Apple sign-in restore failed.")
+      if (isAppleCancelError(firebaseUserSession.lastError)) {
+        clearPendingProvider()
+        setAppleError("")
+        setIsAppleLoading(false)
+      } else {
+        setAppleError("Apple sign-in restore failed. Please try again.")
+      }
     }
   }, [
     firebaseUserSession.authDomain,
@@ -810,6 +914,7 @@ export default function SignIn() {
     setAppleError("")
     setIsAppleLoading(true)
     setPendingProvider("apple")
+    safeSessionSet(APPLE_SIGNIN_STARTED_KEY, "1")
     safeSessionSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
     safeLocalSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
     logAppleDebug("Starting Apple sign-in", {
