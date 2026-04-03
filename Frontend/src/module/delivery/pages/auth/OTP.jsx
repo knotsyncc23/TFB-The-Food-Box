@@ -221,7 +221,7 @@ export default function DeliveryOTP() {
 
         // Redirect to signup step 1 after token is stored
         setTimeout(() => {
-          navigate("/delivery/signup/details")
+          navigate("/delivery/signup/details", { replace: true })
         }, 200)
         setIsLoading(false)
         return

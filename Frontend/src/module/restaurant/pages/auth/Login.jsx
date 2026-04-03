@@ -59,6 +59,9 @@ export default function RestaurantLogin() {
   const [isSending, setIsSending] = useState(false)
   const [isAppleLoading, setIsAppleLoading] = useState(false)
   const [apiError, setApiError] = useState("")
+  const isIOSBrowser = /iPad|iPhone|iPod/i.test(
+    typeof navigator !== "undefined" ? navigator.userAgent : "",
+  )
 
   // Prefill phone when user comes back from OTP screen
   useEffect(() => {
@@ -414,12 +417,28 @@ export default function RestaurantLogin() {
       }
 
       // 4) Normal browser path
-      const { signInWithRedirect } = await import("firebase/auth")
-      await signInWithRedirect(firebaseAuth, googleProvider)
-      return
+      const { signInWithPopup, signInWithRedirect } = await import("firebase/auth")
+
+      // iOS browsers are more reliable with redirect auth flow.
+      if (isIOSBrowser) {
+        await signInWithRedirect(firebaseAuth, googleProvider)
+        return
+      }
+
+      const result = await signInWithPopup(firebaseAuth, googleProvider)
+      if (result?.user) {
+        await processSignedInUser(result.user, "popup-result")
+      }
     } catch (error) {
       console.error("Firebase Google login error:", error)
       setIsSending(false)
+      if (error?.code === "auth/popup-blocked") {
+        try {
+          const { signInWithRedirect } = await import("firebase/auth")
+          await signInWithRedirect(firebaseAuth, googleProvider)
+          return
+        } catch (_) {}
+      }
       if (error?.code !== "auth/popup-closed-by-user") {
         setApiError(error?.message || "Google sign-in failed")
       }
@@ -441,19 +460,26 @@ export default function RestaurantLogin() {
       const {
         browserLocalPersistence,
         setPersistence,
-        signInWithRedirect,
+        signInWithPopup,
       } = await import("firebase/auth")
 
       await setPersistence(firebaseAuth, browserLocalPersistence)
 
-      await signInWithRedirect(firebaseAuth, appleProvider)
-      return
+      const result = await signInWithPopup(firebaseAuth, appleProvider)
+      if (result?.user) {
+        await processSignedInUser(result.user, "apple-popup-result", "apple")
+        return
+      }
+
+      throw new Error("Apple sign-in completed without returning a Firebase user")
     } catch (error) {
       console.error("Firebase Apple login error:", error)
       redirectHandledRef.current = false
       setApiError(
-        error?.code === "auth/popup-closed-by-user"
-          ? "Apple sign-in was cancelled."
+        error?.code === "auth/popup-blocked"
+          ? "Popup was blocked. Please allow popups and try again."
+          : error?.code === "auth/popup-closed-by-user"
+            ? "Apple sign-in was cancelled."
             : error?.message || "Apple sign-in failed",
       )
     } finally {

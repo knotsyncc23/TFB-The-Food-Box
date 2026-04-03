@@ -36,35 +36,6 @@ const countryCodes = [
   { code: "+46", country: "SE", flag: "🇸🇪" },
 ]
 
-const clearDeliverySignupDrafts = () => {
-  const storagePrefixes = [
-    "delivery_signup_basic_details",
-    "delivery_signup_documents",
-  ]
-
-  const clearMatchingKeys = (storage) => {
-    if (!storage) return
-
-    const keysToRemove = []
-    for (let index = 0; index < storage.length; index += 1) {
-      const key = storage.key(index)
-      if (
-        key &&
-        storagePrefixes.some(
-          (prefix) => key === prefix || key.startsWith(`${prefix}_`),
-        )
-      ) {
-        keysToRemove.push(key)
-      }
-    }
-
-    keysToRemove.forEach((key) => storage.removeItem(key))
-  }
-
-  clearMatchingKeys(sessionStorage)
-  clearMatchingKeys(localStorage)
-}
-
 export default function DeliverySignIn() {
   const companyName = useCompanyName()
   const navigate = useNavigate()
@@ -83,7 +54,6 @@ export default function DeliverySignIn() {
     try {
       clearModuleAuth("delivery")
       sessionStorage.removeItem("deliveryAuthData")
-      clearDeliverySignupDrafts()
     } catch (e) {
       console.warn("Failed to clear previous delivery session:", e)
     }
@@ -276,3 +246,4 @@ export default function DeliverySignIn() {
     </div>
   )
 }
+

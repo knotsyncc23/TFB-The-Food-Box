@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { ArrowLeft } from "lucide-react"
 import { deliveryAPI } from "@/lib/api"
 import { toast } from "sonner"
+import { clearModuleAuth } from "@/lib/utils/auth"
 
 const INDIAN_STATES = [
   "Andhra Pradesh",
@@ -49,12 +50,12 @@ const STORAGE_KEY_PREFIX = "delivery_signup_basic_details"
 const getSignupStorageKey = () => {
   try {
     const authRaw = sessionStorage.getItem("deliveryAuthData")
-    if (!authRaw) return null
+    if (!authRaw) return STORAGE_KEY_PREFIX
     const auth = JSON.parse(authRaw)
     const phone = String(auth?.phone || "").replace(/\D/g, "")
-    return phone ? `${STORAGE_KEY_PREFIX}_${phone}` : null
+    return phone ? `${STORAGE_KEY_PREFIX}_${phone}` : STORAGE_KEY_PREFIX
   } catch {
-    return null
+    return STORAGE_KEY_PREFIX
   }
 }
 
@@ -80,11 +81,11 @@ export default function SignupStep1() {
     try {
       if (typeof window === "undefined") return
       const scopedKey = getSignupStorageKey()
-      if (!scopedKey) return
 
       // Prefer data saved from a previous visit during this session
       const sessionStored = sessionStorage.getItem(scopedKey)
-      const raw = sessionStored
+      const localStored = localStorage.getItem(scopedKey)
+      const raw = sessionStored || localStored
 
       if (!raw) return
 
@@ -149,9 +150,8 @@ export default function SignupStep1() {
 
       // Persist draft so navigating away and back keeps the data
       try {
-        const storageKey = getSignupStorageKey()
-        if (typeof window !== "undefined" && storageKey) {
-          sessionStorage.setItem(storageKey, JSON.stringify(updated))
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(getSignupStorageKey(), JSON.stringify(updated))
         }
       } catch (storageError) {
         console.warn("Failed to persist delivery signup basic details:", storageError)
@@ -303,9 +303,8 @@ export default function SignupStep1() {
         toast.success("Details saved successfully")
         // Persist the latest saved details so returning to this page pre-fills from backend state
         try {
-          const storageKey = getSignupStorageKey()
-          if (typeof window !== "undefined" && storageKey) {
-            sessionStorage.setItem(storageKey, JSON.stringify({
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem(getSignupStorageKey(), JSON.stringify({
               ...formData,
               name: formData.name.trim(),
               email: formData.email.trim(),
@@ -337,7 +336,22 @@ export default function SignupStep1() {
       <div className="bg-white px-4 py-3 flex items-center gap-4 border-b border-gray-200">
         <button
           type="button"
-          onClick={() => navigate("/delivery/otp")}
+          onClick={() => {
+            try {
+              // Clear current auth session before going back so the Guard
+              // doesn't force a redirect to home.
+              clearModuleAuth("delivery")
+              
+              const raw = sessionStorage.getItem("deliveryAuthData")
+              if (raw) {
+                navigate("/delivery/otp")
+                return
+              }
+            } catch (e) {
+              console.warn("Failed to clear auth session on back:", e)
+            }
+            navigate("/delivery/sign-in")
+          }}
           className="p-2 hover:bg-gray-100 rounded-full transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
