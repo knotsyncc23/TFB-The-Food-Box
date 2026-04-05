@@ -66,8 +66,9 @@ class AppleAuthService {
    */
   async getClientSecret() {
     const privateKey = process.env.APPLE_PRIVATE_KEY
-      ?.replace(/\\n/g, "\n")
-      .trim();
+      ?.trim()
+      .replace(/^"|"$/g, "") // Remove potential outer double quotes
+      .replace(/\\n/g, "\n"); // Replace literal \n with actual newlines
 
     if (!privateKey || !privateKey.includes("BEGIN PRIVATE KEY")) {
       logger.error("❌ Apple private key missing or invalid");
