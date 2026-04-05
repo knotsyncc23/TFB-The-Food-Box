@@ -68,10 +68,23 @@ class AppleAuthService {
     const teamId = (await getEnvVar("APPLE_TEAM_ID") || process.env.APPLE_TEAM_ID || "").toString().trim().replace(/^"|"$/g, "");
     const keyId = (await getEnvVar("APPLE_KEY_ID") || process.env.APPLE_KEY_ID || "").toString().trim().replace(/^"|"$/g, "");
     const clientId = (await getEnvVar("APPLE_CLIENT_ID") || process.env.APPLE_CLIENT_ID || "").toString().trim().replace(/^"|"$/g, "");
-    const privateKey = (process.env.APPLE_PRIVATE_KEY || "").toString().trim().replace(/^"|"$/g, "").replace(/\\n/g, "\n");
+    
+    // Improved private key parsing for asymmetric key detection
+    const rawPrivateKey = (await getEnvVar("APPLE_PRIVATE_KEY") || process.env.APPLE_PRIVATE_KEY || "").toString();
+    const privateKey = rawPrivateKey
+      .trim()
+      .replace(/^"|"$/g, "") // Remove potential outer double quotes
+      .replace(/\\n/g, "\n"); // Replace literal \n with actual newlines
+
+    console.log("PRIVATE KEY:", privateKey);
 
     if (!teamId || !keyId || !clientId || !privateKey) {
-      logger.error("Apple Auth configuration missing", { teamId: !!teamId, keyId: !!keyId, clientId: !!clientId, privateKey: !!privateKey });
+      logger.error("Apple Auth configuration missing", { 
+        teamId: !!teamId, 
+        keyId: !!keyId, 
+        clientId: !!clientId, 
+        privateKey: !!privateKey 
+      });
       throw new Error("Apple Auth environment variables are not properly configured");
     }
 
