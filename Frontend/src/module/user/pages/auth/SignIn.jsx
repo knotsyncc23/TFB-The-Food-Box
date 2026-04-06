@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate, useSearchParams, Link } from "react-router-dom"
 import { Mail, Phone, AlertCircle, Loader2, Apple } from "lucide-react"
 import AnimatedPage from "../../components/AnimatedPage"
@@ -210,42 +210,39 @@ export default function SignIn() {
       hostname.endsWith(".local"))
 
   // Listen for message from Apple OAuth popup
-  useEffect(() => {
-    const handleMessage = async (event) => {
-      // Basic origin check (could be more strict)
-      // if (event.origin !== backendUrl) return;
+  const handleMessage = useCallback(async (event) => {
+    const { type, token, user, error, provider } = event.data || {}
 
-      const { type, token, user, error, provider } = event.data || {}
-
-      if (type === "APPLE_LOGIN_SUCCESS" && provider === "apple") {
-        console.log("[AppleAuth] Success message received from popup:", { hasToken: !!token, hasUser: !!user });
-        logAppleDebug("Received APPLE_LOGIN_SUCCESS message from popup", {
-          hasToken: !!token,
-          hasUser: !!user,
-        })
+    if (type === "APPLE_LOGIN_SUCCESS" && provider === "apple") {
+      console.log("[AppleAuth] Success message received from popup:", { hasToken: !!token, hasUser: !!user });
+      logAppleDebug("Received APPLE_LOGIN_SUCCESS message from popup", {
+        hasToken: !!token,
+        hasUser: !!user,
+      })
+      
+      if (token && user) {
+        clearPendingProvider()
+        setAuthData("user", token, user)
+        window.dispatchEvent(new Event("userAuthChanged"))
         
-        if (token && user) {
-          clearPendingProvider()
-          setAuthData("user", token, user)
-          window.dispatchEvent(new Event("userAuthChanged"))
-          
-          // Register FCM token
-          registerFcmTokenForLoggedInUser().catch(() => {})
-          
-          logAppleDebug("Apple login finalized via message listener")
-          redirectToUserHome()
-        }
-      } else if (type === "APPLE_LOGIN_ERROR") {
-        console.error("[AppleAuth] Error message received from popup:", error);
-        logAppleDebug("Received APPLE_LOGIN_ERROR message from popup", { error })
-        setAppleError(error || "Apple sign-in failed.")
-        setIsAppleLoading(false)
+        // Register FCM token
+        registerFcmTokenForLoggedInUser().catch(() => {})
+        
+        logAppleDebug("Apple login finalized via message listener")
+        redirectToUserHome()
       }
+    } else if (type === "APPLE_LOGIN_ERROR") {
+      console.error("[AppleAuth] Error message received from popup:", error);
+      logAppleDebug("Received APPLE_LOGIN_ERROR message from popup", { error })
+      setAppleError(error || "Apple sign-in failed.")
+      setIsAppleLoading(false)
     }
+  }, [])
 
+  useEffect(() => {
     window.addEventListener("message", handleMessage)
     return () => window.removeEventListener("message", handleMessage)
-  }, [])
+  }, [handleMessage])
 
   useEffect(() => {
     if (typeof sessionStorage === "undefined") return
