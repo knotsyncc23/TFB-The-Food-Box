@@ -11,8 +11,8 @@ const LoginWithApple = ({ clientId, redirectURI, isLoading }) => {
         clientId={clientId} // Use dynamic clientId from props
         redirectURI={redirectURI} // Use dynamic redirectURI from props
         responseType="code"
-        responseMode="form_post" 
-        usePopup={true} // Set to true to avoid popup blocked and allow postMessage
+        responseMode="form_post"
+        usePopup={false} // Set to true to avoid popup blocked and allow postMessage
         designProp={{
           height: 30,
           width: 140,
