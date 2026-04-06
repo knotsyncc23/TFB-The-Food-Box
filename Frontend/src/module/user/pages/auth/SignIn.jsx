@@ -313,6 +313,16 @@ export default function SignIn() {
     firebaseUserSession.redirectResultUser,
   ])
 
+  // Stop infinite loader after mount if not in a pending state
+  useEffect(() => {
+    if (isAppleLoading) {
+      const timer = setTimeout(() => {
+        setIsAppleLoading(false);
+      }, 3000); // Failsafe timeout to stop loader
+      return () => clearTimeout(timer);
+    }
+  }, [isAppleLoading]);
+
   // Prefill phone when user comes back from OTP screen
   useEffect(() => {
     const stored = sessionStorage.getItem("userAuthData")
@@ -760,7 +770,7 @@ export default function SignIn() {
     redirectHandledRef.current = false // Reset flag when starting new sign-in
 
     try {
-      // Ensure Firebase is initialized before use
+      // Ensure Firebase is initialized only when Google login is requested
       await ensureFirebaseInitialized()
 
       // Validate Firebase Auth instance
