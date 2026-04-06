@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate, useSearchParams, Link } from "react-router-dom"
 import { Mail, Phone, AlertCircle, Loader2, Apple } from "lucide-react"
 import AnimatedPage from "../../components/AnimatedPage"
