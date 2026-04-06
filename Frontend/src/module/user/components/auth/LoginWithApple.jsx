@@ -2,16 +2,17 @@ import React from 'react';
 import AppleLogin from 'react-apple-login';
 
 const LoginWithApple = ({ clientId, redirectURI, isLoading }) => {
+  // Config check karein
   if (!clientId || !redirectURI) return null;
 
   return (
     <div className="apple-login-container" style={{ opacity: isLoading ? 0.6 : 1, pointerEvents: isLoading ? 'none' : 'auto' }}>
       <AppleLogin
-        clientId={"com.tifunbox.web"}
-        redirectURI={"https://app.tifunbox.com/api/auth/apple/callback"}
+        clientId={clientId} // Use dynamic clientId from props
+        redirectURI={redirectURI} // Use dynamic redirectURI from props
         responseType="code"
-        responseMode="form_post" // Matching backend expectation
-        usePopup={false} // Keeping popup to avoid breaking postMessage logic
+        responseMode="form_post" 
+        usePopup={true} // Set to true to avoid popup blocked and allow postMessage
         designProp={{
           height: 30,
           width: 140,

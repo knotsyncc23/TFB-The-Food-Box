@@ -170,16 +170,35 @@ export default function SignIn() {
     preload()
   }, [])
 
+  // SDK + Config Preload (Race Condition Optimized)
   useEffect(() => {
-    const fetchAppleConfig = async () => {
+    const loadAppleDependencies = async () => {
       try {
+        // SDK load properly await karo
+        if (!window.AppleID) {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement("script")
+            script.src = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"
+            script.async = true
+            script.onload = () => {
+              console.log("[AppleAuth] SDK script loaded successfully");
+              resolve();
+            };
+            script.onerror = () => reject(new Error("Apple SDK load failed"));
+            document.head.appendChild(script)
+          })
+        }
+        
+        setAppleAuthReady(true)
+
+        // Backend config load
         const configResponse = await authAPI.getAppleConfig()
         setAppleConfig(configResponse.data.data)
       } catch (err) {
-        console.error("Failed to fetch Apple config on mount:", err)
+        console.error("Failed to preload Apple dependencies:", err)
       }
     }
-    fetchAppleConfig()
+    loadAppleDependencies()
   }, [])
 
   const [authMethod, setAuthMethod] = useState("phone") // "phone" or "email"
@@ -202,6 +221,7 @@ export default function SignIn() {
   const [isAppleLoading, setIsAppleLoading] = useState(false)
   const [appleError, setAppleError] = useState("")
   const [appleConfig, setAppleConfig] = useState(null)
+  const isAppleReady = appleAuthReady && appleConfig && window.AppleID
   const isIOSBrowser = /iPad|iPhone|iPod/i.test(
     typeof navigator !== "undefined" ? navigator.userAgent : "",
   )
@@ -980,131 +1000,45 @@ export default function SignIn() {
     }
   }
 
-  const handleAppleSignIn = async () => {
+  const handleAppleSignIn = () => {
+    if (!isAppleReady) {
+      console.warn("Apple not ready yet")
+      setAppleError("Apple Sign-In is initializing. Please try again in a moment.")
+      return
+    }
+
     setAppleError("")
     setIsAppleLoading(true)
     setPendingProvider("apple")
-    safeSessionSet(APPLE_SIGNIN_STARTED_KEY, "1")
+    safeSessionSet("apple_signin_started", "1")
     safeSessionSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
     safeLocalSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
-    logAppleDebug("Starting Pure Apple OAuth sign-in", {
-      path: window.location.pathname,
-      origin: window.location.origin,
-      isIOSBrowser,
-      shouldUsePopupForApple,
-    })
 
     try {
-      // 1. Get Apple configuration from backend
-      const configResponse = await authAPI.getAppleConfig()
-      const { clientId, redirectUri } = configResponse.data.data
-
-      if (!clientId || !redirectUri) {
-        throw new Error("Apple Sign-In is not configured on the server.")
-      }
-
-      // 2. Initialize Apple SDK (Dynamic load if missing)
-      if (!window.AppleID) {
-        logAppleDebug("AppleID SDK not found in window, attempting dynamic load...")
-        await new Promise((resolve, reject) => {
-          const script = document.createElement("script")
-          script.src = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"
-          script.async = true
-          script.onload = resolve
-          script.onerror = () => reject(new Error("Apple Sign-In SDK could not be loaded from Apple's CDN. Please check your internet or ad-blocker."))
-          document.head.appendChild(script)
-        })
-      }
-
-      if (!window.AppleID) {
-        throw new Error("Apple Sign-In SDK (AppleID.auth.js) not loaded after retry.")
-      }
-
-      console.log("[AppleAuth] Initializing Apple ID with config:", { clientId, redirectUri });
       window.AppleID.auth.init({
-        clientId: clientId,
+        clientId: appleConfig.clientId,
         scope: "name email",
-        redirectURI: redirectUri,
+        redirectURI: appleConfig.redirectUri,
         state: "user",
         usePopup: true,
       })
 
-      const handleAppleContinue = async (authCode) => {
-        try {
-          const loginResponse = await authAPI.appleCallback(authCode, "user")
-          const data = loginResponse?.data?.data || {}
-          
-          if (data.accessToken && data.user) {
-            clearPendingProvider()
-            setAuthData("user", data.accessToken, data.user)
-            window.dispatchEvent(new Event("userAuthChanged"))
-            registerFcmTokenForLoggedInUser().catch(() => {})
-            logAppleDebug("Apple login successful via code exchange")
-            redirectToUserHome()
-          } else {
-            throw new Error("Invalid response from server during code exchange.")
-          }
-        } catch (err) {
-          console.error("Apple code exchange failed:", err)
-          throw err
-        }
-      }
-
-      // 3. Perform Sign-In
-      // The Apple SDK will open a popup and redirect it to our backend.
-      // Our backend (appleCallback) will then send a postMessage to us.
-      console.log("[AppleAuth] Triggering window.AppleID.auth.signIn()...");
-      const result = await window.AppleID.auth.signIn()
-      console.log("[AppleAuth] Apple SDK signIn resolved:", result);
-      
-      // If the SDK resolves with authorization details (some versions or if redirect fails)
-      if (result && result.authorization) {
-        const { id_token, code } = result.authorization
-        
-        logAppleDebug("Apple SDK returned authorization directly", {
-          hasToken: !!id_token,
-          hasCode: !!code
+      window.AppleID.auth.signIn()
+        .then(() => {
+          // Success handled in message listener
         })
-
-        if (code) {
-          console.log("[AppleAuth] SDK returned code, sending to backend callback...");
-          // Use the POST callback endpoint as requested
-          await handleAppleContinue(code)
-        } else if (id_token) {
-          console.log("[AppleAuth] SDK returned id_token, sending to backend appleLogin...");
-          // Fallback to legacy identity token login
-          const loginResponse = await authAPI.appleLogin(id_token, "user")
-          const data = loginResponse?.data?.data || {}
-          
-          if (data.accessToken && data.user) {
+        .catch((error) => {
+          console.error("Apple sign-in failed:", error)
+          let message = "Apple sign-in failed."
+          if (isAppleCancelError(error) || error?.error === "user-cancelled") {
+            message = ""
             clearPendingProvider()
-            setAuthData("user", data.accessToken, data.user)
-            window.dispatchEvent(new Event("userAuthChanged"))
-            registerFcmTokenForLoggedInUser().catch(() => {})
-            redirectToUserHome()
           }
-        }
-      }
+          setAppleError(message)
+          setIsAppleLoading(false)
+        })
     } catch (error) {
-      console.error("Apple sign-in failed:", error)
-      logAppleDebug("Apple sign-in flow failed", {
-        code: error?.code || error?.error || null,
-        message: error?.message || "Unknown error",
-      })
-
-      let message = "Apple sign-in failed. Please try again."
-
-      if (isAppleCancelError(error) || error?.error === "user-cancelled") {
-        message = "" // Don't show error for cancellation
-        clearPendingProvider()
-      } else if (error?.response?.data?.message) {
-        message = error.response.data.message
-      } else if (error?.message) {
-        message = error.message
-      }
-
-      setAppleError(message)
-    } finally {
+      console.error("Manual Apple trigger failed:", error)
       setIsAppleLoading(false)
     }
   }
