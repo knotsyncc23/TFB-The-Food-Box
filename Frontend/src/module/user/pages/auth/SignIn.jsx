@@ -148,27 +148,7 @@ export default function SignIn() {
     return message.includes("cancel") || message.includes("popup") && message.includes("closed")
   }
 
-  const [appleAuthReady, setAppleAuthReady] = useState(false)
-  const appleProviderRef = useRef(null)
-  const firebaseAuthLibRef = useRef(null)
-
-  useEffect(() => {
-    const preload = async () => {
-      try {
-        await ensureFirebaseInitialized()
-        const lib = await import("firebase/auth")
-        firebaseAuthLibRef.current = lib
-        const provider = new lib.OAuthProvider("apple.com")
-        provider.addScope("email")
-        provider.addScope("name")
-        appleProviderRef.current = provider
-        setAppleAuthReady(true)
-      } catch (err) {
-        console.error("Failed to preload Apple Auth:", err)
-      }
-    }
-    preload()
-  }, [])
+  // Firebase logic for Apple removed to stop background iframe calls
 
   // SDK + Config Preload (Race Condition Optimized)
   useEffect(() => {
@@ -221,7 +201,7 @@ export default function SignIn() {
   const [isAppleLoading, setIsAppleLoading] = useState(false)
   const [appleError, setAppleError] = useState("")
   const [appleConfig, setAppleConfig] = useState(null)
-  const isAppleReady = appleAuthReady && appleConfig && window.AppleID
+  const isAppleReady = appleConfig && window.AppleID
   const isIOSBrowser = /iPad|iPhone|iPod/i.test(
     typeof navigator !== "undefined" ? navigator.userAgent : "",
   )
@@ -291,85 +271,7 @@ export default function SignIn() {
     }
   }, [])
 
-  useEffect(() => {
-    let isMounted = true
-
-    const handleAppleRedirectOnSignInLoad = async () => {
-      const appleSignInStarted = safeSessionGet(APPLE_SIGNIN_STARTED_KEY) === "1"
-      const pendingProvider = getPendingProvider()
-      const shouldHandleAppleRedirect = appleSignInStarted || pendingProvider === "apple"
-
-      if (!shouldHandleAppleRedirect) return
-
-      setIsAppleLoading(true)
-      setAppleError("")
-
-      try {
-        await ensureFirebaseInitialized()
-
-        if (!firebaseAuth) {
-          clearPendingProvider()
-          if (isMounted) {
-            setIsAppleLoading(false)
-          }
-          return
-        }
-
-        const { getRedirectResult } = await import("firebase/auth")
-        const redirectResult = await getRedirectResult(firebaseAuth)
-        const redirectUser = redirectResult?.user || firebaseAuth.currentUser || null
-
-        if (redirectUser) {
-          await processSignedInUser(
-            redirectUser,
-            redirectResult?.user ? "apple-redirect-result" : "apple-current-user",
-            "apple",
-          )
-          clearPendingProvider()
-          if (isMounted) {
-            setIsAppleLoading(false)
-          }
-          return
-        }
-
-        if (appleSignInStarted || pendingProvider === "apple") {
-          clearPendingProvider()
-          if (isMounted) {
-            setAppleError("")
-            setIsAppleLoading(false)
-            if (!getModuleToken("user")) {
-              navigate("/user/auth/sign-in", { replace: true })
-            }
-          }
-        }
-      } catch (error) {
-        const cancelled = isAppleCancelError(error)
-        if (cancelled) {
-          clearPendingProvider()
-          if (isMounted) {
-            setAppleError("")
-            setIsAppleLoading(false)
-            if (!getModuleToken("user")) {
-              navigate("/user/auth/sign-in", { replace: true })
-            }
-          }
-          return
-        }
-
-        clearPendingProvider()
-        if (isMounted) {
-          setAppleError("Apple sign-in failed. Please try again.")
-          setIsAppleLoading(false)
-        }
-      }
-    }
-
-    handleAppleRedirectOnSignInLoad()
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
+  // Redundant Firebase Apple redirect check removed
 
   useEffect(() => {
     const pendingProvider = getPendingProvider()
