@@ -188,30 +188,31 @@ export default function SignIn() {
   const redirectHandledRef = useRef(false)
   const [isAppleLoading, setIsAppleLoading] = useState(false)
   const [appleError, setAppleError] = useState("")
-  const isIOSBrowser = /iPad|iPhone|iPod/i.test(
-    typeof navigator !== "undefined" ? navigator.userAgent : "",
-  )
-  const firebaseUserSession = useFirebaseUserSession()
-  const hostname = typeof window !== "undefined" ? window.location.hostname : ""
-  const isIOSSafari =
-    isIOSBrowser &&
-    /AppleWebKit/i.test(navigator.userAgent) &&
-    !/CriOS/i.test(navigator.userAgent) &&
-    !/FxiOS/i.test(navigator.userAgent)
-  const isWebView =
-    typeof window !== "undefined" &&
-    (window.flutter_inappwebview ||
-      /wv/.test(navigator.userAgent))
-  const shouldUsePopupForApple = !isWebView
-  const shouldUsePopupForGoogle =
-    shouldUsePopupForApple &&
-    (hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname.endsWith(".local"))
+  const [appleConfig, setAppleConfig] = useState(null)
 
-  // Listen for message from Apple OAuth popup
+  // Pre-load Apple SDK and Config for Safari compatibility
   useEffect(() => {
-    const handleMessage = async (event) => {
+    const initApple = async () => {
+      try {
+        // 1. Fetch config early
+        const response = await authAPI.getAppleConfig();
+        setAppleConfig(response.data.data);
+
+        // 2. Load SDK early
+        if (!window.AppleID) {
+          const script = document.createElement('script');
+          script.src = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
+          script.async = true;
+          document.head.appendChild(script);
+        }
+      } catch (err) {
+        console.error('[AppleAuth] Pre-init failed:', err);
+      }
+    };
+    initApple();
+  }, []);
+
+  const handleMessage = useCallback(async (event) => {
       // Basic origin check (could be more strict)
       // if (event.origin !== backendUrl) return;
 
@@ -241,11 +242,33 @@ export default function SignIn() {
         setAppleError(error || "Apple sign-in failed.")
         setIsAppleLoading(false)
       }
-    }
+    }, [])
 
+  useEffect(() => {
     window.addEventListener("message", handleMessage)
     return () => window.removeEventListener("message", handleMessage)
-  }, [])
+  }, [handleMessage])
+
+  const isIOSBrowser = /iPad|iPhone|iPod/i.test(
+    typeof navigator !== "undefined" ? navigator.userAgent : "",
+  )
+  const firebaseUserSession = useFirebaseUserSession()
+  const hostname = typeof window !== "undefined" ? window.location.hostname : ""
+  const isIOSSafari =
+    isIOSBrowser &&
+    /AppleWebKit/i.test(navigator.userAgent) &&
+    !/CriOS/i.test(navigator.userAgent) &&
+    !/FxiOS/i.test(navigator.userAgent)
+  const isWebView =
+    typeof window !== "undefined" &&
+    (window.flutter_inappwebview ||
+      /wv/.test(navigator.userAgent))
+  const shouldUsePopupForApple = !isWebView
+  const shouldUsePopupForGoogle =
+    shouldUsePopupForApple &&
+    (hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.endsWith(".local"))
 
   useEffect(() => {
     if (typeof sessionStorage === "undefined") return
@@ -561,110 +584,6 @@ export default function SignIn() {
   useEffect(() => {
     // Redirect restoration is handled globally by firebaseUserSession bootstrap.
     return undefined
-
-    let unsubscribe = null
-
-    const handleRedirectResult = async () => {
-      try {
-        const { getRedirectResult } = await import("firebase/auth")
-        await ensureFirebaseInitialized()
-
-        if (!firebaseAuth) {
-          console.log("ℹ️ Firebase Auth not ready, skipping redirect check")
-          return
-        }
-
-        if (getPendingProvider() === "apple") {
-          logAppleDebug("Checking redirect result on mount", {
-            path: window.location.pathname,
-            search: window.location.search,
-            hasCurrentUser: !!firebaseAuth?.currentUser,
-          })
-        }
-
-        // Check if we're coming back from a redirect
-        const redirectResolution = await resolveFirebaseRedirectUser(
-          firebaseAuth,
-          getRedirectResult,
-          {
-            timeoutMs: getPendingProvider() === "apple" ? 25000 : 12000,
-            pollIntervalMs: 600,
-            shouldLog: getPendingProvider() === "apple",
-            logLabel: "AppleAuth",
-          }
-        )
-
-        if (redirectResolution?.user) {
-          if (getPendingProvider() === "apple") {
-            logAppleDebug("Firebase redirect result returned a user", {
-              uid: redirectResolution.user.uid,
-              email: redirectResolution.user.email || null,
-              source: redirectResolution.source,
-            })
-          }
-          await processSignedInUser(
-            redirectResolution.user,
-            redirectResolution.source || "redirect-result"
-          )
-        } else if (getPendingProvider() === "apple") {
-          logAppleDebug("No redirect result and no current user after waiting", {
-            hasRedirectResult: false,
-            hasCurrentUser: !!firebaseAuth?.currentUser,
-            redirectHandled: redirectHandledRef.current,
-            error: redirectResolution?.error?.message || null,
-          })
-          setIsAppleLoading(false)
-        }
-      } catch (error) {
-        console.error("❌ Google sign-in check error:", error)
-        if (getPendingProvider() === "apple") {
-          logAppleDebug("Redirect result check failed", {
-            message: error?.message || "Unknown error",
-            code: error?.code || null,
-          })
-        }
-        setApiError("Failed to check authentication status. Please try refreshing.")
-        setIsLoading(false)
-      }
-    }
-
-    const setupAuthListener = async () => {
-      try {
-        const { onAuthStateChanged } = await import("firebase/auth")
-        await ensureFirebaseInitialized()
-
-        if (!firebaseAuth) return
-
-        unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
-          if (user && !redirectHandledRef.current) {
-            if (getPendingProvider() === "apple") {
-              logAppleDebug("Auth state listener received user", {
-                uid: user.uid,
-                email: user.email || null,
-              })
-            }
-            await processSignedInUser(user, "auth-state-listener")
-          }
-        })
-      } catch (error) {
-        console.error("❌ Error setting up auth state listener:", error)
-      }
-    }
-
-    // Initialize everything
-    const init = async () => {
-      await setupAuthListener()
-      // Small delay to let Firebase state settle
-      setTimeout(() => {
-        handleRedirectResult()
-      }, 500)
-    }
-
-    init()
-
-    return () => {
-      if (unsubscribe) unsubscribe()
-    }
   }, [navigate])
 
   // Get selected country details dynamically
@@ -970,45 +889,33 @@ export default function SignIn() {
   }
 
   const handleAppleSignIn = async () => {
-    setAppleError("")
-    setIsAppleLoading(true)
-    setPendingProvider("apple")
-    safeSessionSet(APPLE_SIGNIN_STARTED_KEY, "1")
-    safeSessionSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
-    safeLocalSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
-    logAppleDebug("Starting Pure Apple OAuth sign-in", {
-      path: window.location.pathname,
-      origin: window.location.origin,
-      isIOSBrowser,
-      shouldUsePopupForApple,
-    })
+    if (isAppleLoading) return;
+    
+    setIsAppleLoading(true);
+    setAppleError('');
 
     try {
-      // 1. Get Apple configuration from backend
-      const configResponse = await authAPI.getAppleConfig()
-      const { clientId, redirectUri } = configResponse.data.data
-
-      if (!clientId || !redirectUri) {
-        throw new Error("Apple Sign-In is not configured on the server.")
+      // 1. Check if config is ready
+      let config = appleConfig;
+      if (!config) {
+        console.log("[AppleAuth] Config not ready, fetching now...");
+        const response = await authAPI.getAppleConfig();
+        config = response?.data?.data;
+        setAppleConfig(config);
       }
 
-      // 2. Initialize Apple SDK (Dynamic load if missing)
+      if (!config || !config.clientId || !config.redirectUri) {
+        throw new Error("Apple Sign-In is not configured correctly.");
+      }
+
+      const { clientId, redirectUri } = config;
+
+      // 2. Ensure SDK is loaded
       if (!window.AppleID) {
-        logAppleDebug("AppleID SDK not found in window, attempting dynamic load...")
-        await new Promise((resolve, reject) => {
-          const script = document.createElement("script")
-          script.src = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"
-          script.async = true
-          script.onload = resolve
-          script.onerror = () => reject(new Error("Apple Sign-In SDK could not be loaded from Apple's CDN. Please check your internet or ad-blocker."))
-          document.head.appendChild(script)
-        })
+        throw new Error("Apple SDK is still loading. Please try again.");
       }
 
-      if (!window.AppleID) {
-        throw new Error("Apple Sign-In SDK (AppleID.auth.js) not loaded after retry.")
-      }
-
+      // 3. Initialize Apple ID
       console.log("[AppleAuth] Initializing Apple ID with config:", { clientId, redirectUri });
       window.AppleID.auth.init({
         clientId: clientId,
@@ -1016,87 +923,39 @@ export default function SignIn() {
         redirectURI: redirectUri,
         state: "user",
         usePopup: true,
-      })
+      });
 
-      const handleAppleContinue = async (authCode) => {
-        try {
-          const loginResponse = await authAPI.appleCallback(authCode, "user")
-          const data = loginResponse?.data?.data || {}
-          
-          if (data.accessToken && data.user) {
-            clearPendingProvider()
-            setAuthData("user", data.accessToken, data.user)
-            window.dispatchEvent(new Event("userAuthChanged"))
-            registerFcmTokenForLoggedInUser().catch(() => {})
-            logAppleDebug("Apple login successful via code exchange")
-            redirectToUserHome()
-          } else {
-            throw new Error("Invalid response from server during code exchange.")
-          }
-        } catch (err) {
-          console.error("Apple code exchange failed:", err)
-          throw err
-        }
-      }
-
-      // 3. Perform Sign-In
-      // The Apple SDK will open a popup and redirect it to our backend.
-      // Our backend (appleCallback) will then send a postMessage to us.
-      console.log("[AppleAuth] Triggering window.AppleID.auth.signIn()...");
-      const result = await window.AppleID.auth.signIn()
-      console.log("[AppleAuth] Apple SDK signIn resolved:", result);
+      // 4. Trigger sign in
+      console.log("[AppleAuth] Calling window.AppleID.auth.signIn()...");
+      const data = await window.AppleID.auth.signIn();
       
-      // If the SDK resolves with authorization details (some versions or if redirect fails)
-      if (result && result.authorization) {
-        const { id_token, code } = result.authorization
-        
-        logAppleDebug("Apple SDK returned authorization directly", {
-          hasToken: !!id_token,
-          hasCode: !!code
-        })
+      console.log("[AppleAuth] Sign in SDK response received:", data);
 
-        if (code) {
-          console.log("[AppleAuth] SDK returned code, sending to backend callback...");
-          // Use the POST callback endpoint as requested
-          await handleAppleContinue(code)
-        } else if (id_token) {
-          console.log("[AppleAuth] SDK returned id_token, sending to backend appleLogin...");
-          // Fallback to legacy identity token login
-          const loginResponse = await authAPI.appleLogin(id_token, "user")
-          const data = loginResponse?.data?.data || {}
-          
-          if (data.accessToken && data.user) {
-            clearPendingProvider()
-            setAuthData("user", data.accessToken, data.user)
-            window.dispatchEvent(new Event("userAuthChanged"))
-            registerFcmTokenForLoggedInUser().catch(() => {})
-            redirectToUserHome()
+      if (data && data.authorization) {
+        console.log("[AppleAuth] Authorization data found, processing directly...");
+        const { code, id_token } = data.authorization;
+        // Proceed with backend login
+        const loginResponse = await authAPI.appleLogin({ code, id_token });
+        if (loginResponse.success) {
+          const resData = loginResponse?.data?.data || {};
+          if (resData.accessToken && resData.user) {
+            setAuthData("user", resData.accessToken, resData.user);
+            window.dispatchEvent(new Event("userAuthChanged"));
+            registerFcmTokenForLoggedInUser().catch(() => {});
+            redirectToUserHome();
           }
         }
       }
     } catch (error) {
-      console.error("Apple sign-in failed:", error)
-      logAppleDebug("Apple sign-in flow failed", {
-        code: error?.code || error?.error || null,
-        message: error?.message || "Unknown error",
-      })
-
-      let message = "Apple sign-in failed. Please try again."
-
-      if (isAppleCancelError(error) || error?.error === "user-cancelled") {
-        message = "" // Don't show error for cancellation
-        clearPendingProvider()
-      } else if (error?.response?.data?.message) {
-        message = error.response.data.message
-      } else if (error?.message) {
-        message = error.message
+      console.error('[AppleAuth] SignIn error:', error);
+      const isCancelled = error.error === 'popup_closed_by_user';
+      if (!isCancelled) {
+        setAppleError(error.message || 'Apple sign-in failed. Please try again.');
       }
-
-      setAppleError(message)
     } finally {
-      setIsAppleLoading(false)
+      setIsAppleLoading(false);
     }
-  }
+  };
 
   const toggleMode = () => {
     const newMode = isSignUp ? "signin" : "signup"
