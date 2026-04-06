@@ -170,8 +170,16 @@ class AppleAuthService {
       throw new Error("Identity token is required");
     }
 
-    const clientId = (audience || await getEnvVar("APPLE_CLIENT_ID") || process.env.APPLE_CLIENT_ID || "").toString().trim().replace(/^"|"$/g, "");
-    if (!clientId) {
+    // Get trusted audiences from env or passed argument
+    const rawClientIds = (audience || await getEnvVar("APPLE_CLIENT_ID") || process.env.APPLE_CLIENT_ID || "").toString();
+    
+    // Support comma-separated list of audiences (e.g. "com.tifunbox.web,app.tifunbox.com")
+    const trustedAudiences = rawClientIds
+      .split(",")
+      .map(id => id.trim().replace(/^"|"$/g, ""))
+      .filter(Boolean);
+
+    if (trustedAudiences.length === 0) {
       throw new Error("Audience (clientId) is required for Apple verification");
     }
 
@@ -188,20 +196,36 @@ class AppleAuthService {
 
     const publicKey = jwkToPem(key);
     logger.info("Public key generated for kid", { kid });
+    
     try {
+      // Verify the token signature and issuer
       const verified = jwt.verify(identityToken, publicKey, {
         issuer: "https://appleid.apple.com",
-        audience: clientId,
         algorithms: ["RS256"],
+        // We handle audience verification manually to support multiple IDs
       });
-      logger.info("Apple identity token verified successfully", { sub: verified.sub });
+
+      // Verify audience matches any of our trusted IDs
+      const tokenAudience = verified.aud;
+      if (!trustedAudiences.includes(tokenAudience)) {
+        logger.error("Apple identity token audience mismatch", { 
+          expected: trustedAudiences, 
+          received: tokenAudience 
+        });
+        throw new Error(`Audience mismatch. Expected one of: ${trustedAudiences.join(", ")}`);
+      }
+
+      logger.info("Apple identity token verified successfully", { 
+        sub: verified.sub,
+        aud: tokenAudience 
+      });
       return verified;
     } catch (error) {
       logger.error("Apple identity token verification failed", {
         message: error.message,
         kid,
       });
-      throw new Error("Apple identity token could not be verified");
+      throw new Error(error.message || "Apple identity token could not be verified");
     }
   }
 }

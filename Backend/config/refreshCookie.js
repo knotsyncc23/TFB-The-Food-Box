@@ -42,7 +42,7 @@ export function getRefreshTokenCookieOptions(maxAgeMs = DEFAULT_MAX_AGE_MS) {
     return {
       httpOnly: true,
       secure: true,
-      sameSite: "none",
+      sameSite: "lax", // Changed from "none" to "lax" for iOS WebView compatibility
       path: "/",
       maxAge: maxAgeMs,
       ...(domain ? { domain } : {}),
