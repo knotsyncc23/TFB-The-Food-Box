@@ -1427,12 +1427,14 @@ export const appleLogin = asyncHandler(async (req, res) => {
  */
 export const getAppleConfig = asyncHandler(async (_req, res) => {
   const clientId = (process.env.APPLE_CLIENT_ID || (await getEnvVar("APPLE_CLIENT_ID")) || "").toString().trim().replace(/^"|"$/g, "");
+  // Return only the first ID (primary) for frontend config, but backend service still allows both
+  const primaryClientId = clientId.split(',')[0].trim();
   const redirectUri = (process.env.APPLE_REDIRECT_URI || (await getEnvVar("APPLE_REDIRECT_URI")) || "").toString().trim().replace(/^"|"$/g, "");
-
-  logger.info("Apple config requested", { clientId, redirectUri });
+  
+  logger.info("Apple config requested", { primaryClientId, redirectUri });
 
   return successResponse(res, 200, "Apple config fetched successfully", {
-    clientId,
+    clientId: primaryClientId,
     redirectUri,
   });
 });
