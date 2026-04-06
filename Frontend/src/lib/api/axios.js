@@ -5,8 +5,6 @@ import {
   getRoleFromToken,
   getModuleToken,
   clearModuleAuth,
-  isTokenExpired,
-  getSessionDuration,
 } from "../utils/auth.js";
 import { normalizeObjectRatings } from "../utils/rating.js";
 
@@ -550,21 +548,12 @@ apiClient.interceptors.response.use(
             localStorage.removeItem("delivery_user");
             window.location.href = "/delivery/sign-in";
           } else {
-            // For user module, we are more careful.
-            // If the session just started (last 15s), don't clear or redirect.
-            // This prevents race conditions during login completion on Safari.
-            if (getSessionDuration("user") < 15000) {
-              console.warn("[Axios] Skipping auto-logout: session just started.");
-            } else {
-              clearModuleAuth("user");
-              localStorage.removeItem("accessToken");
-              // Let ProtectedRoute handle the redirect instead of hard window.location.href
-              // This is much smoother and prevents state loss.
-              if (isProtectedUserPath(currentPath) && !currentPath.includes("/auth/")) {
-                // Only redirect if we are NOT already on the auth pages
-                // to avoid infinite loops or confusing UI states.
-                console.log("[Axios] Session expired, letting ProtectedRoute manage redirect.");
-              }
+            clearModuleAuth("user");
+            localStorage.removeItem("accessToken");
+            // Public user pages and auth callbacks should not bounce to sign-in
+            // if a background profile/refresh request fails during login completion.
+            if (isProtectedUserPath(currentPath)) {
+              window.location.href = "/user/auth/sign-in";
             }
           }
         }

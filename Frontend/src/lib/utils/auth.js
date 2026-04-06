@@ -40,17 +40,6 @@ export function getRoleFromToken(token) {
 }
 
 /**
- * Check how long the current session has been active (in ms)
- * @param {string} module - Module name
- * @returns {number} - Milliseconds since session start
- */
-export function getSessionDuration(module) {
-  const start = localStorage.getItem(`${module}_session_start`) || sessionStorage.getItem(`${module}_session_start`);
-  if (!start) return Infinity;
-  return Date.now() - parseInt(start, 10);
-}
-
-/**
  * Check if token is expired
  * @param {string} token - JWT token
  * @returns {boolean} - True if expired or invalid
@@ -151,13 +140,11 @@ export function clearModuleAuth(module) {
   localStorage.removeItem(`${module}_accessToken`);
   localStorage.removeItem(`${module}_authenticated`);
   localStorage.removeItem(`${module}_user`);
-  localStorage.removeItem(`${module}_session_start`); // Add this
   sessionStorage.removeItem(`${module}AuthData`);
   if (module === "user") {
     sessionStorage.removeItem("user_accessToken");
     sessionStorage.removeItem("user_authenticated");
     sessionStorage.removeItem("user_user");
-    sessionStorage.removeItem("user_session_start"); // Add this
   }
 }
 
@@ -207,7 +194,6 @@ export function setAuthData(module, token, user, options = {}) {
 
     storage.setItem(tokenKey, token);
     storage.setItem(authKey, "true");
-    storage.setItem(`${module}_session_start`, Date.now().toString()); // Track session start
     if (user) {
       try {
         storage.setItem(userKey, JSON.stringify(user));
