@@ -941,16 +941,20 @@ export default function SignIn() {
       logAppleDebug("Library sign in response received", { hasAuth: !!data?.authorization });
 
       if (data && data.authorization) {
-        const { code, id_token } = data.authorization;
-        // The token exchange can be async because the popup is already handled
-        const loginResponse = await authAPI.appleLogin({ code, id_token });
+        const { code } = data.authorization;
+        // Use appleCallback to exchange code for session tokens
+        const loginResponse = await authAPI.appleCallback(code, "user");
         
-        if (loginResponse.success) {
-          const resData = loginResponse?.data?.data || {};
+        if (loginResponse?.data?.data) {
+          const resData = loginResponse.data.data;
           if (resData.accessToken && resData.user) {
             setAuthData("user", resData.accessToken, resData.user);
+            
+            // Dispatch event to update navbar/UI
             window.dispatchEvent(new Event("userAuthChanged"));
             registerFcmTokenForLoggedInUser().catch(() => {});
+            
+            logAppleDebug("Auth success, redirecting...");
             redirectToUserHome();
           }
         }
