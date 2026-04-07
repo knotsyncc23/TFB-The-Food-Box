@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useNavigate, useParams } from "react-router-dom"
 import Lenis from "lenis"
@@ -609,6 +609,7 @@ export default function OrderDetails() {
               )}
             </button>
             <button
+              onClick={handlePrintReceipt}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               aria-label="Receipt"
             >

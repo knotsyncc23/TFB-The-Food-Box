@@ -1,18 +1,23 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, AlertCircle } from "lucide-react"
+import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react"
+import { api, restaurantAPI } from "@/lib/api"
 
 export default function UpdateBankDetails() {
   const navigate = useNavigate()
   const [isEditMode, setIsEditMode] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [restaurantData, setRestaurantData] = useState(null)
   
   // Bank details state
   const [bankDetails, setBankDetails] = useState({
-    beneficiaryName: "Mr. Rajkumar Chouhan",
-    accountNumber: "42479177517",
-    confirmAccountNumber: "42479177517",
-    ifscCode: "SBIN0018764",
-    lastUpdated: "9 Dec, 2023"
+    beneficiaryName: "",
+    accountNumber: "",
+    confirmAccountNumber: "",
+    ifscCode: "",
+    accountType: "",
+    lastUpdated: ""
   })
 
   const [formData, setFormData] = useState({
@@ -35,6 +40,38 @@ export default function UpdateBankDetails() {
     confirmAccountNumber: false,
     ifscCode: false
   })
+
+  useEffect(() => {
+    const fetchRestaurant = async () => {
+      try {
+        const response = await restaurantAPI.getRestaurantByOwner()
+        const data = response?.data?.data?.restaurant || response?.data?.restaurant || response?.data?.data
+        const bank = data?.onboarding?.step3?.bank || {}
+        const lastUpdatedRaw =
+          data?.updatedAt ||
+          data?.onboarding?.updatedAt ||
+          data?.onboarding?.step3?.updatedAt
+
+        setRestaurantData(data || null)
+        setBankDetails({
+          beneficiaryName: bank.accountHolderName || "",
+          accountNumber: bank.accountNumber || "",
+          confirmAccountNumber: bank.accountNumber || "",
+          ifscCode: bank.ifscCode || "",
+          accountType: bank.accountType || "",
+          lastUpdated: lastUpdatedRaw
+            ? new Date(lastUpdatedRaw).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+            : ""
+        })
+      } catch (error) {
+        console.error("Error loading bank details:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchRestaurant()
+  }, [])
 
   // Validation functions
   const validateBeneficiaryName = (name) => {
@@ -181,8 +218,8 @@ export default function UpdateBankDetails() {
     }))
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
+  const handleSubmit = async (e) => {
+    e?.preventDefault?.()
     
     // Mark all fields as touched
     setTouched({
@@ -208,28 +245,55 @@ export default function UpdateBankDetails() {
       return
     }
 
-    // Update bank details
-    setBankDetails({
-      beneficiaryName: formData.beneficiaryName.trim(),
-      accountNumber: formData.accountNumber.replace(/[\s\-]/g, ""),
-      confirmAccountNumber: formData.confirmAccountNumber.replace(/[\s\-]/g, ""),
-      ifscCode: formData.ifscCode.trim().toUpperCase(),
-      lastUpdated: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-    })
-    
-    // Switch back to view mode
-    setIsEditMode(false)
-    
-    // Reset touched state
-    setTouched({
-      beneficiaryName: false,
-      accountNumber: false,
-      confirmAccountNumber: false,
-      ifscCode: false
-    })
-    
-    // Here you would typically save to backend
-    console.log("Bank details updated:", formData)
+    try {
+      setSaving(true)
+      const existingStep3 = restaurantData?.onboarding?.step3 || {}
+      const completedSteps = Math.max(Number(restaurantData?.onboarding?.completedSteps || 0), 3)
+      const mergedStep3 = {
+        ...existingStep3,
+        bank: {
+          ...(existingStep3.bank || {}),
+          accountNumber: formData.accountNumber.replace(/[\s\-]/g, ""),
+          ifscCode: formData.ifscCode.trim().toUpperCase(),
+          accountHolderName: formData.beneficiaryName.trim(),
+          accountType: existingStep3.bank?.accountType || bankDetails.accountType || "savings",
+        },
+      }
+
+      await api.put("/restaurant/onboarding", {
+        step3: mergedStep3,
+        completedSteps,
+      })
+
+      const nextLastUpdated = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      setBankDetails({
+        beneficiaryName: formData.beneficiaryName.trim(),
+        accountNumber: formData.accountNumber.replace(/[\s\-]/g, ""),
+        confirmAccountNumber: formData.confirmAccountNumber.replace(/[\s\-]/g, ""),
+        ifscCode: formData.ifscCode.trim().toUpperCase(),
+        accountType: mergedStep3.bank.accountType,
+        lastUpdated: nextLastUpdated
+      })
+      setRestaurantData((prev) => ({
+        ...(prev || {}),
+        onboarding: {
+          ...(prev?.onboarding || {}),
+          completedSteps,
+          step3: mergedStep3,
+        },
+      }))
+      setIsEditMode(false)
+      setTouched({
+        beneficiaryName: false,
+        accountNumber: false,
+        confirmAccountNumber: false,
+        ifscCode: false
+      })
+    } catch (error) {
+      console.error("Error updating bank details:", error)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleEditClick = () => {
@@ -272,13 +336,22 @@ export default function UpdateBankDetails() {
 
       {/* Content */}
       <div className="flex-1 px-4 pt-4 pb-6">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <Loader2 className="w-6 h-6 animate-spin text-gray-600" />
+            <p className="text-sm text-gray-500">Loading bank details...</p>
+          </div>
+        ) : (
+        <>
         {!isEditMode ? (
           /* View Mode */
           <>
             {/* Account Information Section */}
             <div className="mb-6">
               <h2 className="text-base font-bold text-gray-900 mb-2">Account information</h2>
-              <p className="text-sm text-gray-500 mb-4">Last updated on {bankDetails.lastUpdated}</p>
+              <p className="text-sm text-gray-500 mb-4">
+                {bankDetails.lastUpdated ? `Last updated on ${bankDetails.lastUpdated}` : "No bank details added yet"}
+              </p>
               
               <div className="space-y-3">
                 <div className="flex justify-between items-start">
@@ -419,6 +492,8 @@ export default function UpdateBankDetails() {
             </form>
           </>
         )}
+        </>
+        )}
       </div>
 
       {/* Action Button */}
@@ -427,6 +502,7 @@ export default function UpdateBankDetails() {
           <button
             onClick={handleEditClick}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg text-base transition-colors"
+            disabled={loading}
           >
             Edit bank details
           </button>
@@ -434,8 +510,9 @@ export default function UpdateBankDetails() {
           <button
             onClick={handleSubmit}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg text-base transition-colors"
+            disabled={saving}
           >
-            Submit
+            {saving ? "Saving..." : "Submit"}
           </button>
         )}
       </div>

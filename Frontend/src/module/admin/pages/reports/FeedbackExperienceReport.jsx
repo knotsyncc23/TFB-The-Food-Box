@@ -487,7 +487,7 @@ export default function FeedbackExperienceReport() {
 
       {/* Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-2xl bg-white p-0">
+        <DialogContent className="w-[95vw] max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl">
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-200">
             <DialogTitle className="text-xl font-bold text-slate-900">Feedback Details</DialogTitle>
           </DialogHeader>

@@ -987,6 +987,23 @@ export default function RestaurantOnboarding() {
           throw new Error('Failed to save step2 data')
         }
       } else if (step === 3) {
+        let panImageUpload = null
+        if (step3.panImage instanceof File) {
+          try {
+            panImageUpload = await handleUpload(step3.panImage, "appzeto/restaurant/pan")
+            if (!panImageUpload || !panImageUpload.url) {
+              throw new Error('Failed to upload PAN image')
+            }
+          } catch (uploadError) {
+            console.error('PAN image upload error:', uploadError)
+            throw new Error(`Failed to upload PAN image: ${uploadError.message}`)
+          }
+        } else if (step3.panImage?.url) {
+          panImageUpload = step3.panImage
+        } else if (typeof step3.panImage === 'string' && step3.panImage.startsWith('http')) {
+          panImageUpload = { url: step3.panImage }
+        }
+
         // Upload PAN image if it's a File object
         // Upload GST image if it's a File object (only if GST registered)
         let gstImageUpload = null
@@ -1044,7 +1061,11 @@ export default function RestaurantOnboarding() {
 
         const payload = {
           step3: {
-            pan: {},
+            pan: {
+              panNumber: step3.panNumber || "",
+              nameOnPan: step3.nameOnPan || "",
+              image: panImageUpload,
+            },
             gst: {
               isRegistered: step3.gstRegistered || false,
               gstNumber: step3.gstNumber || "",
@@ -1057,7 +1078,12 @@ export default function RestaurantOnboarding() {
               expiryDate: step3.fssaiExpiry || null,
               image: fssaiImageUpload,
             },
-            bank: {},
+            bank: {
+              accountNumber: step3.accountNumber || "",
+              ifscCode: step3.ifscCode?.trim().toUpperCase() || "",
+              accountHolderName: step3.accountHolderName || "",
+              accountType: step3.accountType || "",
+            },
           },
           step4: {
             estimatedDeliveryTime: step4.estimatedDeliveryTime,
@@ -1664,6 +1690,35 @@ export default function RestaurantOnboarding() {
                   className="hidden"
                 />
               </label>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-md bg-white text-sm hover:bg-gray-50"
+                onClick={async () => {
+                  if (hasFlutterCameraBridge()) {
+                    const { success, file } = await openCameraViaFlutter()
+                    if (success && file) {
+                      setStep3({ ...step3, gstImage: file })
+                      setStep3Errors((p) => ({ ...p, gstImage: null }))
+                    }
+                    return
+                  }
+                  gstCameraInputRef.current?.click()
+                }}
+              >
+                <Camera className="w-4 h-4" />
+                <span>Camera</span>
+              </button>
+              <Input
+                ref={gstCameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => {
+                  setStep3({ ...step3, gstImage: e.target.files?.[0] || null })
+                  setStep3Errors((p) => ({ ...p, gstImage: null }))
+                }}
+                className="hidden"
+              />
             </div>
             {hasStep3UploadedImage(step3.gstImage) && (
               <div className="mt-2 flex items-start gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2">
@@ -1766,6 +1821,35 @@ export default function RestaurantOnboarding() {
               }}
             />
           </label>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-md bg-white text-sm hover:bg-gray-50"
+            onClick={async () => {
+              if (hasFlutterCameraBridge()) {
+                const { success, file } = await openCameraViaFlutter()
+                if (success && file) {
+                  setStep3({ ...step3, fssaiImage: file })
+                  setStep3Errors((p) => ({ ...p, fssaiImage: null }))
+                }
+                return
+              }
+              fssaiCameraInputRef.current?.click()
+            }}
+          >
+            <Camera className="w-4 h-4" />
+            <span>Camera</span>
+          </button>
+          <Input
+            ref={fssaiCameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              setStep3({ ...step3, fssaiImage: e.target.files?.[0] || null })
+              setStep3Errors((p) => ({ ...p, fssaiImage: null }))
+            }}
+          />
         </div>
         {hasStep3UploadedImage(step3.fssaiImage) && (
           <div className="mt-2 flex items-start gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2">

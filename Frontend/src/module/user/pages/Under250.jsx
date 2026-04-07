@@ -20,6 +20,7 @@ import { restaurantAPI } from "@/lib/api"
 import { isModuleAuthenticated } from "@/lib/utils/auth"
 import { useProfile } from "../context/ProfileContext"
 import { filterCategoriesByVegMode } from "@/lib/utils/categoryDietary"
+import { shareContent } from "@/lib/utils/share"
 
 export default function Under250() {
   const { vegMode } = useProfile()
@@ -412,6 +413,37 @@ export default function Under250() {
     })
   }
 
+  const handleShareItem = async (item, event) => {
+    event?.stopPropagation?.()
+
+    const restaurantSlug =
+      item.restaurantSlug ||
+      item.restaurantName?.toLowerCase().replace(/\s+/g, "-") ||
+      item.restaurant?.toLowerCase().replace(/\s+/g, "-")
+    const restaurantUrl = restaurantSlug
+      ? `${window.location.origin}/user/restaurants/${restaurantSlug}`
+      : window.location.href
+
+    try {
+      const result = await shareContent({
+        title: item.name || "Under 250 item",
+        text: `${item.name || "Item"} from ${item.restaurantName || item.restaurant || "Under 250"}${item.price ? ` for Rs. ${Math.round(item.price)}` : ""}`,
+        url: restaurantUrl,
+      })
+
+      if (result.method === "clipboard") {
+        toast.success("Share link copied")
+      } else if (result.method === "whatsapp") {
+        toast.success("Opening share")
+      } else if (result.method !== "cancelled") {
+        toast.success("Shared successfully")
+      }
+    } catch (error) {
+      console.error("Failed to share under 250 item:", error)
+      toast.error("Failed to share")
+    }
+  }
+
   // Check if should show grayscale (only when user is out of service)
   const shouldShowGrayscale = isOutOfService
 
@@ -662,8 +694,7 @@ export default function Under250() {
                             size="icon"
                             className="h-7 w-7 sm:h-8 sm:w-8 rounded-full border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111] hover:bg-gray-100 dark:hover:bg-gray-800"
                             onClick={(e) => {
-                              e.stopPropagation()
-                              // Share action placeholder
+                              handleShareItem(item, e)
                             }}
                           >
                             <Share2 className="h-4 w-4 text-gray-600 dark:text-gray-400" />
@@ -903,7 +934,10 @@ export default function Under250() {
                         }`}
                     />
                   </button>
-                  <button className="h-10 w-10 rounded-full border border-white bg-white/90 text-gray-600 hover:bg-white flex items-center justify-center transition-colors">
+                  <button
+                    onClick={(e) => handleShareItem(selectedItem, e)}
+                    className="h-10 w-10 rounded-full border border-white bg-white/90 text-gray-600 hover:bg-white flex items-center justify-center transition-colors"
+                  >
                     <Share2 className="h-5 w-5" />
                   </button>
                 </div>
@@ -940,7 +974,10 @@ export default function Under250() {
                           }`}
                       />
                     </button>
-                    <button className="h-8 w-8 lg:h-10 lg:w-10 rounded-full border border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 flex items-center justify-center transition-colors">
+                    <button
+                      onClick={(e) => handleShareItem(selectedItem, e)}
+                      className="h-8 w-8 lg:h-10 lg:w-10 rounded-full border border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 flex items-center justify-center transition-colors"
+                    >
                       <Share2 className="h-4 w-4 lg:h-5 lg:w-5" />
                     </button>
                   </div>

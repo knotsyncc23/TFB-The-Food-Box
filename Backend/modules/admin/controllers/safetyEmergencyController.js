@@ -18,6 +18,7 @@ export const createSafetyEmergency = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const userName = req.user.name || req.user.firstName || req.user.email?.split('@')[0] || 'User';
     const userEmail = req.user.email || '';
+    const userPhone = req.user.phone || '';
 
     // Auto-detect priority based on keywords
     const messageLower = message.toLowerCase();
@@ -32,6 +33,7 @@ export const createSafetyEmergency = asyncHandler(async (req, res) => {
       userId,
       userName,
       userEmail,
+      userPhone,
       message: message.trim(),
       status: priority === 'critical' ? 'urgent' : 'unread',
       priority
@@ -40,7 +42,7 @@ export const createSafetyEmergency = asyncHandler(async (req, res) => {
     return successResponse(res, 201, 'Safety emergency report submitted successfully', safetyEmergency);
   } catch (error) {
     console.error('Error creating safety emergency report:', error);
-    return errorResponse(res, 500, 'Failed to submit safety emergency report');
+    return errorResponse(res, 500, error.message || 'Failed to submit safety emergency report');
   }
 });
 

@@ -208,6 +208,28 @@ export const approveDeliveryPartner = asyncHandler(async (req, res) => {
 
     await delivery.save();
 
+    try {
+      const serverModule = await import("../../../server.js");
+      const io = serverModule.getIO ? serverModule.getIO() : null;
+      if (io) {
+        const approvalPayload = {
+          deliveryId: delivery.deliveryId,
+          mongoId: delivery._id.toString(),
+          status: delivery.status,
+          verifiedAt: delivery.verifiedAt,
+          title: "Account approved",
+          message: "Your delivery account has been approved. You can start receiving orders now.",
+        };
+
+        io.to(`delivery:${delivery._id.toString()}`).emit("delivery_partner_approved", approvalPayload);
+        if (delivery.deliveryId) {
+          io.to(`delivery:${delivery.deliveryId}`).emit("delivery_partner_approved", approvalPayload);
+        }
+      }
+    } catch (socketError) {
+      logger.warn(`Could not emit delivery approval event: ${socketError.message}`);
+    }
+
     logger.info(`Delivery partner approved: ${id}`, {
       approvedBy: adminId,
       deliveryId: delivery.deliveryId

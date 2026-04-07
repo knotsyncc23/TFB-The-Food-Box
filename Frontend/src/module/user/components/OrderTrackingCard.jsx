@@ -5,6 +5,51 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useOrders } from '../context/OrdersContext';
 import { orderAPI } from '@/lib/api';
 
+const getOrderCountdownMinutes = (order) => {
+  if (!order) return null;
+
+  const normalizedStatus = String(
+    order.status || order.originalStatus || order.deliveryState?.status || ""
+  ).toLowerCase();
+
+  if (!normalizedStatus || ["delivered", "completed", "cancelled", "canceled"].includes(normalizedStatus)) {
+    return null;
+  }
+
+  const deliveryPhase = String(order.deliveryState?.currentPhase || "").toLowerCase();
+  const outForDeliveryAt =
+    order.deliveryState?.orderIdConfirmedAt ||
+    order.tracking?.outForDelivery?.timestamp ||
+    order.tracking?.out_for_delivery?.timestamp ||
+    order.deliveryState?.acceptedAt ||
+    order.createdAt ||
+    order.orderDate ||
+    order.created_at ||
+    order.date;
+
+  const routeToDeliveryDuration = Number(order.deliveryState?.routeToDelivery?.duration);
+  const fullOrderEta =
+    Number(order.eta?.max) ||
+    Number(order.estimatedDeliveryTime) ||
+    Number(order.estimatedTime) ||
+    Number(order.estimated_delivery_time) ||
+    35;
+
+  const phaseAwareEta =
+    deliveryPhase === "en_route_to_delivery" || normalizedStatus === "out_for_delivery"
+      ? (routeToDeliveryDuration > 0 ? routeToDeliveryDuration : Math.min(fullOrderEta, 20))
+      : fullOrderEta;
+
+  const baseTimestamp =
+    deliveryPhase === "en_route_to_delivery" || normalizedStatus === "out_for_delivery"
+      ? outForDeliveryAt
+      : order.createdAt || order.orderDate || order.created_at || order.date;
+
+  const baseTime = new Date(baseTimestamp || Date.now());
+  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - baseTime.getTime()) / 60000));
+  return Math.max(0, phaseAwareEta - elapsedMinutes);
+};
+
 export default function OrderTrackingCard() {
   const navigate = useNavigate();
   const { orders: contextOrders } = useOrders();
@@ -91,16 +136,7 @@ export default function OrderTrackingCard() {
 
     if (active) {
       setActiveOrder(active);
-      // Calculate estimated delivery time
-      const orderTime = new Date(active.createdAt || active.orderDate || active.created_at || active.date || Date.now());
-      const estimatedMinutes =
-        active.eta?.max ||
-        active.estimatedDeliveryTime ||
-        active.estimatedTime ||
-        active.estimated_delivery_time ||
-        35;
-      const deliveryTime = new Date(orderTime.getTime() + estimatedMinutes * 60000);
-      const remaining = Math.max(0, Math.floor((deliveryTime - new Date()) / 60000));
+      const remaining = getOrderCountdownMinutes(active);
       setTimeRemaining(remaining);
       console.log('⏰ OrderTrackingCard - Time remaining:', remaining, 'minutes');
     } else {
@@ -138,15 +174,7 @@ export default function OrderTrackingCard() {
         return;
       }
 
-      const orderTime = new Date(currentActive.createdAt || currentActive.orderDate || currentActive.created_at || Date.now());
-      const estimatedMinutes =
-        currentActive.eta?.max ||
-        currentActive.estimatedDeliveryTime ||
-        currentActive.estimatedTime ||
-        currentActive.estimated_delivery_time ||
-        35;
-      const deliveryTime = new Date(orderTime.getTime() + estimatedMinutes * 60000);
-      const remaining = Math.max(0, Math.floor((deliveryTime - new Date()) / 60000));
+      const remaining = getOrderCountdownMinutes(currentActive);
       setTimeRemaining(remaining);
 
       if (remaining === 0) {

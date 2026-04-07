@@ -18,6 +18,7 @@ import searchIcon from "../../assets/Dashboard-icons/image8.png"
 import exportIcon from "../../assets/Dashboard-icons/image9.png"
 
 export default function TransactionReport() {
+  const [searchInput, setSearchInput] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -143,11 +144,17 @@ export default function TransactionReport() {
   }
 
   const handleResetFilters = () => {
+    setSearchInput("")
+    setSearchQuery("")
     setFilters({
       zone: "All Zones",
       restaurant: "All restaurants",
       time: "All Time",
     })
+  }
+
+  const applySearch = () => {
+    setSearchQuery(searchInput.trim())
   }
 
   const activeFiltersCount = (filters.zone !== "All Zones" ? 1 : 0) + (filters.restaurant !== "All restaurants" ? 1 : 0) + (filters.time !== "All Time" ? 1 : 0)
@@ -364,12 +371,25 @@ export default function TransactionReport() {
                 <input
                   type="text"
                   placeholder="Search by Order ID"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      applySearch()
+                    }
+                  }}
                   className="pl-7 pr-2 py-1.5 w-full text-[11px] rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <img src={searchIcon} alt="Search" className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3" />
               </div>
+              <button
+                type="button"
+                onClick={applySearch}
+                className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 transition-all"
+              >
+                Search
+              </button>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -489,7 +509,7 @@ export default function TransactionReport() {
                         <span className="text-[10px] text-slate-700">{formatFullCurrency(transaction.deliveryCharge)}</span>
                       </td>
                       <td className="px-1.5 py-1">
-                        <span className="text-[10px] font-medium text-slate-900">{formatFullCurrency(transaction.orderAmount)}</span>
+                        <span className="text-[10px] font-medium text-slate-900">{formatFullCurrency(transaction.orderAmount ?? transaction.totalAmount)}</span>
                       </td>
                     </tr>
                   ))

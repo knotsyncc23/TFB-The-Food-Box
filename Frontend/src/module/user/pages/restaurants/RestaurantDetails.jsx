@@ -112,6 +112,75 @@ export default function RestaurantDetails() {
   const [restaurant, setRestaurant] = useState(null)
   const [loadingRestaurant, setLoadingRestaurant] = useState(true)
   const [restaurantError, setRestaurantError] = useState(null)
+
+  useEffect(() => {
+    if (!restaurant?.restaurantId && !restaurant?.slug && !restaurant?.name) return
+
+    let active = true
+
+    const loadRestaurantOffers = async () => {
+      try {
+        const response = await restaurantAPI.getPublicOffers()
+        const allOffers = response?.data?.data?.allOffers || []
+
+        const matchingOffers = allOffers.filter((offer) => {
+          const offerRestaurantId = String(offer.restaurantId || "").trim()
+          const currentRestaurantId = String(restaurant.restaurantId || restaurant.id || "").trim()
+          const offerSlug = String(offer.restaurantSlug || "").trim().toLowerCase()
+          const currentSlug = String(restaurant.slug || "").trim().toLowerCase()
+          const offerRestaurantName = String(offer.restaurantName || "").trim().toLowerCase()
+          const currentRestaurantName = String(restaurant.name || "").trim().toLowerCase()
+
+          return (
+            (offerRestaurantId && currentRestaurantId && offerRestaurantId === currentRestaurantId) ||
+            (offerSlug && currentSlug && offerSlug === currentSlug) ||
+            (offerRestaurantName && currentRestaurantName && offerRestaurantName === currentRestaurantName)
+          )
+        })
+
+        if (!active || matchingOffers.length === 0) return
+
+        const coupons = matchingOffers.reduce((acc, offer) => {
+          const code = String(offer.couponCode || "").trim()
+          if (!code || acc.some((coupon) => coupon.code === code)) return acc
+
+          acc.push({
+            id: `${offer.id}-${code}`,
+            title: offer.offer || `${offer.dishName || "Offer"} coupon`,
+            code,
+            dishName: offer.dishName || "",
+          })
+          return acc
+        }, [])
+
+        const rotatingOffers = matchingOffers.map((offer) => ({
+          title: offer.offer || offer.dishName || "Special offer",
+        }))
+
+        setRestaurant((prev) => {
+          if (!prev) return prev
+
+          return {
+            ...prev,
+            offerText: matchingOffers[0]?.offer || prev.offerText,
+            offers: rotatingOffers.length > 0 ? rotatingOffers : prev.offers,
+            restaurantOffers: {
+              ...(prev.restaurantOffers || {}),
+              coupons,
+            },
+          }
+        })
+      } catch (error) {
+        console.error("Error loading restaurant offers:", error)
+      }
+    }
+
+    loadRestaurantOffers()
+
+    return () => {
+      active = false
+    }
+  }, [restaurant?.restaurantId, restaurant?.slug, restaurant?.name])
   // Load restaurant + menu once per slug. Do not depend on restaurant state, zoneId, or
   // loadingZone — those retriggered this effect and caused duplicate menu/inventory API calls.
   useEffect(() => {

@@ -542,6 +542,11 @@ export default function ItemDetailsPage() {
       return
     }
 
+    if (!hasVariants && !(parseFloat(basePrice) > 0)) {
+      toast.error("Please enter a base price greater than 0")
+      return
+    }
+
     try {
       setUploadingImages(true)
 
@@ -709,7 +714,7 @@ export default function ItemDetailsPage() {
 
       // When no variants, base price 0 is replaced with minimum ₹1 for valid pricing
       const rawPrice = parseFloat(basePrice) || 0
-      const effectivePrice = hasVariants ? rawPrice : Math.max(1, rawPrice)
+      const effectivePrice = rawPrice
 
       // Prepare item data according to menu model
       const itemDataToSave = {
@@ -1111,7 +1116,7 @@ export default function ItemDetailsPage() {
               <button
                 onClick={() => setFoodType("Veg")}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${foodType === "Veg"
-                    ? "border-red-600 border-2 text-red-600"
+                    ? "border-green-600 bg-green-50 border-2 text-green-700"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
               >
@@ -1200,7 +1205,7 @@ export default function ItemDetailsPage() {
                   </p>
                 )}
                 {!hasVariants && (parseFloat(basePrice) || 0) === 0 && (
-                  <p className="mt-1 text-[11px] text-amber-600">
+                  <p className="mt-1 text-[11px] text-red-600">
                     Base price 0 will be saved as ₹1 (minimum price).
                   </p>
                 )}

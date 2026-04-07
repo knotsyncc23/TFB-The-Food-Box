@@ -14,7 +14,10 @@ const feedbackSchema = new mongoose.Schema(
     },
     userEmail: {
       type: String,
-      required: true,
+      trim: true
+    },
+    userPhone: {
+      type: String,
       trim: true
     },
     message: {
@@ -49,6 +52,8 @@ const feedbackSchema = new mongoose.Schema(
 
 // Indexes
 feedbackSchema.index({ userId: 1 });
+feedbackSchema.index({ userEmail: 1 });
+feedbackSchema.index({ userPhone: 1 });
 feedbackSchema.index({ status: 1 });
 feedbackSchema.index({ createdAt: -1 });
 

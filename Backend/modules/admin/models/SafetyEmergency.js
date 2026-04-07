@@ -14,7 +14,10 @@ const safetyEmergencySchema = new mongoose.Schema(
     },
     userEmail: {
       type: String,
-      required: true,
+      trim: true
+    },
+    userPhone: {
+      type: String,
       trim: true
     },
     message: {
@@ -58,6 +61,8 @@ const safetyEmergencySchema = new mongoose.Schema(
 
 // Indexes
 safetyEmergencySchema.index({ userId: 1 });
+safetyEmergencySchema.index({ userEmail: 1 });
+safetyEmergencySchema.index({ userPhone: 1 });
 safetyEmergencySchema.index({ status: 1 });
 safetyEmergencySchema.index({ priority: 1 });
 safetyEmergencySchema.index({ createdAt: -1 });

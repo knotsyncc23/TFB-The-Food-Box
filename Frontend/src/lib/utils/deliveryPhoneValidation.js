@@ -6,7 +6,7 @@
 const INDIA = "+91"
 
 /** [minDigits, maxDigits] inclusive for national number length */
-const DIGIT_BOUNDS = {
+export const DIGIT_BOUNDS = {
   "+1": [10, 10],
   "+44": [10, 11],
   [INDIA]: [10, 10],

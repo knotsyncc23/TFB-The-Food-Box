@@ -4,6 +4,7 @@ import BottomNavigation from "./BottomNavigation"
 import { getUnreadDeliveryNotificationCount } from "../utils/deliveryNotifications"
 import { isModuleAuthenticated } from "@/lib/utils/auth"
 import { getWebNotificationPermission, registerFcmTokenForDelivery } from "@/lib/notifications/fcmWeb"
+import { useDeliveryNotifications } from "../hooks/useDeliveryNotifications"
 
 export default function DeliveryLayout({
   children,
@@ -17,6 +18,7 @@ export default function DeliveryLayout({
   const [requestBadgeCount, setRequestBadgeCount] = useState(() =>
     getUnreadDeliveryNotificationCount()
   )
+  useDeliveryNotifications({ approvalOnly: true })
 
   // Update badge count when location changes
   useEffect(() => {

@@ -211,6 +211,13 @@ export const acceptOrder = asyncHandler(async (req, res) => {
       return errorResponse(res, 404, 'Order not found');
     }
 
+    // Idempotent accept: if the order is already being prepared, treat it as already accepted.
+    if (order.status === 'preparing' && order.tracking?.preparing?.status) {
+      return successResponse(res, 200, 'Order already accepted', {
+        order
+      });
+    }
+
     // Allow accepting orders with status 'pending' or 'confirmed'
     // 'confirmed' status means payment is verified, restaurant can still accept
     if (!['pending', 'confirmed'].includes(order.status)) {

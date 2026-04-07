@@ -754,6 +754,11 @@ apiClient.interceptors.response.use(
 
       // Show beautiful error toast for each error message
       errorMessages.forEach((errorMessage, index) => {
+        // Skip noisy "inactive restaurant" toast - the page handles this UI itself
+        if (typeof errorMessage === "string" && errorMessage.includes("Restaurant account is inactive")) {
+          return;
+        }
+
         // Add slight delay for multiple toasts to appear sequentially
         setTimeout(() => {
           toast.error(errorMessage, {

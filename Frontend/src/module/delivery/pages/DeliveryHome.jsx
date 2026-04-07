@@ -428,7 +428,7 @@ export default function DeliveryHome() {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(() => getUnreadDeliveryNotificationCount())
   
   // Delivery notifications hook
-  const { newOrder, clearNewOrder, orderReady, clearOrderReady, bonusNotification, clearBonusNotification, isConnected } = useDeliveryNotifications()
+  const { newOrder, clearNewOrder, orderReady, clearOrderReady, bonusNotification, clearBonusNotification, isConnected } = useDeliveryNotifications({ suppressApproval: true })
   
   // Default location - will be set from saved location or GPS, not hardcoded
   const [riderLocation, setRiderLocation] = useState(null) // Will be set from GPS or saved location

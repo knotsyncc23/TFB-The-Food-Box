@@ -23,9 +23,28 @@ export default function HubFinance() {
   const [loadingPastCycles, setLoadingPastCycles] = useState(false)
   const [restaurantData, setRestaurantData] = useState(null)
   const [loadingRestaurant, setLoadingRestaurant] = useState(true)
-  const [showWithdrawalModal, setShowWithdrawalModal] = useState(false)
-  const [withdrawalAmount, setWithdrawalAmount] = useState('')
-  const [submittingWithdrawal, setSubmittingWithdrawal] = useState(false)
+const [showWithdrawalModal, setShowWithdrawalModal] = useState(false)
+const [withdrawalAmount, setWithdrawalAmount] = useState('')
+const [submittingWithdrawal, setSubmittingWithdrawal] = useState(false)
+
+  const fetchFinanceData = async () => {
+    try {
+      setLoading(true)
+      const response = await restaurantAPI.getFinance()
+      if (response.data?.success && response.data?.data) {
+        setFinanceData(response.data.data)
+        console.log('âœ… Finance data fetched:', response.data.data)
+        console.log('ðŸ“¦ Current cycle orders:', response.data.data?.currentCycle?.orders)
+        console.log('ðŸ“Š Current cycle totalOrders:', response.data.data?.currentCycle?.totalOrders)
+      }
+    } catch (error) {
+      if (error.response?.status !== 401) {
+        console.error('âŒ Error fetching finance data:', error)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Fetch finance data on mount
   useEffect(() => {
@@ -50,6 +69,22 @@ export default function HubFinance() {
     }
 
     fetchFinanceData()
+  }, [])
+
+  useEffect(() => {
+    const handleVisibilityRefresh = () => {
+      if (document.visibilityState === "visible") {
+        fetchFinanceData()
+      }
+    }
+
+    window.addEventListener("focus", fetchFinanceData)
+    document.addEventListener("visibilitychange", handleVisibilityRefresh)
+
+    return () => {
+      window.removeEventListener("focus", fetchFinanceData)
+      document.removeEventListener("visibilitychange", handleVisibilityRefresh)
+    }
   }, [])
 
   // Fetch restaurant data for header display

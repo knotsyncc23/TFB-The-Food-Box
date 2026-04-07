@@ -39,6 +39,10 @@ export default function RestaurantSignIn() {
       const data = response?.data?.data || response?.data
 
       if (data.accessToken && data.restaurant) {
+        // Clear any previous session data (including onboarding drafts) before setting new user data
+        const { clearModuleAuth } = await import("@/lib/utils/auth");
+        clearModuleAuth("restaurant");
+
         // Replace old token with new one (handles cross-module login)
         setAuthData("restaurant", data.accessToken, data.restaurant)
 

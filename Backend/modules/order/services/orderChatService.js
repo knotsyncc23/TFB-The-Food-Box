@@ -3,7 +3,14 @@ import OrderChat from '../models/OrderChat.js';
 import mongoose from 'mongoose';
 
 const CHAT_DISABLE_AFTER_DELIVERED_MINUTES = 30;
-const CHAT_ALLOWED_STATUSES = ['confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
+const CHAT_ALLOWED_STATUSES = [
+  'confirmed',
+  'preparing',
+  'ready',
+  'out_for_delivery',
+  'delivered',
+  'accepted',
+];
 
 /**
  * Resolve order by id (MongoDB _id or orderId string)
@@ -31,8 +38,16 @@ export async function resolveOrder(orderIdParam) {
  */
 export function isChatAllowedForOrder(order) {
   if (!order) return false;
-  const status = order.status || '';
-  if (!CHAT_ALLOWED_STATUSES.includes(status)) return false;
+  const status = String(order.status || '').toLowerCase();
+  const deliveryStateStatus = String(order.deliveryState?.status || '').toLowerCase();
+  const deliveryPhase = String(order.deliveryState?.currentPhase || '').toLowerCase();
+
+  const hasAllowedTopLevelStatus = CHAT_ALLOWED_STATUSES.includes(status);
+  const hasAllowedDeliveryState =
+    ['accepted', 'order_confirmed', 'en_route_to_delivery'].includes(deliveryStateStatus) ||
+    ['assigned', 'accepted', 'en_route_to_pickup', 'picked_up', 'en_route_to_delivery'].includes(deliveryPhase);
+
+  if (!hasAllowedTopLevelStatus && !hasAllowedDeliveryState) return false;
   if (status === 'delivered' && order.deliveredAt) {
     const closedAt = new Date(order.deliveredAt);
     closedAt.setMinutes(closedAt.getMinutes() + CHAT_DISABLE_AFTER_DELIVERED_MINUTES);

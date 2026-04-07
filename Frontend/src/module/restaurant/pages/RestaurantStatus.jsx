@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import Lenis from "lenis"
 import { ArrowLeft, Settings, ChevronRight } from "lucide-react"
@@ -27,6 +27,25 @@ export default function RestaurantStatus() {
   const [showOutsideTimingsDialog, setShowOutsideTimingsDialog] = useState(false)
   const [isDayClosed, setIsDayClosed] = useState(false)
   const [outletTimings, setOutletTimings] = useState(null)
+
+  const syncRestaurantStatus = async () => {
+    try {
+      const response = await restaurantAPI.getCurrentRestaurant()
+      const restaurant = response?.data?.data?.restaurant || response?.data?.restaurant
+      if (restaurant?.isAcceptingOrders !== undefined) {
+        setDeliveryStatus(restaurant.isAcceptingOrders)
+        setRestaurantData((prev) => ({ ...(prev || {}), ...restaurant }))
+        localStorage.setItem("restaurant_online_status", JSON.stringify(restaurant.isAcceptingOrders))
+        window.dispatchEvent(new CustomEvent("restaurantStatusChanged", {
+          detail: { isOnline: restaurant.isAcceptingOrders }
+        }))
+      }
+    } catch (error) {
+      if (error.code !== "ERR_NETWORK" && error.code !== "ECONNABORTED" && !error.message?.includes("timeout")) {
+        console.error("Error syncing restaurant status:", error)
+      }
+    }
+  }
 
   // Update current date/time every minute
   useEffect(() => {
@@ -242,14 +261,12 @@ export default function RestaurantStatus() {
   useEffect(() => {
     const loadDeliveryStatus = async () => {
       try {
-        // First try to get from backend
         const response = await restaurantAPI.getCurrentRestaurant()
         const restaurant = response?.data?.data?.restaurant || response?.data?.restaurant
         if (restaurant?.isAcceptingOrders !== undefined) {
           setDeliveryStatus(restaurant.isAcceptingOrders)
-          // Sync localStorage with backend
+          setRestaurantData((prev) => ({ ...(prev || {}), ...restaurant }))
           localStorage.setItem('restaurant_online_status', JSON.stringify(restaurant.isAcceptingOrders))
-          // Dispatch event to update navbar
           window.dispatchEvent(new CustomEvent('restaurantStatusChanged', {
             detail: { isOnline: restaurant.isAcceptingOrders }
           }))
@@ -304,6 +321,26 @@ export default function RestaurantStatus() {
     loadDeliveryStatus()
   }, [])
 
+  useEffect(() => {
+    const handleFocus = () => {
+      syncRestaurantStatus()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncRestaurantStatus()
+      }
+    }
+
+    window.addEventListener("focus", handleFocus)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener("focus", handleFocus)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [])
+
   // Handle delivery status change
   const handleDeliveryStatusChange = async (checked) => {
     const previousStatus = deliveryStatus
@@ -331,11 +368,14 @@ export default function RestaurantStatus() {
       // Persist + update local state only after backend succeeds.
       localStorage.setItem('restaurant_online_status', JSON.stringify(checked))
       setDeliveryStatus(checked)
+      setRestaurantData((prev) => prev ? { ...prev, isAcceptingOrders: checked } : prev)
 
       // Dispatch custom event for navbar to listen
       window.dispatchEvent(new CustomEvent('restaurantStatusChanged', {
         detail: { isOnline: checked }
       }))
+
+      await syncRestaurantStatus()
     } catch (error) {
       console.error("Error saving delivery status:", error)
       // Revert UI if backend rejected the update

@@ -18,11 +18,13 @@ export const createFeedback = asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const userName = req.user.name || req.user.firstName || req.user.email?.split('@')[0] || 'User';
     const userEmail = req.user.email || '';
+    const userPhone = req.user.phone || '';
 
     const feedback = await Feedback.create({
       userId,
       userName,
       userEmail,
+      userPhone,
       message: message.trim(),
       status: 'unread'
     });

@@ -7,7 +7,7 @@ import alertSound from '@/assets/audio/alert.mp3';
 import originalSound from '@/assets/audio/original.mp3';
 import { toast } from 'sonner';
 
-export const useDeliveryNotifications = () => {
+export const useDeliveryNotifications = ({ approvalOnly = false, suppressApproval = false } = {}) => {
   // CRITICAL: All hooks must be called unconditionally and in the same order every render
   // Order: useRef -> useState -> useEffect -> useCallback
   
@@ -371,49 +371,80 @@ export const useDeliveryNotifications = () => {
       }
     });
 
-    socketRef.current.on('new_order', (orderData) => {
-      if (!['active', 'approved'].includes(deliveryStatus || '')) {
-        console.log('Ignoring new order notification for unverified delivery partner:', deliveryStatus);
-        return;
+    if (!approvalOnly) {
+      socketRef.current.on('new_order', (orderData) => {
+        if (!['active', 'approved'].includes(deliveryStatus || '')) {
+          console.log('Ignoring new order notification for unverified delivery partner:', deliveryStatus);
+          return;
+        }
+        console.log('📦 New order received via socket:', orderData);
+        setNewOrder(orderData);
+        playNotificationSound();
+      });
+
+      // New order available for ALL delivery boys - show in UI so it appears in available orders list in real time
+      socketRef.current.on('new_order_available', (orderData) => {
+        if (!['active', 'approved'].includes(deliveryStatus || '')) {
+          console.log('Ignoring available-order notification for unverified delivery partner:', deliveryStatus);
+          return;
+        }
+        console.log('📦 New order available (showing in UI):', orderData?.orderId || orderData?.orderMongoId, 'phase:', orderData?.phase);
+        setNewOrder(orderData);
+        playNotificationSound();
+      });
+
+      // When another delivery boy accepts an order, remove it from our available list immediately
+      socketRef.current.on('order_accepted', (payload) => {
+        const current = newOrderRef.current;
+        if (!current) return;
+        const match = (payload.orderId && (payload.orderId === current.orderId || payload.orderId === current.orderMongoId)) ||
+          (payload.mongoId && (payload.mongoId === current.orderMongoId || payload.mongoId === current.mongoId || payload.mongoId === current._id));
+        if (match) {
+          console.log('📦 Order was accepted by another delivery partner, removing from list:', payload.orderId || payload.mongoId);
+          setNewOrder(null);
+        }
+      });
+
+      socketRef.current.on('play_notification_sound', (data) => {
+        console.log('🔔 Sound notification:', data);
+        playNotificationSound();
+      });
+
+      socketRef.current.on('order_ready', (orderData) => {
+        console.log('✅ Order ready notification received via socket:', orderData);
+        setOrderReady(orderData);
+        playNotificationSound();
+      });
+    }
+
+    if (!suppressApproval) {
+      socketRef.current.on('delivery_partner_approved', (payload) => {
+      console.log('✅ Delivery approval event received:', payload);
+      setDeliveryStatus('approved');
+      lastKnownStatusRef.current = 'approved';
+      addDeliveryNotification({
+        type: 'account',
+        title: payload?.title || 'Account approved',
+        message: payload?.message || 'Your delivery account has been approved. You can start receiving orders now.',
+        createdAt: new Date().toISOString(),
+        read: false,
+      });
+      playNotificationSound();
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+          new Notification(payload?.title || 'Account approved', {
+            body: payload?.message || 'Your delivery account has been approved. You can start receiving orders now.',
+            icon: '/favicon.ico',
+            tag: `delivery-approved-${payload?.mongoId || payload?.deliveryId || 'account'}`,
+          });
+        } catch (notificationError) {
+          console.warn('Unable to show browser approval notification:', notificationError);
+        }
       }
-      console.log('📦 New order received via socket:', orderData);
-      setNewOrder(orderData);
-      playNotificationSound();
-    });
-
-    // New order available for ALL delivery boys - show in UI so it appears in available orders list in real time
-    socketRef.current.on('new_order_available', (orderData) => {
-      if (!['active', 'approved'].includes(deliveryStatus || '')) {
-        console.log('Ignoring available-order notification for unverified delivery partner:', deliveryStatus);
-        return;
-      }
-      console.log('📦 New order available (showing in UI):', orderData?.orderId || orderData?.orderMongoId, 'phase:', orderData?.phase);
-      setNewOrder(orderData);
-      playNotificationSound();
-    });
-
-    // When another delivery boy accepts an order, remove it from our available list immediately
-    socketRef.current.on('order_accepted', (payload) => {
-      const current = newOrderRef.current;
-      if (!current) return;
-      const match = (payload.orderId && (payload.orderId === current.orderId || payload.orderId === current.orderMongoId)) ||
-        (payload.mongoId && (payload.mongoId === current.orderMongoId || payload.mongoId === current.mongoId || payload.mongoId === current._id));
-      if (match) {
-        console.log('📦 Order was accepted by another delivery partner, removing from list:', payload.orderId || payload.mongoId);
-        setNewOrder(null);
-      }
-    });
-
-    socketRef.current.on('play_notification_sound', (data) => {
-      console.log('🔔 Sound notification:', data);
-      playNotificationSound();
-    });
-
-    socketRef.current.on('order_ready', (orderData) => {
-      console.log('✅ Order ready notification received via socket:', orderData);
-      setOrderReady(orderData);
-      playNotificationSound();
-    });
+      toast.success('Your delivery account is approved now.');
+      window.dispatchEvent(new Event('deliveryProfileRefresh'));
+      });
+    }
 
     socketRef.current.on('delivery_bonus', (bonusData) => {
       const amount = Number(bonusData?.amount || 0);
@@ -438,7 +469,7 @@ export const useDeliveryNotifications = () => {
         socketRef.current = null;
       }
     };
-  }, [deliveryPartnerId, deliveryStatus, playNotificationSound]);
+  }, [approvalOnly, deliveryPartnerId, deliveryStatus, playNotificationSound, suppressApproval]);
 
   // Keep ref in sync so order_accepted listener can see current newOrder
   useEffect(() => {

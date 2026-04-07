@@ -8,6 +8,7 @@ import { MobileTimePicker } from "@mui/x-date-pickers/MobileTimePicker"
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider"
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns"
 import { useCompanyName } from "@/lib/hooks/useCompanyName"
+import { restaurantAPI } from "@/lib/api"
 
 const STORAGE_KEY = "restaurant_outlet_timings"
 
@@ -52,6 +53,37 @@ const getDefaultDays = () => ({
   Saturday: { isOpen: true, openingTime: "09:00", closingTime: "22:00" },
   Sunday: { isOpen: true, openingTime: "09:00", closingTime: "22:00" },
 })
+
+const DAY_NAME_MAP = {
+  Mon: "Monday",
+  Tue: "Tuesday",
+  Wed: "Wednesday",
+  Thu: "Thursday",
+  Fri: "Friday",
+  Sat: "Saturday",
+  Sun: "Sunday",
+}
+
+const buildDaysFromRestaurant = (restaurant) => {
+  const fallback = getDefaultDays()
+  const openingTime = restaurant?.deliveryTimings?.openingTime || "09:00"
+  const closingTime = restaurant?.deliveryTimings?.closingTime || "22:00"
+  const openDays = Array.isArray(restaurant?.openDays) ? restaurant.openDays : []
+  const normalizedOpenDays = new Set(
+    openDays.map((day) => DAY_NAME_MAP[day] || day).filter(Boolean)
+  )
+
+  return Object.fromEntries(
+    Object.keys(fallback).map((day) => [
+      day,
+      {
+        isOpen: normalizedOpenDays.size ? normalizedOpenDays.has(day) : fallback[day].isOpen,
+        openingTime,
+        closingTime,
+      },
+    ])
+  )
+}
 
 export default function OutletTimings() {
   const companyName = useCompanyName()
@@ -141,6 +173,28 @@ export default function OutletTimings() {
 
     window.addEventListener("outletTimingsUpdated", handleUpdate)
     return () => window.removeEventListener("outletTimingsUpdated", handleUpdate)
+  }, [])
+
+  useEffect(() => {
+    const hydrateFromRestaurant = async () => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY)
+        if (saved) return
+
+        const response = await restaurantAPI.getCurrentRestaurant()
+        const restaurant = response?.data?.data?.restaurant || response?.data?.restaurant
+        if (!restaurant) return
+
+        const prefetchedDays = buildDaysFromRestaurant(restaurant)
+        setDays(prefetchedDays)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(prefetchedDays))
+        window.dispatchEvent(new Event("outletTimingsUpdated"))
+      } catch (error) {
+        console.error("Error prefilling outlet timings from restaurant data:", error)
+      }
+    }
+
+    hydrateFromRestaurant()
   }, [])
 
   // Lenis smooth scrolling

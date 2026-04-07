@@ -332,20 +332,20 @@ export default function DeliverySupportTickets() {
 
       {/* View Ticket Dialog - Full Details */}
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto px-6 py-5">
           <DialogHeader className="pb-4 border-b border-gray-200">
             <DialogTitle className="text-xl font-semibold text-gray-900">Ticket Details</DialogTitle>
             <p className="text-sm text-gray-600 mt-1">Complete information about the support ticket</p>
           </DialogHeader>
           {selectedTicket && (
-            <div className="space-y-6 py-4">
+            <div className="space-y-6 py-4 pr-1">
               {/* Ticket Information Section */}
               <div>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-1 h-6 bg-blue-500 rounded"></div>
                   <h3 className="text-base font-semibold text-gray-900">Ticket Information</h3>
                 </div>
-                <div className="pl-4 space-y-4">
+                <div className="pl-4 pr-2 space-y-4">
                   {/* Ticket ID */}
                   {selectedTicket.ticketId && (
                     <div>
@@ -367,7 +367,7 @@ export default function DeliverySupportTickets() {
                   {/* Description / Issue */}
                   <div>
                     <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Description / Issue</p>
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 max-h-64 overflow-y-auto">
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 max-h-64 overflow-y-auto">
                       <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">
                         {selectedTicket.description}
                       </p>
@@ -406,7 +406,7 @@ export default function DeliverySupportTickets() {
                   <div className="w-1 h-6 bg-orange-500 rounded"></div>
                   <h3 className="text-base font-semibold text-gray-900">Delivery Partner</h3>
                 </div>
-                <div className="pl-4 space-y-3">
+                <div className="pl-4 pr-2 space-y-3">
                   <div>
                     <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Name</p>
                     <p className="text-sm text-gray-900 font-semibold">{selectedTicket.deliveryName || 'N/A'}</p>
@@ -431,8 +431,8 @@ export default function DeliverySupportTickets() {
                     <div className="w-1 h-6 bg-red-500 rounded"></div>
                     <h3 className="text-base font-semibold text-gray-900">Admin Response</h3>
                   </div>
-                  <div className="pl-4">
-                    <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                  <div className="pl-4 pr-2">
+                    <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
                       <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">{selectedTicket.adminResponse}</p>
                       {selectedTicket.respondedAt && (
                         <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-blue-200">

@@ -38,6 +38,46 @@ import { orderAPI, restaurantAPI } from "@/lib/api"
 import { shareContent } from "@/lib/utils/share"
 import circleIcon from "@/assets/circleicon.png"
 
+const getOrderCountdownMinutes = (order) => {
+  if (!order) return null
+
+  const normalizedStatus = String(
+    order.status || order.originalStatus || order.deliveryState?.status || ""
+  ).toLowerCase()
+
+  if (!normalizedStatus || ["delivered", "completed", "cancelled", "canceled"].includes(normalizedStatus)) {
+    return null
+  }
+
+  const deliveryPhase = String(order.deliveryState?.currentPhase || "").toLowerCase()
+  const routeToDeliveryDuration = Number(order.deliveryState?.routeToDelivery?.duration)
+  const fullOrderEta =
+    Number(order.eta?.max) ||
+    Number(order.estimatedDeliveryTime) ||
+    Number(order.estimatedTime) ||
+    Number(order.estimated_delivery_time) ||
+    35
+
+  const phaseAwareEta =
+    deliveryPhase === "en_route_to_delivery" || normalizedStatus === "out_for_delivery"
+      ? (routeToDeliveryDuration > 0 ? routeToDeliveryDuration : Math.min(fullOrderEta, 20))
+      : fullOrderEta
+
+  const baseTimestamp =
+    deliveryPhase === "en_route_to_delivery" || normalizedStatus === "out_for_delivery"
+      ? (
+          order.deliveryState?.orderIdConfirmedAt ||
+          order.tracking?.outForDelivery?.timestamp ||
+          order.tracking?.out_for_delivery?.timestamp ||
+          order.deliveryState?.acceptedAt
+        )
+      : (order.createdAt || order.orderDate || order.created_at || order.date)
+
+  const baseTime = new Date(baseTimestamp || Date.now())
+  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - baseTime.getTime()) / 60000))
+  return Math.max(0, phaseAwareEta - elapsedMinutes)
+}
+
 const deriveOrderItemIsVeg = (item) => {
   const explicitFoodType = item?.foodType || item?.variationFoodType || item?.selectedVariation?.foodType
 
@@ -529,6 +569,10 @@ export default function OrderTracking() {
           }
 
           setOrder(transformedOrder)
+          const nextEta = getOrderCountdownMinutes(apiOrder)
+          if (nextEta !== null) {
+            setEstimatedTime(nextEta)
+          }
 
           // Update orderStatus based on API order status
           // 'ready' = food ready at restaurant, waiting for delivery partner (show "Food is ready")
@@ -566,11 +610,19 @@ export default function OrderTracking() {
 
   // Countdown timer
   useEffect(() => {
+    const syncEstimatedTime = () => {
+      const nextEta = getOrderCountdownMinutes(order)
+      if (nextEta !== null) {
+        setEstimatedTime(nextEta)
+      }
+    }
+
+    syncEstimatedTime()
     const timer = setInterval(() => {
-      setEstimatedTime((prev) => Math.max(0, prev - 1))
+      syncEstimatedTime()
     }, 60000)
     return () => clearInterval(timer)
-  }, [])
+  }, [order])
 
   // Listen for order status updates from socket (e.g., "Delivery partner on the way")
   useEffect(() => {

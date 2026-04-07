@@ -864,11 +864,12 @@ export default function OutletInfo() {
         </motion.div>
 
         {/* Address Card */}
-        <motion.div
+        <motion.button
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
-          className="bg-blue-100/50  rounded-lg p-4 border border-blue-300"
+          onClick={() => navigate("/restaurant/edit-address")}
+          className="w-full text-left bg-blue-100/50 rounded-lg p-4 border border-blue-300 hover:bg-blue-50 transition-colors"
         >
           <div className="flex items-start justify-between mb-2">
             <div className="flex-1 min-w-0">
@@ -880,14 +881,11 @@ export default function OutletInfo() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => navigate("/restaurant/edit-address")}
-              className="text-blue-600 text-sm font-normal hover:text-blue-700 transition-colors ml-4 shrink-0 self-start"
-            >
+            <span className="text-blue-600 text-sm font-normal ml-4 shrink-0 self-start">
               Edit
-            </button>
+            </span>
           </div>
-        </motion.div>
+        </motion.button>
 
         {/* Action Cards */}
         <motion.div

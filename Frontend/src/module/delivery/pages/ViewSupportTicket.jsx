@@ -164,15 +164,15 @@ export default function ViewSupportTicket() {
       </div>
 
       {/* Content */}
-      <div className="px-4 py-6">
+      <div className="px-4 py-6 sm:px-6">
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 sm:p-6 md:p-8 space-y-6">
             {/* Ticket ID and Status */}
             <div className="pb-4 border-b border-gray-200">
               {ticket.ticketId && (
                 <div className="mb-3">
                   <p className="text-xs text-gray-500 mb-1">Ticket ID</p>
-                  <p className="text-base font-mono font-semibold bg-gray-100 text-gray-900 px-3 py-1.5 rounded inline-block">
+                  <p className="text-base font-mono font-semibold bg-gray-100 text-gray-900 px-3 py-2 rounded-lg inline-block">
                     #{ticket.ticketId}
                   </p>
                 </div>
@@ -202,7 +202,7 @@ export default function ViewSupportTicket() {
             {/* Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg">
+              <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded-xl leading-relaxed">
                 {ticket.description}
               </p>
             </div>
@@ -211,7 +211,7 @@ export default function ViewSupportTicket() {
             {ticket.adminResponse ? (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Admin Response</label>
-                <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
                   <p className="text-sm text-gray-900 whitespace-pre-wrap">{ticket.adminResponse}</p>
                   {ticket.respondedAt && (
                     <p className="text-xs text-gray-500 mt-2">
@@ -221,7 +221,7 @@ export default function ViewSupportTicket() {
                 </div>
               </div>
             ) : (
-              <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl">
                 <p className="text-sm text-yellow-800">No response yet. Our team will get back to you soon.</p>
               </div>
             )}

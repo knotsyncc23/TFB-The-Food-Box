@@ -971,6 +971,9 @@ export default function Home() {
     // Use only API data - no mock data fallback
     let filtered = [...restaurantsData]
 
+    // Closed outlets should not appear in the user restaurant list.
+    filtered = filtered.filter((restaurant) => restaurant.isActive && restaurant.isAcceptingOrders)
+
     // Apply Veg Mode preference
     if (vegMode) {
       if (vegModeOption === "pure-veg") {

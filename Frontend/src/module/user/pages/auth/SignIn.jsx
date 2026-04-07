@@ -15,7 +15,7 @@ import {
 import { authAPI } from "@/lib/api"
 import { firebaseAuth, googleProvider, ensureFirebaseInitialized } from "@/lib/firebase"
 import { hasFlutterGoogleBridge, nativeGoogleSignIn } from "@/lib/utils/flutterGoogleAuthBridge"
-import { getModuleToken, setAuthData } from "@/lib/utils/auth"
+import { setAuthData } from "@/lib/utils/auth"
 import { registerFcmTokenForLoggedInUser } from "@/lib/notifications/fcmWeb"
 import { appendAppleDebugLog } from "@/lib/utils/appleDebugLog"
 import { useFirebaseUserSession } from "@/lib/firebaseUserSession"
@@ -66,7 +66,6 @@ export default function SignIn() {
 
   const PENDING_PROVIDER_KEY = "pendingSocialProvider"
   const APPLE_REDIRECT_IN_PROGRESS_KEY = "appleRedirectInProgress"
-  const APPLE_SIGNIN_STARTED_KEY = "apple_signin_started"
   const safeLocalSet = (key, value) => {
     try {
       if (typeof localStorage === "undefined") return
@@ -127,25 +126,8 @@ export default function SignIn() {
   const clearPendingProvider = () => {
     safeSessionRemove(PENDING_PROVIDER_KEY)
     safeSessionRemove(APPLE_REDIRECT_IN_PROGRESS_KEY)
-    safeSessionRemove(APPLE_SIGNIN_STARTED_KEY)
     safeLocalRemove(PENDING_PROVIDER_KEY)
     safeLocalRemove(APPLE_REDIRECT_IN_PROGRESS_KEY)
-  }
-  const isAppleCancelError = (error) => {
-    const code = String(error?.code || error?.error || "").toLowerCase()
-    const message = String(error?.message || "").toLowerCase()
-
-    if (
-      code === "auth/user-cancelled" ||
-      code === "auth/popup-closed-by-user" ||
-      code === "popup_closed_by_user" ||
-      code === "auth/cancelled-popup-request" ||
-      code === "auth/no-auth-event"
-    ) {
-      return true
-    }
-
-    return message.includes("cancel") || message.includes("popup") && message.includes("closed")
   }
 
   // Firebase logic for Apple removed to stop background iframe calls
@@ -272,7 +254,6 @@ export default function SignIn() {
   }, [])
 
   // Redundant Firebase Apple redirect check removed
-
   useEffect(() => {
     const pendingProvider = getPendingProvider()
     // JAISE AAPNE BATAYA: Apple ke liye Firebase ko trigger mat karna
@@ -296,13 +277,7 @@ export default function SignIn() {
     }
 
     if (pendingProvider === "apple" && firebaseUserSession.lastError) {
-      if (isAppleCancelError(firebaseUserSession.lastError)) {
-        clearPendingProvider()
-        setAppleError("")
-        setIsAppleLoading(false)
-      } else {
-        setAppleError("Apple sign-in restore failed. Please try again.")
-      }
+      setAppleError(firebaseUserSession.lastError.message || "Apple sign-in restore failed.")
     }
   }, [
     firebaseUserSession.authDomain,

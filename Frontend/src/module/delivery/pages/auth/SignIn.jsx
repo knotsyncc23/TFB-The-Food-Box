@@ -10,7 +10,7 @@ import {
 import { deliveryAPI } from "@/lib/api"
 import { clearModuleAuth } from "@/lib/utils/auth"
 import { useCompanyName } from "@/lib/hooks/useCompanyName"
-import { validateDeliveryPhone } from "@/lib/utils/deliveryPhoneValidation"
+import { validateDeliveryPhone, DIGIT_BOUNDS } from "@/lib/utils/deliveryPhoneValidation"
 
 // Common country codes
 const countryCodes = [
@@ -64,6 +64,13 @@ export default function DeliverySignIn() {
 
   const validatePhone = (phone, countryCode) =>
     validateDeliveryPhone(phone, countryCode)
+
+  const getPhoneHint = () => {
+    const bounds = DIGIT_BOUNDS[formData.countryCode] || [8, 15]
+    const [min, max] = bounds
+    if (min === max) return `Enter a valid ${min} digit mobile number`
+    return `Enter a valid ${min}-${max} digit mobile number`
+  }
 
   const handleSendOTP = async () => {
     setError("")
@@ -203,7 +210,7 @@ export default function DeliverySignIn() {
 
             {/* Hint Text */}
             <p className="text-sm text-gray-500">
-              Enter a valid 10 digit mobile number
+              {getPhoneHint()}
             </p>
 
             {error && (

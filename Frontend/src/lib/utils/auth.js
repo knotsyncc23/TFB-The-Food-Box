@@ -141,6 +141,9 @@ export function clearModuleAuth(module) {
   localStorage.removeItem(`${module}_authenticated`);
   localStorage.removeItem(`${module}_user`);
   sessionStorage.removeItem(`${module}AuthData`);
+  if (module === "restaurant") {
+    localStorage.removeItem("restaurant_onboarding_data");
+  }
   if (module === "user") {
     sessionStorage.removeItem("user_accessToken");
     sessionStorage.removeItem("user_authenticated");
@@ -181,6 +184,10 @@ export function setAuthData(module, token, user, options = {}) {
     const rememberMe = options.rememberMe !== false;
     const useSession = module === "user" && !rememberMe;
     const storage = useSession && typeof sessionStorage !== "undefined" ? sessionStorage : localStorage;
+
+    if (module === "restaurant") {
+      localStorage.removeItem("restaurant_onboarding_data");
+    }
 
     const tokenKey = `${module}_accessToken`;
     const authKey = `${module}_authenticated`;

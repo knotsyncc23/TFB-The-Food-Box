@@ -92,6 +92,13 @@ export default function AcceptedOrderDetails() {
   }
 
   const statusMessage = getDeliveryStatusMessage(orderStatus)
+  const normalizedOrderStatus = normalizeDeliveryStatus(orderStatus)
+  const deliveryPhase = String(order?.deliveryState?.currentPhase || "").toLowerCase()
+  const deliveryStateStatus = String(order?.deliveryState?.status || "").toLowerCase()
+  const hasReachedDrop =
+    normalizedOrderStatus === DELIVERY_ORDER_STATUS.DELIVERED ||
+    ["at_drop", "completed"].includes(deliveryPhase) ||
+    ["reached_drop", "completed"].includes(deliveryStateStatus)
   const restaurantLocation = order.restaurantId?.location || order.restaurant?.location || {}
   const restaurantCoordinates = Array.isArray(restaurantLocation.coordinates)
     ? {
@@ -245,30 +252,32 @@ export default function AcceptedOrderDetails() {
                 >
                   <Phone className="w-5 h-5 text-white" />
                 </button>
-                <button
-                  onClick={() => {
-                    const customerLocation = order.address?.location
-                    const coords = Array.isArray(customerLocation?.coordinates)
-                      ? {
-                          lat: customerLocation.coordinates[1],
-                          lng: customerLocation.coordinates[0],
-                        }
-                      : {
-                          lat: order.customerLat,
-                          lng: order.customerLng,
-                        }
+                {!hasReachedDrop && (
+                  <button
+                    onClick={() => {
+                      const customerLocation = order.address?.location
+                      const coords = Array.isArray(customerLocation?.coordinates)
+                        ? {
+                            lat: customerLocation.coordinates[1],
+                            lng: customerLocation.coordinates[0],
+                          }
+                        : {
+                            lat: order.customerLat,
+                            lng: order.customerLng,
+                          }
 
-                    openMapLocation(
-                      coords.lat,
-                      coords.lng,
-                      orderData.customer.address,
-                      "Customer",
-                    )
-                  }}
-                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                >
-                  <MapPin className="w-5 h-5 text-gray-600" />
-                </button>
+                      openMapLocation(
+                        coords.lat,
+                        coords.lng,
+                        orderData.customer.address,
+                        "Customer",
+                      )
+                    }}
+                    className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  >
+                    <MapPin className="w-5 h-5 text-gray-600" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -305,19 +314,21 @@ export default function AcceptedOrderDetails() {
                 >
                   <Phone className="w-5 h-5 text-white" />
                 </button>
-                <button
-                  onClick={() => {
-                    openMapLocation(
-                      restaurantCoordinates.lat,
-                      restaurantCoordinates.lng,
-                      orderData.restaurant.address,
-                      "Restaurant",
-                    )
-                  }}
-                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                >
-                  <MapPin className="w-5 h-5 text-gray-600" />
-                </button>
+                {!hasReachedDrop && (
+                  <button
+                    onClick={() => {
+                      openMapLocation(
+                        restaurantCoordinates.lat,
+                        restaurantCoordinates.lng,
+                        orderData.restaurant.address,
+                        "Restaurant",
+                      )
+                    }}
+                    className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  >
+                    <MapPin className="w-5 h-5 text-gray-600" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
