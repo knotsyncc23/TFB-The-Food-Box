@@ -3,7 +3,9 @@ export const buildShareMessage = ({ title, text, url }) =>
 
 const buildWhatsAppShareUrl = ({ title, text, url }) => {
   const message = buildShareMessage({ title, text, url })
-  return `https://wa.me/?text=${encodeURIComponent(message)}`
+  return message
+    ? `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`
+    : ""
 }
 
 const copyTextFallback = async (text) => {
@@ -36,6 +38,26 @@ const copyTextFallback = async (text) => {
   }
 }
 
+const openShareFallbackWindow = (url) => {
+  if (!url || typeof window === "undefined") return false
+
+  const shareWindow = window.open(url, "_blank", "noopener,noreferrer")
+  if (shareWindow) return true
+
+  try {
+    const link = document.createElement("a")
+    link.href = url
+    link.target = "_blank"
+    link.rel = "noopener noreferrer"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export const shareContent = async ({ title, text, url }) => {
   const shareData = {}
   if (title) shareData.title = title
@@ -57,31 +79,13 @@ export const shareContent = async ({ title, text, url }) => {
     }
   }
 
-  // Try clipboard first, then a legacy copy fallback that works on more browsers.
-  if (await copyTextFallback(fallbackMessage)) {
-    return { method: "clipboard" }
-  }
-
   const whatsappUrl = buildWhatsAppShareUrl({ title, text, url })
-  const shareWindow = window.open(whatsappUrl, "_blank", "noopener,noreferrer")
-
-  if (shareWindow) {
+  if (openShareFallbackWindow(whatsappUrl)) {
     return { method: "whatsapp" }
   }
 
-  // Last-resort fallback for aggressive popup blockers.
-  if (whatsappUrl) {
-    const link = document.createElement("a")
-    link.href = whatsappUrl
-    link.target = "_blank"
-    link.rel = "noopener noreferrer"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    return { method: "whatsapp" }
-  }
-
-  if (fallbackMessage) {
+  // Clipboard is the last resort when the device/browser cannot present a share target.
+  if (await copyTextFallback(fallbackMessage)) {
     return { method: "clipboard" }
   }
 
