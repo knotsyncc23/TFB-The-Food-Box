@@ -1444,21 +1444,25 @@ export const getAppleConfig = asyncHandler(async (_req, res) => {
 export const appleCallback = asyncHandler(async (req, res) => {
   const { code, id_token, state, user: appleUserJson, error } = { ...req.query, ...req.body };
   
-  // Detect if the client prefers JSON (standard headers OR native app signature)
+  // Robust JSON preference detection
   const isNative = req.headers["user-agent"]?.includes("Dart") || req.headers["user-agent"]?.includes("Flutter");
-  const isPostJson = req.method === "POST" && req.headers["content-type"]?.includes("application/json");
+  const isApiPost = req.method === "POST" && !req.headers["content-type"]?.includes("application/x-www-form-urlencoded");
+  const isXmlHttp = req.headers["x-requested-with"] === "XMLHttpRequest" || req.headers["accept"]?.includes("application/json");
+
   const expectsJson = 
-    req.headers.accept?.includes("application/json") || 
-    isPostJson ||
+    isXmlHttp ||
     isNative ||
-    req.query.format === "json";
+    isApiPost ||
+    req.headers["content-type"]?.includes("application/json") ||
+    req.query.format === "json" ||
+    req.body.format === "json";
 
   logger.info("Apple OAuth callback received", { 
     hasCode: !!code, 
     hasIdToken: !!id_token, 
     state, 
-    hasUserJson: !!appleUserJson, 
-    error,
+    expectsJson,
+    isApiPost,
     method: req.method,
     url: req.originalUrl
   });
@@ -1537,13 +1541,17 @@ export const appleCallback = asyncHandler(async (req, res) => {
     let user = await User.findOne({ $or: lookupConditions });
 
     if (user && user.role !== userRole) {
+      const roleErrorMessage = `This account is registered as ${user.role}, not ${userRole}`;
+      if (expectsJson) {
+        return errorResponse(res, 400, roleErrorMessage);
+      }
       return res.status(200).send(`
         <script>
           if (window.opener) {
             window.opener.postMessage({ 
               type: 'APPLE_LOGIN_ERROR', 
               error: 'wrong_role',
-              message: 'This account is registered as ${user.role}, not ${userRole}'
+              message: '${roleErrorMessage}'
             }, '*');
           }
           window.close();
@@ -1581,10 +1589,18 @@ export const appleCallback = asyncHandler(async (req, res) => {
     }
 
     if (!user.isActive) {
-       return res.status(200).send(`
+      const deactivationMessage = "Account is inactive. Please contact support.";
+      if (expectsJson) {
+        return errorResponse(res, 401, deactivationMessage);
+      }
+      return res.status(200).send(`
         <script>
           if (window.opener) {
-            window.opener.postMessage({ type: 'APPLE_LOGIN_ERROR', error: 'account_deactivated' }, '*');
+            window.opener.postMessage({ 
+              type: 'APPLE_LOGIN_ERROR', 
+              error: 'account_deactivated',
+              message: '${deactivationMessage}'
+            }, '*');
           }
           window.close();
         </script>
@@ -1601,7 +1617,7 @@ export const appleCallback = asyncHandler(async (req, res) => {
     // Set refresh token cookie
     res.cookie("refreshToken", jwtTokens.refreshToken, getRefreshTokenCookieOptions());
 
-    // Send success message to opener
+    // Send success message
     const userData = {
       id: user._id,
       name: user.name,
