@@ -10,10 +10,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { restaurantAPI } from "@/lib/api"
-import { firebaseAuth, googleProvider, appleProvider, ensureFirebaseInitialized } from "@/lib/firebase"
+import { restaurantAPI, authAPI } from "@/lib/api"
+import { firebaseAuth, googleProvider, ensureFirebaseInitialized } from "@/lib/firebase"
 import { hasFlutterGoogleBridge, nativeGoogleSignIn } from "@/lib/utils/flutterGoogleAuthBridge"
 import { useCompanyName } from "@/lib/hooks/useCompanyName"
+import { useCallback } from "react"
 
 // Common country codes
 const countryCodes = [
@@ -59,9 +60,98 @@ export default function RestaurantLogin() {
   const [isSending, setIsSending] = useState(false)
   const [isAppleLoading, setIsAppleLoading] = useState(false)
   const [apiError, setApiError] = useState("")
+  const [appleError, setAppleError] = useState("")
+  const [appleConfig, setAppleConfig] = useState(null)
+  const isAppleReady = appleConfig && window.AppleID
   const isIOSBrowser = /iPad|iPhone|iPod/i.test(
     typeof navigator !== "undefined" ? navigator.userAgent : "",
   )
+  const isWebView =
+    typeof window !== "undefined" &&
+    (window.flutter_inappwebview ||
+      /wv/.test(navigator.userAgent))
+  const APPLE_REDIRECT_IN_PROGRESS_KEY = "appleRedirectInProgress"
+  const APPLE_SIGNIN_STARTED_KEY = "apple_signin_started"
+  const PENDING_PROVIDER_KEY = "pendingSocialProvider"
+
+  const safeLocalSet = (key, value) => {
+    try {
+      if (typeof localStorage === "undefined") return
+      localStorage.setItem(key, value)
+    } catch {}
+  }
+  const safeSessionSet = (key, value) => {
+    try {
+      if (typeof sessionStorage === "undefined") return
+      sessionStorage.setItem(key, value)
+    } catch {}
+  }
+  const safeSessionRemove = (key) => {
+    try {
+      if (typeof sessionStorage === "undefined") return
+      sessionStorage.removeItem(key)
+    } catch {}
+  }
+  const safeLocalRemove = (key) => {
+    try {
+      if (typeof localStorage === "undefined") return
+      localStorage.removeItem(key)
+    } catch {}
+  }
+
+  const clearPendingProvider = () => {
+    safeSessionRemove(PENDING_PROVIDER_KEY)
+    safeSessionRemove(APPLE_REDIRECT_IN_PROGRESS_KEY)
+    safeSessionRemove(APPLE_SIGNIN_STARTED_KEY)
+    safeLocalRemove(PENDING_PROVIDER_KEY)
+    safeLocalRemove(APPLE_REDIRECT_IN_PROGRESS_KEY)
+  }
+
+  // Preload Apple SDK and Configuration
+  useEffect(() => {
+    const loadAppleDependencies = async () => {
+      try {
+        if (!window.AppleID) {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement("script")
+            script.src = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"
+            script.async = true
+            script.onload = resolve
+            script.onerror = () => reject(new Error("Apple SDK load failed"))
+            document.head.appendChild(script)
+          })
+        }
+        
+        const configResponse = await authAPI.getAppleConfig()
+        setAppleConfig(configResponse.data.data)
+      } catch (err) {
+        console.error("Failed to preload Apple dependencies:", err)
+      }
+    }
+    loadAppleDependencies()
+  }, [])
+
+  // Listen for message from Apple OAuth popup
+  const handleMessage = useCallback(async (event) => {
+    const { type, token, user, error, provider } = event.data || {}
+
+    if (type === "APPLE_LOGIN_SUCCESS" && provider === "apple") {
+      if (token && user) {
+        clearPendingProvider()
+        setAuthData("restaurant", token, user)
+        window.dispatchEvent(new Event("restaurantAuthChanged"))
+        navigate("/restaurant", { replace: true })
+      }
+    } else if (type === "APPLE_LOGIN_ERROR") {
+      setAppleError(error || "Apple sign-in failed.")
+      setIsAppleLoading(false)
+    }
+  }, [navigate])
+
+  useEffect(() => {
+    window.addEventListener("message", handleMessage)
+    return () => window.removeEventListener("message", handleMessage)
+  }, [handleMessage])
 
   // Prefill phone when user comes back from OTP screen
   useEffect(() => {
@@ -446,45 +536,43 @@ export default function RestaurantLogin() {
   }
 
   const handleAppleLogin = async () => {
-    setApiError("")
+    if (!isAppleReady) {
+      console.warn("Apple not ready yet")
+      setAppleError("Apple Sign-In is initializing. Please try again.")
+      return
+    }
+
+    setAppleError("")
     setIsAppleLoading(true)
-    redirectHandledRef.current = false
+    safeSessionSet(APPLE_SIGNIN_STARTED_KEY, "1")
+    safeSessionSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
+    safeLocalSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
 
     try {
-      await ensureFirebaseInitialized()
+      window.AppleID.auth.init({
+        clientId: appleConfig.clientId,
+        scope: "name email",
+        redirectURI: appleConfig.redirectUri,
+        state: "restaurant",
+        usePopup: !isWebView,
+      })
 
-      if (!firebaseAuth || !appleProvider) {
-        throw new Error("Firebase is not configured correctly for Apple login")
-      }
-
-      const {
-        browserLocalPersistence,
-        setPersistence,
-        signInWithPopup,
-      } = await import("firebase/auth")
-
-      await setPersistence(firebaseAuth, browserLocalPersistence)
-
-      const result = await signInWithPopup(firebaseAuth, appleProvider)
-      if (result?.user) {
-        await processSignedInUser(result.user, "apple-popup-result", "apple")
-        return
-      }
-
-      throw new Error("Apple sign-in completed without returning a Firebase user")
+      window.AppleID.auth.signIn()
+        .then(() => {
+          // Success handled in message listener or redirect
+        })
+        .catch((error) => {
+          console.error("Apple sign-in failed:", error)
+          if (error?.error !== "user-cancelled") {
+            setAppleError("Apple sign-in failed.")
+          }
+          setIsAppleLoading(false)
+          clearPendingProvider()
+        })
     } catch (error) {
-      console.error("Firebase Apple login error:", error)
-      redirectHandledRef.current = false
-      setApiError(
-        error?.code === "auth/popup-blocked"
-          ? "Popup was blocked. Please allow popups and try again."
-          : error?.code === "auth/popup-closed-by-user"
-            ? "Apple sign-in was cancelled."
-            : error?.message || "Apple sign-in failed",
-      )
-    } finally {
+      console.error("Manual Apple trigger failed:", error)
+      clearPendingProvider()
       setIsAppleLoading(false)
-      setIsSending(false)
     }
   }
 
@@ -737,6 +825,9 @@ export default function RestaurantLogin() {
                 {isAppleLoading ? "Signing in with Apple" : "Login with Apple"}
               </span>
             </Button>
+            {appleError && (
+              <p className="text-red-500 text-xs mt-1 text-center">{appleError}</p>
+            )}
           </div>
         </div>
       </div>
