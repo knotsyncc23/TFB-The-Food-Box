@@ -70,17 +70,17 @@ class AppleAuthService {
       keyId: process.env.APPLE_KEY_ID,
       clientId: process.env.APPLE_CLIENT_ID,
     });
-    
+
     console.log("DEBUG: getClientSecret started");
     const rawKey = process.env.APPLE_PRIVATE_KEY;
-    console.log("DEBUG: Key format check:", { 
-      hasKey: !!rawKey, 
+    console.log("DEBUG: Key format check:", {
+      hasKey: !!rawKey,
       startsWithHeader: rawKey?.includes("BEGIN PRIVATE KEY"),
-      length: rawKey?.length 
+      length: rawKey?.length
     });
 
     const encodedKey = (process.env.APPLE_PRIVATE_KEY || "").trim();
-    
+
     // Decode Base64 key to real PEM format
     let privateKey = "";
     if (encodedKey.startsWith("-----BEGIN")) {
@@ -121,7 +121,7 @@ class AppleAuthService {
   async exchangeCode(code, redirectUri) {
     const rawClientId = (await getEnvVar("APPLE_CLIENT_ID") || process.env.APPLE_CLIENT_ID || "").toString();
     const clientId = rawClientId.trim().replace(/^"|"$/g, "");
-    
+
     const rawRedirectUri = (redirectUri || await getEnvVar("APPLE_REDIRECT_URI") || process.env.APPLE_REDIRECT_URI || "").toString();
     const finalRedirectUri = rawRedirectUri.trim().replace(/^"|"$/g, "");
 
@@ -133,11 +133,11 @@ class AppleAuthService {
 
     const clientSecret = await this.getClientSecret();
 
-    logger.info("Apple code exchange parameters", { 
-      clientId, 
+    logger.info("Apple code exchange parameters", {
+      clientId,
       finalRedirectUri,
       hasClientSecret: !!clientSecret,
-      code: code ? code.substring(0, 10) + '...' : null 
+      code: code ? code.substring(0, 10) + '...' : null
     });
 
     try {
@@ -172,12 +172,16 @@ class AppleAuthService {
 
     // Get trusted audiences from env or passed argument
     const rawClientIds = (audience || await getEnvVar("APPLE_CLIENT_ID") || process.env.APPLE_CLIENT_ID || "").toString();
-    
+
     // Support comma-separated list of audiences (e.g. "com.tifunbox.web,app.tifunbox.com")
     const trustedAudiences = rawClientIds
       .split(",")
       .map(id => id.trim().replace(/^"|"$/g, ""))
       .filter(Boolean);
+
+    // Ensure our standard audiences are always in the list
+    if (!trustedAudiences.includes("com.tifunbox.web")) trustedAudiences.push("com.tifunbox.web");
+    if (!trustedAudiences.includes("app.tifunbox.com")) trustedAudiences.push("app.tifunbox.com");
 
     if (trustedAudiences.length === 0) {
       throw new Error("Audience (clientId) is required for Apple verification");
@@ -196,7 +200,7 @@ class AppleAuthService {
 
     const publicKey = jwkToPem(key);
     logger.info("Public key generated for kid", { kid });
-    
+
     try {
       // Verify the token signature and issuer
       const verified = jwt.verify(identityToken, publicKey, {
@@ -208,16 +212,16 @@ class AppleAuthService {
       // Verify audience matches any of our trusted IDs
       const tokenAudience = verified.aud;
       if (!trustedAudiences.includes(tokenAudience)) {
-        logger.error("Apple identity token audience mismatch", { 
-          expected: trustedAudiences, 
-          received: tokenAudience 
+        logger.error("Apple identity token audience mismatch", {
+          expected: trustedAudiences,
+          received: tokenAudience
         });
         throw new Error(`Audience mismatch. Expected one of: ${trustedAudiences.join(", ")}`);
       }
 
-      logger.info("Apple identity token verified successfully", { 
+      logger.info("Apple identity token verified successfully", {
         sub: verified.sub,
-        aud: tokenAudience 
+        aud: tokenAudience
       });
       return verified;
     } catch (error) {
