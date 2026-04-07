@@ -151,8 +151,6 @@ export default function SignIn() {
           })
         }
         
-        setAppleAuthReady(true)
-
         // Backend config load
         const configResponse = await authAPI.getAppleConfig()
         setAppleConfig(configResponse.data.data)
