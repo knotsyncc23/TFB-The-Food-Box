@@ -544,38 +544,31 @@ export default function RestaurantLogin() {
       return
     }
 
-    console.log("🍎 Starting manual Apple sign-in flow...")
-    setAppleError("")
-    setIsAppleLoading(true)
-    safeSessionSet(APPLE_SIGNIN_STARTED_KEY, "1")
-    safeSessionSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
-    safeLocalSet(APPLE_REDIRECT_IN_PROGRESS_KEY, "true")
-
     try {
+      console.log("🍎 Starting manual Apple sign-in flow for restaurant...")
+      setAppleError("")
+      setIsAppleLoading(true)
+      safeSessionSet(APPLE_SIGNIN_STARTED_KEY, "1")
+
+      // Initialize Apple SDK with config from backend
       window.AppleID.auth.init({
         clientId: appleConfig.clientId,
-        scope: "name email",
+        scope: "email name",
         redirectURI: appleConfig.redirectUri,
         state: "restaurant",
-        usePopup: true, // Always use popup for better UX on web
+        usePopup: true,
       })
 
-      window.AppleID.auth.signIn()
-        .then((res) => {
-          console.log("🍎 Apple signIn() triggered successfully")
-        })
-        .catch((error) => {
-          console.error("🍎 Apple sign-in failed:", error)
-          if (error?.error !== "user-cancelled") {
-            setAppleError("Apple sign-in failed.")
-          }
-          setIsAppleLoading(false)
-          clearPendingProvider()
-        })
+      // Trigger the sign-in popup
+      await window.AppleID.auth.signIn()
+      console.log("🍎 Apple signIn() triggered successfully")
     } catch (error) {
-      console.error("🍎 Manual Apple initialization failed:", error)
-      clearPendingProvider()
+      console.error("🍎 Apple sign-in error or manual initialization failed:", error)
+      if (error?.error !== "popup_closed_by_user" && error?.error !== "user-cancelled") {
+        setAppleError("Apple sign-in failed. Please try again.")
+      }
       setIsAppleLoading(false)
+      clearPendingProvider()
     }
   }
 
