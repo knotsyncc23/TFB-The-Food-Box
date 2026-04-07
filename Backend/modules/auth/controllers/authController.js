@@ -1443,7 +1443,15 @@ export const getAppleConfig = asyncHandler(async (_req, res) => {
  */
 export const appleCallback = asyncHandler(async (req, res) => {
   const { code, id_token, state, user: appleUserJson, error } = { ...req.query, ...req.body };
-  const expectsJson = req.headers.accept?.includes("application/json") || req.headers["content-type"] === "application/json";
+  
+  // Detect if the client prefers JSON (standard headers OR native app signature)
+  const isNative = req.headers["user-agent"]?.includes("Dart") || req.headers["user-agent"]?.includes("Flutter");
+  const isPostJson = req.method === "POST" && req.headers["content-type"]?.includes("application/json");
+  const expectsJson = 
+    req.headers.accept?.includes("application/json") || 
+    isPostJson ||
+    isNative ||
+    req.query.format === "json";
 
   logger.info("Apple OAuth callback received", { 
     hasCode: !!code, 
@@ -1625,14 +1633,21 @@ export const appleCallback = asyncHandler(async (req, res) => {
       </script>
     `);
   } catch (err) {
-    logger.error("Apple callback processing failed", { message: err.message });
-    if (req.headers.accept?.includes("application/json") || req.headers["content-type"] === "application/json") {
+    logger.error("Apple callback processing failed", { message: err.message, stack: err.stack });
+    
+    if (expectsJson) {
       return errorResponse(res, 400, "Processing failed: " + err.message);
     }
+    
+    // For browser popups, we must return 200 with a script so it can close and show the error
     return res.status(200).send(`
       <script>
         if (window.opener) {
-          window.opener.postMessage({ type: 'APPLE_LOGIN_ERROR', error: 'processing_failed' }, '*');
+          window.opener.postMessage({ 
+            type: 'APPLE_LOGIN_ERROR', 
+            error: 'processing_failed',
+            message: '${err.message.replace(/'/g, "\\'")}'
+          }, '*');
         }
         window.close();
       </script>
