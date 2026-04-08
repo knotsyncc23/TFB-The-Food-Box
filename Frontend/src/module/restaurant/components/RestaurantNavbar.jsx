@@ -26,6 +26,11 @@ export default function RestaurantNavbar({
         const data = response?.data?.data?.restaurant || response?.data?.restaurant
         if (data) {
           setRestaurantData(data)
+          if (typeof data.isAcceptingOrders === "boolean") {
+            const nextStatus = data.isAcceptingOrders ? "Online" : "Offline"
+            setStatus(nextStatus)
+            localStorage.setItem("restaurant_online_status", JSON.stringify(data.isAcceptingOrders))
+          }
         }
       } catch (error) {
         // Only log error if it's not a network/timeout error (backend might be down/slow)
@@ -183,48 +188,44 @@ export default function RestaurantNavbar({
     }
   }, [restaurantData, propLocation])
 
-  // Load status from localStorage on mount and listen for changes
+  // Keep navbar status in sync with backend data when available
   useEffect(() => {
-    const updateStatus = () => {
-      try {
-        const savedStatus = localStorage.getItem('restaurant_online_status')
-        if (savedStatus !== null) {
-          const isOnline = JSON.parse(savedStatus)
-          if (isOnline && !restaurantData?.approvedAt) {
-            localStorage.setItem('restaurant_online_status', JSON.stringify(false))
-            setStatus("Offline")
-            return
-          }
-          setStatus(isOnline ? "Online" : "Offline")
-        } else {
-          // Default to Offline if not set
-          setStatus("Offline")
-        }
-      } catch (error) {
-        console.error("Error loading restaurant status:", error)
+    if (typeof restaurantData?.isAcceptingOrders === "boolean") {
+      setStatus(restaurantData.isAcceptingOrders ? "Online" : "Offline")
+    }
+  }, [restaurantData?.isAcceptingOrders])
+
+  // Fallback to localStorage before backend data arrives, then listen for live updates
+  useEffect(() => {
+    if (typeof restaurantData?.isAcceptingOrders === "boolean") return
+
+    try {
+      const savedStatus = localStorage.getItem('restaurant_online_status')
+      if (savedStatus !== null) {
+        const isOnline = JSON.parse(savedStatus)
+        setStatus(isOnline ? "Online" : "Offline")
+      } else {
         setStatus("Offline")
       }
+    } catch (error) {
+      console.error("Error loading restaurant status:", error)
+      setStatus("Offline")
     }
+  }, [restaurantData?.isAcceptingOrders])
 
-    // Load initial status
-    updateStatus()
-
-    // Listen for status changes from RestaurantStatus page
+  useEffect(() => {
     const handleStatusChange = (event) => {
       const isOnline = event.detail?.isOnline ?? false
       setStatus(isOnline ? "Online" : "Offline")
+      localStorage.setItem("restaurant_online_status", JSON.stringify(isOnline))
     }
 
     window.addEventListener('restaurantStatusChanged', handleStatusChange)
-    
-    // Also check localStorage periodically to catch direct changes
-    const interval = setInterval(updateStatus, 1000)
-    
+
     return () => {
       window.removeEventListener('restaurantStatusChanged', handleStatusChange)
-      clearInterval(interval)
     }
-  }, [restaurantData?.approvedAt])
+  }, [])
 
   const handleStatusClick = () => {
     navigate("/restaurant/status")
