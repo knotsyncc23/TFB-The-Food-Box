@@ -1151,30 +1151,19 @@ export default function SignIn() {
             <div className="flex justify-center items-center gap-4 md:gap-6">
               {/* Apple Login Component */}
               <div className="relative group">
-                {appleConfig && (
-                  <LoginWithApple 
-                    clientId={appleConfig.clientId}
-                    redirectURI={appleConfig.redirectUri}
-                    isLoading={isAppleLoading}
-                  />
-                )}
-                {!appleConfig && isAppleLoading && (
-                  <button
-                    type="button"
-                    className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-black flex items-center justify-center opacity-50"
-                  >
+                <button
+                  type="button"
+                  onClick={handleAppleSignIn}
+                  disabled={isAppleLoading}
+                  className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-black flex items-center justify-center hover:bg-gray-900 transition-all active:scale-95 disabled:opacity-50"
+                  aria-label="Sign in with Apple"
+                >
+                  {isAppleLoading ? (
                     <Loader2 className="h-5 w-5 animate-spin text-white" />
-                  </button>
-                )}
-                {!appleConfig && !isAppleLoading && (
-                  <button
-                    type="button"
-                    onClick={handleAppleSignIn} // Fallback to manual trigger if config not yet in state
-                    className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-black flex items-center justify-center hover:bg-gray-900 transition-all"
-                  >
-                    <Apple className="h-6 w-6 text-white" />
-                  </button>
-                )}
+                  ) : (
+                    <Apple className="h-6 w-6 text-white fill-current" />
+                  )}
+                </button>
               </div>
 
               {/* Google Login */}
