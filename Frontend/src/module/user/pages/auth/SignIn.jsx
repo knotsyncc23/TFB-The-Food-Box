@@ -1161,7 +1161,7 @@ export default function SignIn() {
                   {isAppleLoading ? (
                     <Loader2 className="h-5 w-5 animate-spin text-white" />
                   ) : (
-                    <Apple className="h-6 w-6 text-white fill-current" />
+                    <Apple className="h-6 w-6 text-white" />
                   )}
                 </button>
               </div>
