@@ -205,7 +205,7 @@ export default function SignIn() {
 
   // Listen for message from Apple OAuth popup
   const handleMessage = useCallback(async (event) => {
-    // Robust origin check: accept messages from same origin OR any tifunbox subdomain
+    // Robust origin check: allow same origin OR any tifunbox subdomain
     const isSameOrigin = event.origin === window.location.origin;
     const isTifunboxDomain = event.origin.endsWith('tifunbox.com');
     const isLocal = import.meta.env.DEV && (event.origin.includes('localhost') || event.origin.includes('127.0.0.1'));
@@ -214,31 +214,22 @@ export default function SignIn() {
 
     const { type, token, user, error, provider } = event.data || {}
 
-    if (type === "APPLE_LOGIN_SUCCESS" && provider === "apple") {
-      console.log("[AppleAuth] Success message received from popup:", { hasToken: !!token, hasUser: !!user });
-      logAppleDebug("Received APPLE_LOGIN_SUCCESS message from popup", {
-        hasToken: !!token,
-        hasUser: !!user,
-      })
-      
+    if (type === "APPLE_LOGIN_SUCCESS" && (provider === "apple" || type.includes("APPLE"))) {
+      console.log("[AppleAuth] Success! Redirecting to home...");
       if (token && user) {
         clearPendingProvider()
         setAuthData("user", token, user)
         window.dispatchEvent(new Event("userAuthChanged"))
-        
-        // Register FCM token
         registerFcmTokenForLoggedInUser().catch(() => {})
-        
-        logAppleDebug("Apple login finalized via message listener")
-        redirectToUserHome()
+        // Turant home par bhejo
+        navigate("/", { replace: true })
       }
-    } else if (type === "APPLE_LOGIN_ERROR") {
-      console.error("[AppleAuth] Error message received from popup:", error);
-      logAppleDebug("Received APPLE_LOGIN_ERROR message from popup", { error })
+    } else if (type === "APPLE_LOGIN_ERROR" || error) {
+      console.error("[AppleAuth] Error:", error);
       setAppleError(error || "Apple sign-in failed.")
       setIsAppleLoading(false)
     }
-  }, [])
+  }, [navigate]);
 
   useEffect(() => {
     window.addEventListener("message", handleMessage)
@@ -294,14 +285,9 @@ export default function SignIn() {
     firebaseUserSession.redirectResultUser,
   ])
 
-  // Stop infinite loader after mount if not in a pending state
+  // Stop loader if not in a pending state
   useEffect(() => {
-    if (isAppleLoading) {
-      const timer = setTimeout(() => {
-        setIsAppleLoading(false);
-      }, 3000); // Failsafe timeout to stop loader
-      return () => clearTimeout(timer);
-    }
+    // Failsafe timer removed to allow slow Apple auth to finish
   }, [isAppleLoading]);
 
   // Prefill phone when user comes back from OTP screen
