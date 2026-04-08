@@ -31,7 +31,15 @@ const tableBookingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "confirmed", "checked-in", "completed", "dining_completed", "cancelled"],
+      enum: [
+        "pending",
+        "confirmed",
+        "rejected",
+        "checked-in",
+        "completed",
+        "dining_completed",
+        "cancelled",
+      ],
       default: "confirmed",
     },
     checkInTime: {

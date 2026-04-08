@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { Search, Download, ChevronDown, Eye, Trash2, User, Star, ArrowUpDown, Settings, FileText, FileSpreadsheet, Loader2, Check, Columns, ExternalLink, Calendar, MapPin, CreditCard, Mail, Phone, Bike, FileCheck, UserPlus } from "lucide-react"
 import { adminAPI } from "@/lib/api"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -7,7 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { exportDeliverymenToExcel, exportDeliverymenToPDF } from "../../components/deliveryman/deliverymanExportUtils"
 
 export default function DeliverymanList() {
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchParams] = useSearchParams()
+  const initialSearchQuery = searchParams.get("search") || ""
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery)
   const [deliverymen, setDeliverymen] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -80,6 +82,10 @@ export default function DeliverymanList() {
   useEffect(() => {
     fetchDeliverymen()
   }, [])
+
+  useEffect(() => {
+    setSearchQuery(initialSearchQuery)
+  }, [initialSearchQuery])
 
   // Debounced search effect
   useEffect(() => {

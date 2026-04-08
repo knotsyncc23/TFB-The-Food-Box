@@ -67,17 +67,11 @@ function DocumentUpload({
     e.stopPropagation()
     if (isUploading) return
 
-    if (hasFlutterCameraBridge()) {
-      try {
-        const result = await openCameraViaFlutter({ source: "gallery" })
-        if (result?.success && result.file) {
-          await onFileSelect(docType, result.file)
-        }
-      } catch (err) {
-        galleryInputRef.current?.click()
-      }
-    } else {
-      galleryInputRef.current?.click()
+    // Open the browser/gallery picker directly.
+    // Using the Flutter bridge here can reopen a second camera/gallery chooser.
+    if (galleryInputRef.current) {
+      galleryInputRef.current.removeAttribute("capture")
+      galleryInputRef.current.click()
     }
   }
 

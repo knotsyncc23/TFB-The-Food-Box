@@ -1,9 +1,11 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { ArrowLeft, Plus, Share2, UtensilsCrossed, Store, X } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useProfile } from "../context/ProfileContext"
+import { shareContent } from "@/lib/utils/share"
 
 // Import banner
 import collectionsBanner from "@/assets/collectionspagebanner.png"
@@ -106,9 +108,28 @@ export default function Collections() {
                   {/* Share Button */}
                   <button
                     className="absolute top-3 right-3 text-white/80 hover:text-white transition-colors z-10"
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.preventDefault()
                       e.stopPropagation()
+
+                      const shareUrl =
+                        collection.id === "bookmarks"
+                          ? `${window.location.origin}/user/profile/favorites`
+                          : `${window.location.origin}/user/collections/${collection.id}`
+
+                      try {
+                        const result = await shareContent({
+                          title: collection.name || "Collection",
+                          url: shareUrl,
+                        })
+
+                        if (result.method === "clipboard") toast.success("Share link copied")
+                        else if (result.method === "whatsapp") toast.success("Opening share")
+                        else if (result.method !== "cancelled") toast.success("Shared")
+                      } catch (error) {
+                        console.error("Failed to share collection:", error)
+                        toast.error("Failed to share")
+                      }
                     }}
                   >
                     <Share2 className="h-5 w-5" />

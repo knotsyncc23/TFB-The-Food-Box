@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { Search, Download, ChevronDown, Eye, Settings, ArrowUpDown, Loader2, X, MapPin, Phone, Mail, Clock, Star, Building2, User, FileText, CreditCard, Calendar, Image as ImageIcon, ExternalLink, ShieldX, AlertTriangle, Trash2, Plus } from "lucide-react"
 import { adminAPI, restaurantAPI } from "../../../../lib/api"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -16,7 +16,9 @@ const FALLBACK_RESTAURANT_IMAGE =
 
 export default function RestaurantsList() {
   const navigate = useNavigate()
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchParams] = useSearchParams()
+  const initialSearchQuery = searchParams.get("search") || ""
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery)
   const [restaurants, setRestaurants] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -142,6 +144,10 @@ export default function RestaurantsList() {
     
     fetchRestaurants()
   }, [])
+
+  useEffect(() => {
+    setSearchQuery(initialSearchQuery)
+  }, [initialSearchQuery])
   const [filters, setFilters] = useState({
     all: "All",
     businessModel: "",

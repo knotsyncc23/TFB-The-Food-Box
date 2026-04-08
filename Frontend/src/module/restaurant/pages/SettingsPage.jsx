@@ -1,29 +1,23 @@
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { useNavigate } from "react-router-dom"
 import Lenis from "lenis"
-import { 
+import {
   ArrowLeft,
-  User,
-  Bell,
-  Shield,
-  Globe,
-  Moon,
-  Sun,
+  ChevronRight,
+  Clock,
+  FileText,
+  HelpCircle,
   Info,
   LogOut,
+  Settings,
+  Shield,
+  Store,
   Trash2,
-  Lock,
-  Mail,
-  Phone,
-  CreditCard,
-  FileText,
-  MessageSquare,
-  ChevronRight
+  Truck,
+  Users,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
-import BottomNavbar from "../components/BottomNavbar"
-import MenuOverlay from "../components/MenuOverlay"
 import { restaurantAPI } from "@/lib/api"
 import { clearModuleAuth } from "@/lib/utils/auth"
 import { firebaseAuth } from "@/lib/firebase"
@@ -32,13 +26,11 @@ import { toast } from "sonner"
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const [showMenu, setShowMenu] = useState(false)
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
-  const [darkMode, setDarkMode] = useState(false)
+  const [restaurantData, setRestaurantData] = useState(null)
+  const [loadingRestaurant, setLoadingRestaurant] = useState(true)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
 
-  // Lenis smooth scrolling
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.2,
@@ -57,6 +49,41 @@ export default function SettingsPage() {
       lenis.destroy()
     }
   }, [])
+
+  useEffect(() => {
+    const fetchRestaurantData = async () => {
+      try {
+        setLoadingRestaurant(true)
+        const response = await restaurantAPI.getCurrentRestaurant()
+        const data = response?.data?.data?.restaurant || response?.data?.restaurant
+        if (data) {
+          setRestaurantData(data)
+        }
+      } catch (error) {
+        if (error.code !== "ERR_NETWORK" && error.code !== "ECONNABORTED" && !error.message?.includes("timeout")) {
+          console.error("Error fetching restaurant data:", error)
+        }
+      } finally {
+        setLoadingRestaurant(false)
+      }
+    }
+
+    fetchRestaurantData()
+  }, [])
+
+  const formatAddress = (location) => {
+    if (!location) return ""
+
+    const parts = []
+    if (location.area) parts.push(location.area.trim())
+    if (location.city) {
+      const city = location.city.trim()
+      const alreadyIncluded = parts.some((part) => part.toLowerCase().includes(city.toLowerCase()))
+      if (!alreadyIncluded) parts.push(city)
+    }
+
+    return parts.join(", ")
+  }
 
   const completeRestaurantSignOut = async () => {
     try {
@@ -133,171 +160,163 @@ export default function SettingsPage() {
     }
   }
 
-  // Settings sections
   const settingsSections = [
+    {
+      id: "operations",
+      title: "Operations",
+      items: [
+        { id: "status", label: "Restaurant status", description: "Manage live order availability", icon: Settings, route: "/restaurant/status" },
+        { id: "delivery", label: "Delivery settings", description: "Control delivery timings and status", icon: Truck, route: "/restaurant/delivery-settings" },
+        { id: "timings", label: "Outlet timings", description: "Set opening and closing schedule", icon: Clock, route: "/restaurant/outlet-timings" },
+        { id: "contact", label: "Manage staff", description: "Update restaurant contacts and team", icon: Users, route: "/restaurant/contact-details" },
+      ],
+    },
+    {
+      id: "support",
+      title: "Support & Legal",
+      items: [
+        { id: "help", label: "Help centre", description: "Get support and answers", icon: HelpCircle, route: "/restaurant/help-centre" },
+        { id: "privacy", label: "Privacy policy", description: "Review restaurant privacy information", icon: Shield, route: "/restaurant/privacy" },
+        { id: "terms", label: "Terms & conditions", description: "View legal terms for restaurant partners", icon: FileText, route: "/restaurant/terms" },
+      ],
+    },
     {
       id: "account",
       title: "Account",
       items: [
-        { id: "notifications", label: "Notifications", icon: Bell, hasToggle: true, toggleValue: notificationsEnabled, onToggle: setNotificationsEnabled },
-        { id: "privacy", label: "Privacy & Security", icon: Shield, route: "/restaurant/privacy" },
-      ]
-    },
-    {
-      id: "preferences",
-      title: "Preferences",
-      items: [
-        { id: "language", label: "Language", icon: Globe, route: "/restaurant/language", value: "English" },
-        { id: "theme", label: "Theme", icon: darkMode ? Moon : Sun, hasToggle: true, toggleValue: darkMode, onToggle: setDarkMode },
-      ]
-    },
-    {
-      id: "support",
-      title: "Support & Information",
-      items: [
-        { id: "conversation", label: "Conversation", icon: MessageSquare, route: "/restaurant/conversation" },
-        { id: "terms", label: "Terms & Conditions", icon: FileText, route: "/restaurant/terms" },
-        { id: "privacy-policy", label: "Privacy Policy", icon: Shield, route: "/restaurant/privacy" },
-        { id: "about", label: "About", icon: Info, route: "/restaurant/about" },
-      ]
-    },
-    {
-      id: "actions",
-      title: "Actions",
-      items: [
-        {
-          id: "delete-account",
-          label: isDeletingAccount ? "Deleting account..." : "Delete account",
-          icon: Trash2,
-          isDestructive: true,
-          action: handleDeleteAccount,
-        },
         {
           id: "logout",
           label: isLoggingOut ? "Logging out..." : "Logout",
+          description: "Sign out from this restaurant account",
           icon: LogOut,
-          isDestructive: true,
           action: handleLogout,
+          isDestructive: true,
+          disabled: isLoggingOut || isDeletingAccount,
         },
-      ]
-    }
+        {
+          id: "delete",
+          label: isDeletingAccount ? "Deleting account..." : "Delete account",
+          description: "Permanently remove this restaurant account",
+          icon: Trash2,
+          action: handleDeleteAccount,
+          isDestructive: true,
+          disabled: isDeletingAccount || isLoggingOut,
+        },
+      ],
+    },
   ]
 
   return (
-    <div className="min-h-screen bg-[#f6e9dc] overflow-x-hidden pb-24 md:pb-6">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50 flex items-center gap-3">
-        <button 
-          onClick={() => navigate(-1)}
-          className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </button>
-        <h1 className="text-lg font-bold text-gray-900 flex-1">Settings</h1>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+      className="min-h-screen bg-white overflow-x-hidden"
+    >
+      <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-6 h-6 text-gray-900" />
+          </button>
+          <div className="flex-1">
+            <h1 className="text-lg font-bold text-gray-900">Settings</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Manage your restaurant preferences</p>
+          </div>
+        </div>
       </div>
 
-      {/* Settings Content */}
-      <div className="px-4 py-4 space-y-4">
-        {settingsSections.map((section, sectionIndex) => (
-          <motion.div
-            key={section.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: sectionIndex * 0.1 }}
-          >
-            <Card className="bg-white shadow-sm border border-gray-100">
-              <CardContent className="p-0">
-                {/* Section Title */}
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                    {section.title}
-                  </h2>
+      <div className="px-4 py-6">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.05, ease: [0.25, 0.1, 0.25, 1] }}
+        >
+          <Card className="bg-white border-gray-200 py-3 mb-6 rounded-lg shadow-sm">
+            <CardContent className="px-4">
+              <button
+                onClick={() => navigate("/restaurant/switch-outlet")}
+                className="w-full flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <Store className="w-5 h-5 text-gray-900" />
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <h2 className="text-base font-semibold text-gray-900 mb-0.5">
+                      {loadingRestaurant ? "Loading..." : (restaurantData?.name || "Restaurant")}
+                    </h2>
+                    <p className="text-sm text-gray-500 truncate">
+                      {loadingRestaurant ? "Loading..." : (formatAddress(restaurantData?.location) || "Switch or review outlet details")}
+                    </p>
+                  </div>
                 </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 shrink-0" />
+              </button>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-                {/* Section Items */}
-                <div className="divide-y divide-gray-100">
-                  {section.items.map((item, itemIndex) => (
-                    <motion.div
-                      key={item.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.2, delay: sectionIndex * 0.1 + itemIndex * 0.05 }}
-                    >
+        <div className="space-y-6">
+          {settingsSections.map((section, sectionIndex) => (
+            <motion.section
+              key={section.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, delay: 0.1 + sectionIndex * 0.05 }}
+            >
+              <h2 className="text-base font-bold text-gray-900 mb-3">{section.title}</h2>
+              <Card className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                <CardContent className="p-0">
+                  {section.items.map((item, itemIndex) => {
+                    const Icon = item.icon
+                    const isLast = itemIndex === section.items.length - 1
+
+                    return (
                       <button
+                        key={item.id}
                         onClick={() => {
+                          if (item.disabled) return
                           if (item.action) {
                             item.action()
-                          } else if (item.route) {
+                            return
+                          }
+                          if (item.route) {
                             navigate(item.route)
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors ${
-                          item.isDestructive ? "text-red-600" : "text-gray-900"
+                        disabled={item.disabled}
+                        className={`w-full flex items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed ${
+                          !isLast ? "border-b border-gray-100" : ""
                         }`}
                       >
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className={`flex-shrink-0 p-1.5 rounded-lg ${
-                            item.isDestructive 
-                              ? "bg-red-100" 
-                              : "bg-[#ff8100]/10"
-                          }`}>
-                            <item.icon className={`w-4 h-4 ${
-                              item.isDestructive 
-                                ? "text-red-600" 
-                                : "text-[#ff8100]"
-                            }`} />
-                          </div>
-                          <span className="text-sm font-medium flex-1 text-left">
-                            {item.label}
-                          </span>
-                          {item.value && (
-                            <span className="text-xs text-gray-500 mr-2">
-                              {item.value}
-                            </span>
-                          )}
+                        <div className={`p-2 rounded-lg ${item.isDestructive ? "bg-red-50" : "bg-gray-100"}`}>
+                          <Icon className={`w-5 h-5 ${item.isDestructive ? "text-red-600" : "text-gray-900"}`} />
                         </div>
-
-                        {item.hasToggle ? (
-                          <div className="flex-shrink-0">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (item.onToggle) {
-                                  item.onToggle(!item.toggleValue)
-                                }
-                              }}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                item.toggleValue ? "bg-[#ff8100]" : "bg-gray-300"
-                              }`}
-                            >
-                              <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                  item.toggleValue ? "translate-x-6" : "translate-x-1"
-                                }`}
-                              />
-                            </button>
-                          </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-semibold ${item.isDestructive ? "text-red-600" : "text-gray-900"}`}>
+                            {item.label}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
+                        </div>
+                        {!item.action || !item.isDestructive ? (
+                          <ChevronRight className="w-5 h-5 text-gray-400 shrink-0" />
                         ) : (
-                          !item.isDestructive && (
-                            <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                          )
+                          <Info className="w-4 h-4 text-red-300 shrink-0" />
                         )}
                       </button>
-                    </motion.div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+                    )
+                  })}
+                </CardContent>
+              </Card>
+            </motion.section>
+          ))}
+        </div>
       </div>
-
-      {/* Bottom Navigation Bar */}
-      <BottomNavbar onMenuClick={() => setShowMenu(true)} />
-      
-      {/* Menu Overlay */}
-      <MenuOverlay showMenu={showMenu} setShowMenu={setShowMenu} />
-    </div>
+    </motion.div>
   )
 }
-

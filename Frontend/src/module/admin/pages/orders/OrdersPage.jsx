@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useSearchParams } from "react-router-dom"
 import { FileText, Package } from "lucide-react"
 import { adminAPI } from "@/lib/api"
 import { toast } from "sonner"
@@ -28,6 +29,8 @@ const statusConfig = {
 
 export default function OrdersPage({ statusKey = "all" }) {
   const config = statusConfig[statusKey] || statusConfig["all"]
+  const [searchParams] = useSearchParams()
+  const initialSearchQuery = searchParams.get("search") || ""
   const [orders, setOrders] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
@@ -43,6 +46,7 @@ export default function OrdersPage({ statusKey = "all" }) {
         const params = {
           page: 1,
           limit: 1000,
+          search: initialSearchQuery || undefined,
           status: statusKey === "all" ? undefined : 
                  statusKey === "restaurant-cancelled" ? "cancelled" : statusKey,
           cancelledBy: statusKey === "restaurant-cancelled" ? "restaurant" : undefined
@@ -68,7 +72,7 @@ export default function OrdersPage({ statusKey = "all" }) {
     }
 
     fetchOrders()
-  }, [statusKey])
+  }, [initialSearchQuery, statusKey])
 
   // Handle refund button click - show modal for wallet payments, confirm dialog for others
   const handleRefund = (order) => {
@@ -244,7 +248,7 @@ export default function OrdersPage({ statusKey = "all" }) {
     handlePrintOrder,
     toggleColumn,
     resetColumns,
-  } = useOrdersManagement(orders, statusKey, config.title)
+  } = useOrdersManagement(orders, statusKey, config.title, initialSearchQuery)
 
 
   if (isLoading) {

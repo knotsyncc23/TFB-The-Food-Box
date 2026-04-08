@@ -308,14 +308,20 @@ export default function OrderTracking() {
   const [reviewComment, setReviewComment] = useState("")
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [reviewSubmitted, setReviewSubmitted] = useState(false)
+
+  const normalizedApiStatus = String(
+    order?.status || order?.originalStatus || order?.deliveryState?.status || ""
+  ).toLowerCase()
   const nonCancellableStatuses = new Set([
     "preparing",
     "ready",
+    "prepared",
     "out_for_delivery",
     "delivered",
     "completed",
     "cancelled",
   ])
+  const isOrderNonCancellable = nonCancellableStatuses.has(normalizedApiStatus)
 
   const normalizeStatusForUi = useCallback((statusValue) => {
     const status = String(statusValue || "").toLowerCase()
@@ -325,7 +331,7 @@ export default function OrderTracking() {
     }
     if (status === "delivered" || status === "completed") return "delivered"
     if (status === "out_for_delivery" || status === "outfordelivery") return "pickup"
-    if (status === "ready") return "prepared"
+    if (status === "ready" || status === "prepared") return "prepared"
     if (status === "preparing") return "preparing"
     return "placed"
   }, [])
@@ -341,7 +347,7 @@ export default function OrderTracking() {
       setOrderStatus('delivered')
     } else if (status === 'out_for_delivery') {
       setOrderStatus('pickup')
-    } else if (status === 'ready') {
+    } else if (status === 'ready' || status === 'prepared') {
       setOrderStatus('prepared')
     } else if (status === 'preparing') {
       setOrderStatus('preparing')
@@ -668,17 +674,17 @@ export default function OrderTracking() {
   const handleCancelOrder = () => {
     if (!order) return;
 
-    if (order.status === 'cancelled') {
+    if (normalizedApiStatus === 'cancelled' || normalizedApiStatus === 'canceled') {
       toast.error('Order is already cancelled');
       return;
     }
 
-    if (order.status === 'delivered') {
+    if (normalizedApiStatus === 'delivered' || normalizedApiStatus === 'completed') {
       toast.error('Cannot cancel a delivered order');
       return;
     }
 
-    if (nonCancellableStatuses.has(order.status)) {
+    if (isOrderNonCancellable) {
       toast.error("This order can no longer be cancelled");
       return;
     }
@@ -1499,7 +1505,7 @@ export default function OrderTracking() {
         </motion.div>
 
         {/* Help Section */}
-        {!nonCancellableStatuses.has(order?.status) && (
+        {!isOrderNonCancellable && (
           <motion.div
             className="bg-white rounded-xl shadow-sm overflow-hidden"
             initial={{ opacity: 0, y: 20 }}

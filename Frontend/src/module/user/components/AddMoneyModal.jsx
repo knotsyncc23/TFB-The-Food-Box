@@ -174,8 +174,8 @@ export default function AddMoneyModal({ open, onOpenChange, onSuccess }) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md px-0 pb-0 pt-0 overflow-hidden">
+        <DialogHeader className="px-5 pt-5 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
           <DialogTitle className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
             Add Money to Wallet
           </DialogTitle>
@@ -184,9 +184,9 @@ export default function AddMoneyModal({ open, onOpenChange, onSuccess }) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-7 px-5 pb-5 pt-2 sm:px-6 sm:pb-6">
           {/* Amount Input */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
               Enter Amount
             </label>
@@ -210,17 +210,17 @@ export default function AddMoneyModal({ open, onOpenChange, onSuccess }) {
           </div>
 
           {/* Quick Amount Buttons */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
               Quick Select
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
               {quickAmounts.map((quickAmount) => (
                 <Button
                   key={quickAmount}
                   type="button"
                   variant={amount === quickAmount.toString() ? "default" : "outline"}
-                  className="h-10"
+                  className="h-11"
                   onClick={() => handleAmountSelect(quickAmount)}
                   disabled={loading || processing}
                 >
@@ -234,7 +234,7 @@ export default function AddMoneyModal({ open, onOpenChange, onSuccess }) {
           <Button
             onClick={handleAddMoney}
             disabled={!amount || loading || processing || parseFloat(amount) < 1}
-            className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-base"
+            className="mt-1 w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-base"
           >
             {loading || processing ? (
               <>

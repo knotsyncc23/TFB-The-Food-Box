@@ -2,6 +2,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleMap, LoadScript, Marker, Polyline } from '@react-google-maps/api';
 import { ArrowLeft, Share2, RefreshCcw, Home, UtensilsCrossed, ChevronRight, Shield, Phone } from 'lucide-react';
+import { toast } from 'sonner';
+import { shareContent } from '@/lib/utils/share';
 
 // --- 1. Google Map Styles (Light Theme - as shown in image) ---
 const lightMapStyle = [
@@ -58,6 +60,21 @@ const center = { lat: 22.735, lng: 75.875 };
 const TrackingPage = () => {
   const navigate = useNavigate();
 
+  const handleShare = async () => {
+    try {
+      const result = await shareContent({
+        title: 'Order tracking',
+        url: typeof window !== 'undefined' ? window.location.href : '',
+      });
+      if (result.method === 'clipboard') toast.success('Share link copied');
+      else if (result.method === 'whatsapp') toast.success('Opening share');
+      else if (result.method !== 'cancelled') toast.success('Shared');
+    } catch (error) {
+      console.error('Failed to share tracking page:', error);
+      toast.error('Failed to share');
+    }
+  };
+
   return (
     <div className="relative min-h-screen bg-gray-900 font-sans overflow-hidden">
       
@@ -68,7 +85,7 @@ const TrackingPage = () => {
           <div className="flex items-center gap-2">
             <span className="font-semibold text-lg">Sagar Restaurant</span>
           </div>
-          <Share2 className="w-5 h-5 cursor-pointer" />
+          <Share2 className="w-5 h-5 cursor-pointer" onClick={handleShare} />
         </div>
         
         <div className="text-center text-white">

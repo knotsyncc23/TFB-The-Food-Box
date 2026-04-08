@@ -3,14 +3,10 @@ import { motion } from "framer-motion"
 import { useNavigate } from "react-router-dom"
 import Lenis from "lenis"
 import { ArrowLeft } from "lucide-react"
-import BottomNavbar from "../components/BottomNavbar"
-import MenuOverlay from "../components/MenuOverlay"
-import { useState } from "react"
 import { useCompanyName } from "@/lib/hooks/useCompanyName"
 
 export default function TermsAndConditionsPage() {
   const navigate = useNavigate()
-  const [showMenu, setShowMenu] = useState(false)
   const companyName = useCompanyName()
 
   // Lenis smooth scrolling
@@ -34,7 +30,7 @@ export default function TermsAndConditionsPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#f6e9dc] overflow-x-hidden pb-24 md:pb-6">
+    <div className="min-h-screen bg-[#f6e9dc] overflow-x-hidden pb-6">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50 flex items-center gap-3">
         <button
@@ -223,11 +219,6 @@ export default function TermsAndConditionsPage() {
         </motion.div>
       </div>
 
-      {/* Bottom Navigation Bar */}
-      <BottomNavbar onMenuClick={() => setShowMenu(true)} />
-
-      {/* Menu Overlay */}
-      <MenuOverlay showMenu={showMenu} setShowMenu={setShowMenu} />
     </div>
   )
 }

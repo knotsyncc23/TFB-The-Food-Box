@@ -10,7 +10,7 @@ export default function DiningReservations() {
     const [loading, setLoading] = useState(true)
     const [restaurant, setRestaurant] = useState(null)
     const [searchTerm, setSearchTerm] = useState("")
-    const [statusFilter, setStatusFilter] = useState("all") // all | confirmed | checked-in | cancelled | completed | dining_completed
+    const [statusFilter, setStatusFilter] = useState("all") // all | pending | confirmed | rejected | checked-in | cancelled | completed | dining_completed
     const [todayOnly, setTodayOnly] = useState(false)
     const [showFilter, setShowFilter] = useState(false)
     const [sendBillModal, setSendBillModal] = useState(null) // { booking }
@@ -51,7 +51,10 @@ export default function DiningReservations() {
     const handleStatusUpdate = async (bookingId, newStatus) => {
         // Bug #108: Add confirmation popup before status update
         const statusLabels = {
+            'pending': 'Pending',
+            'confirmed': 'Confirm',
             'checked-in': 'Check-in',
+            'rejected': 'Reject',
             'completed': 'Check-out',
             'dining_completed': 'Dining Completed',
             'cancelled': 'Cancel'
@@ -181,9 +184,12 @@ export default function DiningReservations() {
                                             <div className="flex flex-wrap gap-2">
                                                 {[
                                                     { id: "all", label: "All" },
+                                                    { id: "pending", label: "Pending" },
                                                     { id: "confirmed", label: "Confirmed" },
+                                                    { id: "rejected", label: "Rejected" },
                                                     { id: "checked-in", label: "Checked-in" },
                                                     { id: "completed", label: "Completed" },
+                                                    { id: "dining_completed", label: "Dining completed" },
                                                     { id: "cancelled", label: "Cancelled" },
                                                 ].map((opt) => (
                                                     <button
@@ -290,6 +296,7 @@ export default function DiningReservations() {
                                         // Bug #109: Determine next status action for row click
                                         const getNextStatus = (status) => {
                                             switch(status) {
+                                                case 'pending': return null
                                                 case 'confirmed': return 'checked-in'
                                                 case 'checked-in': return 'completed'
                                                 case 'completed': return 'dining_completed'
@@ -339,10 +346,13 @@ export default function DiningReservations() {
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col gap-1">
                                                     <Badge className={`rounded-lg px-2.5 py-1 w-fit ${booking.status === 'confirmed' ? 'bg-red-100 text-red-700' :
+                                                        booking.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                                        booking.status === 'rejected' ? 'bg-slate-200 text-slate-700' :
                                                         booking.status === 'checked-in' ? 'bg-orange-100 text-orange-700' :
                                                             booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
                                                                 booking.status === 'dining_completed' ? 'bg-violet-100 text-violet-700' :
-                                                                    'bg-red-100 text-red-700'
+                                                                    booking.status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
+                                                                    'bg-slate-100 text-slate-700'
                                                         }`}>
                                                         {booking.status.replace('_', ' ')}
                                                     </Badge>
@@ -356,6 +366,33 @@ export default function DiningReservations() {
                                             </td>
                                             <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                                                 <div className="flex flex-wrap items-center gap-2">
+                                                    {booking.status === 'pending' && (
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(booking._id, 'confirmed')}
+                                                            className="px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition-colors"
+                                                        >
+                                                            Confirm
+                                                        </button>
+                                                    )}
+
+                                                    {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(booking._id, 'rejected')}
+                                                            className="px-3 py-1.5 bg-slate-700 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-colors"
+                                                        >
+                                                            Reject
+                                                        </button>
+                                                    )}
+
+                                                    {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(booking._id, 'cancelled')}
+                                                            className="px-3 py-1.5 bg-rose-600 text-white text-xs font-bold rounded-lg hover:bg-rose-700 transition-colors"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    )}
+
                                                     {booking.status === 'confirmed' && (
                                                         <button
                                                             onClick={() => handleStatusUpdate(booking._id, 'checked-in')}

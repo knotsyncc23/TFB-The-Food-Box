@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react"
+import { useSearchParams } from "react-router-dom"
 import { Search, Download, ChevronDown, Eye, FileDown, FileSpreadsheet, FileText, X, Mail, Phone, MapPin, Package, IndianRupee, Calendar as CalendarIcon, User, CheckCircle, XCircle } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { exportCustomersToCSV, exportCustomersToExcel, exportCustomersToPDF } from "../components/customers/customersExportUtils"
@@ -7,7 +8,9 @@ import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export default function Customers() {
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchParams] = useSearchParams()
+  const initialSearchQuery = searchParams.get("search") || ""
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery)
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [totalCustomers, setTotalCustomers] = useState(0)
@@ -84,6 +87,10 @@ export default function Customers() {
   }
 
   // Fetch customers from API
+  useEffect(() => {
+    setSearchQuery(initialSearchQuery)
+  }, [initialSearchQuery])
+
   useEffect(() => {
     const fetchCustomers = async () => {
       try {

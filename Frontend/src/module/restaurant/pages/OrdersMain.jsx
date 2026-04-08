@@ -1832,18 +1832,20 @@ export default function OrdersMain() {
                 </div>
 
                 {/* Footer */}
-                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 relative">
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
                       navigate("/restaurant/help-centre", {
                         state: {
                           orderId: (popupOrder || newOrder)?.orderId || null,
                           source: "order-popup",
                         },
                       })
-                    }
-                    className="text-sm text-gray-600 hover:text-gray-900 transition-colors underline mx-auto block"
+                    }}
+                    className="relative z-10 pointer-events-auto text-sm text-gray-600 hover:text-gray-900 transition-colors underline mx-auto block"
                   >
                     Need help with this order?
                   </button>

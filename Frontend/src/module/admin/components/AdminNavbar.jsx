@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Menu,
@@ -14,6 +14,8 @@ import {
   Users,
   AlertCircle,
   ArrowRight,
+  Loader2,
+  Clock3,
 } from "lucide-react";
 import {
   Dialog,
@@ -36,6 +38,83 @@ import { adminAPI } from "@/lib/api";
 import { clearModuleAuth } from "@/lib/utils/auth";
 import { getCachedSettings, loadBusinessSettings } from "@/lib/utils/businessSettings";
 import { sidebarMenuData } from "../data/sidebarMenu";
+
+const ADMIN_SEARCH_HISTORY_KEY = "admin_universal_search_history_v1";
+
+const readRecentSearches = () => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(ADMIN_SEARCH_HISTORY_KEY) || "[]");
+    return Array.isArray(stored) ? stored.filter((item) => typeof item === "string" && item.trim()) : [];
+  } catch {
+    return [];
+  }
+};
+
+const storeRecentSearch = (value) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) return;
+
+  const next = [normalized, ...readRecentSearches().filter((item) => item.toLowerCase() !== normalized.toLowerCase())].slice(0, 6);
+  localStorage.setItem(ADMIN_SEARCH_HISTORY_KEY, JSON.stringify(next));
+};
+
+const buildSearchPath = (basePath, query) => {
+  const normalized = String(query || "").trim();
+  if (!normalized) return basePath;
+  return `${basePath}?search=${encodeURIComponent(normalized)}`;
+};
+
+const normalizeEntityResults = (items, type, query) => {
+  const safeItems = Array.isArray(items) ? items : [];
+
+  return safeItems.map((item, index) => {
+    if (type === "order") {
+      return {
+        id: item._id || item.id || item.orderId || `order-${index}`,
+        type,
+        title: item.orderId || item.id || "Order",
+        subtitle: [item.customerName, item.restaurant].filter(Boolean).join(" • "),
+        meta: item.status || item.paymentStatus || "Order",
+        path: buildSearchPath("/admin/orders/all", item.orderId || query),
+      };
+    }
+
+    if (type === "customer") {
+      return {
+        id: item._id || item.id || item.email || `customer-${index}`,
+        type,
+        title: item.name || "Customer",
+        subtitle: [item.email, item.phone].filter(Boolean).join(" • "),
+        meta: "Customer",
+        path: buildSearchPath("/admin/customers", item.email || item.phone || item.name || query),
+      };
+    }
+
+    if (type === "restaurant") {
+      return {
+        id: item._id || item.id || item.name || `restaurant-${index}`,
+        type,
+        title: item.name || "Restaurant",
+        subtitle: [item.ownerName, item.phone || item.ownerPhone].filter(Boolean).join(" • "),
+        meta: "Restaurant",
+        path: buildSearchPath("/admin/restaurants", item.name || item.ownerName || query),
+      };
+    }
+
+    if (type === "delivery") {
+      return {
+        id: item._id || item.id || item.email || `delivery-${index}`,
+        type,
+        title: item.name || "Delivery Partner",
+        subtitle: [item.email, item.phone].filter(Boolean).join(" • "),
+        meta: "Delivery",
+        path: buildSearchPath("/admin/delivery-partners", item.name || item.phone || item.email || query),
+      };
+    }
+
+    return null;
+  }).filter(Boolean);
+};
 
 const flattenAdminNavigation = () => {
   const items = [];
@@ -140,18 +219,49 @@ export default function AdminNavbar({ onMenuClick }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [adminData, setAdminData] = useState(null);
   const [businessSettings, setBusinessSettings] = useState(null);
+  const [recentSearches, setRecentSearches] = useState(() => readRecentSearches());
+  const [liveResults, setLiveResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const searchInputRef = useRef(null);
-  const searchResults = flattenAdminNavigation().filter((item) => {
-    if (!searchQuery.trim()) return false;
+  const navigationResults = useMemo(() => {
+    return flattenAdminNavigation().filter((item) => {
+      if (!searchQuery.trim()) return false;
 
-    const query = searchQuery.toLowerCase().trim();
-    return (
-      item.label.toLowerCase().includes(query) ||
-      item.section.toLowerCase().includes(query) ||
-      item.path.toLowerCase().includes(query) ||
-      item.keywords?.some(k => k.includes(query))
-    );
-  });
+      const query = searchQuery.toLowerCase().trim();
+      return (
+        item.label.toLowerCase().includes(query) ||
+        item.section.toLowerCase().includes(query) ||
+        item.path.toLowerCase().includes(query) ||
+        item.keywords?.some((k) => k.includes(query))
+      );
+    }).map((item, index) => ({
+      id: `nav-${index}-${item.path}`,
+      type: "navigation",
+      title: item.label,
+      subtitle: item.path,
+      meta: item.section,
+      path: item.path,
+    }));
+  }, [searchQuery]);
+
+  const searchResults = useMemo(() => {
+    const seen = new Set();
+    return [...liveResults, ...navigationResults].filter((item) => {
+      const key = `${item.type}-${item.title}-${item.path}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [liveResults, navigationResults]);
+
+  const handleSearchNavigate = (path, term = searchQuery) => {
+    if (term.trim()) {
+      storeRecentSearch(term);
+      setRecentSearches(readRecentSearches());
+    }
+    setSearchOpen(false);
+    navigate(path);
+  };
 
   // Load admin data from localStorage
   useEffect(() => {
@@ -236,6 +346,60 @@ export default function AdminNavbar({ onMenuClick }) {
       }, 100);
     }
   }, [searchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    setRecentSearches(readRecentSearches());
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery.length < 2) {
+      setLiveResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    let isCancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearching(true);
+        const [ordersRes, customersRes, restaurantsRes, deliveryRes] = await Promise.allSettled([
+          adminAPI.getOrders({ page: 1, limit: 5, search: trimmedQuery }),
+          adminAPI.getUsers({ offset: 0, limit: 5, search: trimmedQuery }),
+          adminAPI.getRestaurants({ page: 1, limit: 5, search: trimmedQuery }),
+          adminAPI.getDeliveryPartners({ page: 1, limit: 5, search: trimmedQuery }),
+        ]);
+
+        if (isCancelled) return;
+
+        const nextResults = [
+          ...(ordersRes.status === "fulfilled" ? normalizeEntityResults(ordersRes.value?.data?.data?.orders, "order", trimmedQuery) : []),
+          ...(customersRes.status === "fulfilled" ? normalizeEntityResults(customersRes.value?.data?.data?.users, "customer", trimmedQuery) : []),
+          ...(restaurantsRes.status === "fulfilled" ? normalizeEntityResults(restaurantsRes.value?.data?.data?.restaurants, "restaurant", trimmedQuery) : []),
+          ...(deliveryRes.status === "fulfilled" ? normalizeEntityResults(deliveryRes.value?.data?.data?.deliveryPartners, "delivery", trimmedQuery) : []),
+        ];
+
+        setLiveResults(nextResults);
+      } catch (error) {
+        if (!isCancelled) {
+          console.error("Admin universal search failed:", error);
+          setLiveResults([]);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsSearching(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchOpen, searchQuery]);
 
   // Handle logout
   const handleLogout = async () => {
@@ -496,8 +660,7 @@ export default function AdminNavbar({ onMenuClick }) {
                     <button
                       key={idx}
                       onClick={() => {
-                        setSearchOpen(false);
-                        navigate(action.path);
+                        handleSearchNavigate(action.path, action.label);
                       }}
                       className="flex items-center gap-3 p-4 rounded-lg border border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50 transition-all group"
                     >
@@ -511,7 +674,9 @@ export default function AdminNavbar({ onMenuClick }) {
                 <div className="mt-6 pt-4 border-t border-neutral-200">
                   <p className="text-xs text-neutral-500 mb-2">Recent Searches</p>
                   <div className="flex flex-wrap gap-2">
-                    {["Order #12345", "Sumit Jaiswal", "Chicken Biryani"].map((term, idx) => (
+                    {recentSearches.length === 0 ? (
+                      <span className="text-xs text-neutral-400">Your recent admin searches will appear here.</span>
+                    ) : recentSearches.map((term, idx) => (
                       <button
                         key={idx}
                         onClick={() => setSearchQuery(term)}
@@ -525,6 +690,12 @@ export default function AdminNavbar({ onMenuClick }) {
               </div>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
+                {isSearching && (
+                  <div className="flex items-center gap-2 text-sm text-neutral-500 py-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Searching admin data...</span>
+                  </div>
+                )}
                 {searchResults.length === 0 ? (
                   <div className="text-center py-12">
                     <AlertCircle className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
@@ -539,21 +710,25 @@ export default function AdminNavbar({ onMenuClick }) {
                       <button
                         key={idx}
                         onClick={() => {
-                          setSearchOpen(false);
-                          navigate(result.path);
+                          handleSearchNavigate(result.path, searchQuery);
                         }}
                         className="w-full flex items-center gap-4 p-4 rounded-lg border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 transition-all text-left"
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-neutral-900">{result.label}</p>
+                            <p className="text-sm font-semibold text-neutral-900">{result.title}</p>
                             <span className="text-xs px-2 py-0.5 bg-neutral-100 text-neutral-700 rounded">
-                              {result.section}
+                              {result.meta}
                             </span>
                           </div>
-                          <p className="text-xs text-neutral-600 mt-1">{result.path}</p>
+                          <p className="text-xs text-neutral-600 mt-1">{result.subtitle}</p>
                         </div>
-                        <ArrowRight className="w-4 h-4 text-neutral-400" />
+                        <div className="flex items-center gap-3">
+                          {result.type !== "navigation" && (
+                            <Clock3 className="w-4 h-4 text-neutral-300" />
+                          )}
+                          <ArrowRight className="w-4 h-4 text-neutral-400" />
+                        </div>
                       </button>
                     ))}
                   </>

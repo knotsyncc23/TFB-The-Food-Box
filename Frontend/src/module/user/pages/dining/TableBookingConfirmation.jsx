@@ -59,7 +59,12 @@ export default function TableBookingConfirmation() {
             })
 
             if (response.data.success) {
-                toast.success("Table booked successfully!")
+                const status = response.data?.data?.status
+                toast.success(
+                    status === "pending"
+                        ? "Booking request submitted!"
+                        : "Table booked successfully!",
+                )
                 // Navigate to success page with booking details
                 navigate("/dining/book-success", { state: { booking: response.data.data } })
             }

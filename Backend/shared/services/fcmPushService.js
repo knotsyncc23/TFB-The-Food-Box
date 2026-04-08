@@ -78,7 +78,7 @@ async function getFcmTokens(sendTo, zone) {
  * @param {Object} payload - { title, body, image? }
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-async function sendToToken(token, payload) {
+async function sendToToken(token, payload, opts = {}) {
   try {
     const ok = await ensureFirebaseAdminInitialized();
     if (!ok || !admin.apps.length) {
@@ -86,6 +86,7 @@ async function sendToToken(token, payload) {
     }
 
     const { title, body, image } = payload;
+    const link = typeof opts?.link === "string" && opts.link.trim() ? opts.link.trim() : "/";
     const message = {
       token,
       notification: {
@@ -95,7 +96,7 @@ async function sendToToken(token, payload) {
       },
       webpush: {
         fcmOptions: {
-          link: "/",
+          link,
         },
       },
       android: {
@@ -243,6 +244,72 @@ export async function sendPushNotification({
 
   for (const token of tokens) {
     const res = await sendToToken(token, payload);
+    if (res.success) {
+      result.sent++;
+    } else {
+      result.failed++;
+      if (res.error && res.error !== "invalid_token") {
+        result.errors.push(res.error);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Send push notification to a single customer by user ID.
+ * @param {string|ObjectId} userId
+ * @param {Object} payload
+ * @param {string} payload.title
+ * @param {string} payload.description
+ * @param {string} [payload.image]
+ * @param {string} [payload.link]
+ */
+export async function sendPushNotificationToUser(
+  userId,
+  { title, description, image, link },
+) {
+  const result = { sent: 0, failed: 0, total: 0, errors: [] };
+
+  if (!userId) {
+    result.errors.push("userId is required");
+    return result;
+  }
+
+  const ok = await ensureFirebaseAdminInitialized();
+  if (!ok || !admin.apps.length) {
+    result.errors.push("Firebase Admin not initialized");
+    return result;
+  }
+
+  const user = await User.findById(userId)
+    .select("fcmTokenWeb fcmTokenAndroid fcmTokenIos")
+    .lean();
+
+  if (!user) {
+    result.errors.push("user_not_found");
+    return result;
+  }
+
+  const tokens = [user.fcmTokenWeb, user.fcmTokenAndroid, user.fcmTokenIos].filter(
+    Boolean,
+  );
+  const uniqueTokens = [...new Set(tokens)];
+
+  result.total = uniqueTokens.length;
+  if (uniqueTokens.length === 0) {
+    return result;
+  }
+
+  const payload = {
+    title: title || "Notification",
+    body: description || "",
+    image: image || undefined,
+  };
+
+  for (const token of uniqueTokens) {
+    const res = await sendToToken(token, payload, { link });
     if (res.success) {
       result.sent++;
     } else {

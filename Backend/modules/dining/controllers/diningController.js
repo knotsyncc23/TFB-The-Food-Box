@@ -13,6 +13,7 @@ import Restaurant from "../../restaurant/models/Restaurant.js";
 import RestaurantDiningOffer from "../../restaurant/models/RestaurantDiningOffer.js";
 import RestaurantWallet from "../../restaurant/models/RestaurantWallet.js";
 import emailService from "../../auth/services/emailService.js";
+import { sendPushNotificationToUser } from "../../../shared/services/fcmPushService.js";
 import {
   createOrder as createRazorpayOrder,
   verifyPayment as verifyRazorpayPayment,
@@ -225,6 +226,20 @@ export const createBooking = async (req, res) => {
     const { restaurant, guests, date, timeSlot, specialRequest } = req.body;
     const userId = req.user._id;
 
+    // If the booking is for a Restaurant row, respect its table-booking approval mode.
+    // For legacy DiningRestaurant IDs (no Restaurant row), default to auto-confirmed.
+    let initialStatus = "confirmed";
+    try {
+      const restaurantDoc = await Restaurant.findById(restaurant)
+        .select("diningConfig.tableBooking.approvalMode")
+        .lean();
+      const approvalMode =
+        restaurantDoc?.diningConfig?.tableBooking?.approvalMode || "auto";
+      initialStatus = approvalMode === "manual" ? "pending" : "confirmed";
+    } catch {
+      // ignore and keep default
+    }
+
     const booking = await TableBooking.create({
       restaurant,
       user: userId,
@@ -232,7 +247,7 @@ export const createBooking = async (req, res) => {
       date,
       timeSlot,
       specialRequest,
-      status: "confirmed",
+      status: initialStatus,
     });
 
     // Populate restaurant data for the success page
@@ -254,7 +269,10 @@ export const createBooking = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Booking confirmed successfully",
+      message:
+        bookingObj.status === "pending"
+          ? "Booking request submitted successfully"
+          : "Booking confirmed successfully",
       data: bookingObj,
     });
 
@@ -265,6 +283,23 @@ export const createBooking = async (req, res) => {
         .catch((err) => {
           console.error("Failed to send booking confirmation email:", err);
         });
+    }
+
+    // Send booking notification to the user (best-effort, async)
+    try {
+      const restaurantName =
+        bookingObj?.restaurant?.name || "restaurant";
+      const bookingIdText = bookingObj?.bookingId || "";
+      const statusText =
+        bookingObj?.status === "pending" ? "pending approval" : "confirmed";
+
+      sendPushNotificationToUser(userId, {
+        title: "Table booking created",
+        description: `Your booking at ${restaurantName} is ${statusText}${bookingIdText ? ` (ID: ${bookingIdText})` : ""}.`,
+        link: "/bookings",
+      }).catch(() => {});
+    } catch {
+      // ignore
     }
   } catch (error) {
     res.status(500).json({
@@ -350,6 +385,83 @@ export const updateBookingStatus = async (req, res) => {
     const { bookingId } = req.params;
     const { status } = req.body;
 
+    const booking = await TableBooking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    const isUserActor = !!req.user;
+    const isRestaurantActor = !!req.restaurant;
+
+    if (!isUserActor && !isRestaurantActor) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    if (isUserActor) {
+      const actorUserId = req.user?._id || req.user?.id;
+      if (!actorUserId || booking.user.toString() !== actorUserId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized for this booking",
+        });
+      }
+      // Customers can only cancel their own booking.
+      if (status !== "cancelled") {
+        return res.status(400).json({
+          success: false,
+          message: "Customers can only cancel a booking",
+        });
+      }
+      if (["checked-in", "completed", "dining_completed"].includes(booking.status)) {
+        return res.status(400).json({
+          success: false,
+          message: "Booking cannot be cancelled at this stage",
+        });
+      }
+    }
+
+    if (isRestaurantActor) {
+      const actorRestaurantId = req.restaurant?._id || req.restaurant?.id;
+      if (!actorRestaurantId || booking.restaurant.toString() !== actorRestaurantId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized for this booking",
+        });
+      }
+
+      const allowed = new Set([
+        "confirmed",
+        "rejected",
+        "cancelled",
+        "checked-in",
+        "completed",
+        "dining_completed",
+      ]);
+      if (!allowed.has(status)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid status for restaurant action",
+        });
+      }
+
+      // Don't allow reject/cancel once billing/payment has progressed.
+      if (
+        (status === "rejected" || status === "cancelled") &&
+        (booking.paymentStatus === "paid" || booking.billStatus === "completed")
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Booking cannot be cancelled/rejected after payment",
+        });
+      }
+    }
+
     const updateData = { status };
     if (status === "checked-in") {
       updateData.checkInTime = new Date();
@@ -357,18 +469,8 @@ export const updateBookingStatus = async (req, res) => {
       updateData.checkOutTime = new Date();
     }
 
-    const booking = await TableBooking.findByIdAndUpdate(
-      bookingId,
-      updateData,
-      { new: true },
-    );
-
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: "Booking not found",
-      });
-    }
+    booking.set(updateData);
+    await booking.save();
 
     res.status(200).json({
       success: true,

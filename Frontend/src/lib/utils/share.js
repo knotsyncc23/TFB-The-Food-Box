@@ -3,9 +3,9 @@ export const buildShareMessage = ({ title, text, url }) =>
 
 const buildWhatsAppShareUrl = ({ title, text, url }) => {
   const message = buildShareMessage({ title, text, url })
-  return message
-    ? `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`
-    : ""
+  if (!message) return ""
+  // `wa.me` generally works better across desktop + mobile than `api.whatsapp.com`.
+  return `https://wa.me/?text=${encodeURIComponent(message)}`
 }
 
 const copyTextFallback = async (text) => {
@@ -58,20 +58,46 @@ const openShareFallbackWindow = (url) => {
   }
 }
 
+const normalizeShareUrl = (url) => {
+  if (!url || typeof window === "undefined") return url
+  try {
+    return new URL(url, window.location.href).toString()
+  } catch {
+    return url
+  }
+}
+
+const hasFlutterShareBridge = () => {
+  return (
+    typeof window !== "undefined" &&
+    window.flutter_inappwebview &&
+    typeof window.flutter_inappwebview.callHandler === "function"
+  )
+}
+
 export const shareContent = async ({ title, text, url }) => {
   const shareData = {}
   if (title) shareData.title = title
   if (text) shareData.text = text
-  if (url) shareData.url = url
-  const fallbackMessage = buildShareMessage({ title, text, url })
+  if (url) shareData.url = normalizeShareUrl(url)
+
+  const fallbackMessage =
+    buildShareMessage({ title, text, url: shareData.url || url }) ||
+    (typeof window !== "undefined" ? window.location.href : "")
 
   try {
-    if (
-      navigator.share &&
-      (!navigator.canShare || navigator.canShare(shareData))
-    ) {
-      await navigator.share(shareData)
-      return { method: "native" }
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      // `navigator.canShare()` is unreliable across browsers for `{ title, text, url }`.
+      // We only treat it as authoritative when sharing files.
+      if (typeof navigator.canShare === "function" && shareData.files) {
+        if (navigator.canShare(shareData)) {
+          await navigator.share(shareData)
+          return { method: "native" }
+        }
+      } else {
+        await navigator.share(shareData)
+        return { method: "native" }
+      }
     }
   } catch (error) {
     if (error?.name === "AbortError") {
@@ -79,7 +105,36 @@ export const shareContent = async ({ title, text, url }) => {
     }
   }
 
-  const whatsappUrl = buildWhatsAppShareUrl({ title, text, url })
+  // Flutter InAppWebView: try native share via a bridge if the host app supports it.
+  if (hasFlutterShareBridge()) {
+    try {
+      const payload = {
+        title: shareData.title,
+        text: shareData.text,
+        url: shareData.url || url,
+      }
+      const result = await window.flutter_inappwebview.callHandler(
+        "nativeShare",
+        payload,
+      )
+
+      const ok =
+        result === true ||
+        result === "ok" ||
+        result === "success" ||
+        (result && typeof result === "object" && result.success === true)
+
+      if (ok) return { method: "flutter" }
+    } catch {
+      // ignore and continue to web fallbacks
+    }
+  }
+
+  const whatsappUrl = buildWhatsAppShareUrl({
+    title,
+    text,
+    url: shareData.url || url,
+  })
   if (openShareFallbackWindow(whatsappUrl)) {
     return { method: "whatsapp" }
   }

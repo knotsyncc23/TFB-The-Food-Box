@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useEffect } from "react";
 import {
   exportToCSV,
   exportToExcel,
@@ -6,8 +7,8 @@ import {
   exportToJSON,
 } from "./ordersExportUtils";
 
-export function useOrdersManagement(orders, statusKey, title) {
-  const [searchQuery, setSearchQuery] = useState("");
+export function useOrdersManagement(orders, statusKey, title, initialSearchQuery = "") {
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isViewOrderOpen, setIsViewOrderOpen] = useState(false);
@@ -34,6 +35,10 @@ export function useOrdersManagement(orders, statusKey, title) {
     orderStatus: true,
     actions: true,
   });
+
+  useEffect(() => {
+    setSearchQuery(initialSearchQuery || "");
+  }, [initialSearchQuery]);
 
   // Get unique restaurants from orders
   const restaurants = useMemo(() => {
