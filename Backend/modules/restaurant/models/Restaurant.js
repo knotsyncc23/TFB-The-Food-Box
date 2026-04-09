@@ -360,6 +360,10 @@ const restaurantSchema = new mongoose.Schema(
       min: 0,
       max: 100,
     },
+    role: {
+      type: String,
+      default: "restaurant",
+    },
   },
   {
     timestamps: true,

@@ -31,7 +31,7 @@ export default function RestaurantGoogleCallback() {
             no_code: "No authorization code received from Google.",
             invalid_state: "Security verification failed. Please try again.",
             no_email: "Google account email not found. Please use a different account.",
-            wrong_role: "This account is not registered as a restaurant partner.",
+
             auth_failed: "Authentication failed. Please try again."
           }
           setError(errorMessages[errorParam] || "Authentication failed. Please try again.")

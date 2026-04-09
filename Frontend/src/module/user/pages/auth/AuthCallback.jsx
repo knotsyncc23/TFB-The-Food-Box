@@ -22,11 +22,26 @@ const logAppleCallback = (message, details = null) => {
 
 export default function AuthCallback() {
   const navigate = useNavigate()
-  const redirectToUserHome = () => {
-    navigate("/", { replace: true })
-  }
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState("loading") // "loading", "success", "error"
+  
+  const redirectToDashboard = (userData, urlState) => {
+    // Priority: If the login started from restaurant page (state=restaurant), go there.
+    // Otherwise fallback to user's saved role.
+    const effectiveRole = urlState || userData?.role || "user";
+    console.log(`[AuthCallback] Decision Logic: state=${urlState}, userRole=${userData?.role} => effectiveRole=${effectiveRole}`);
+    
+    if (effectiveRole === "restaurant") {
+      console.log("[AuthCallback] Navigating to RESTAURANT portal (/restaurant)");
+      navigate("/restaurant", { replace: true })
+    } else if (effectiveRole === "delivery") {
+      console.log("[AuthCallback] Navigating to DELIVERY portal (/delivery)");
+      navigate("/delivery", { replace: true })
+    } else {
+      console.log("[AuthCallback] Navigating to USER portal (/)");
+      navigate("/", { replace: true })
+    }
+  }
   const [error, setError] = useState("")
   const [provider, setProvider] = useState("")
   const [appleDebugEntries, setAppleDebugEntries] = useState(() => getAppleDebugLog())
@@ -55,6 +70,8 @@ export default function AuthCallback() {
         const code = searchParams.get("code")
         const errorParam = searchParams.get("error")
         const state = searchParams.get("state")
+        const validRoles = ["user", "restaurant", "delivery", "admin"];
+        const effectiveRole = validRoles.includes(state) ? state : "user";
 
         // Check for OAuth errors
         if (errorParam) {
@@ -68,7 +85,8 @@ export default function AuthCallback() {
           if (errorParam === "access_denied") {
             setError("You cancelled the sign-in. Redirecting you back...")
             setTimeout(() => {
-              navigate("/user/auth/sign-in", { replace: true })
+              const redirectPath = state === "restaurant" ? "/restaurant/login" : "/user/auth/sign-in";
+              navigate(redirectPath, { replace: true })
             }, 1200)
             return
           }
@@ -121,7 +139,7 @@ export default function AuthCallback() {
             }
             const response = await authAPI.firebaseSocialLogin(
               idToken,
-              "user",
+              effectiveRole,
               providerParam,
             )
             const data = response?.data?.data || {}
@@ -137,23 +155,23 @@ export default function AuthCallback() {
               throw new Error("Invalid response from server while completing social login")
             }
 
-            setAuthData("user", data.accessToken, data.user)
+            setAuthData(effectiveRole, data.accessToken, data.user)
             if (providerParam === "apple") {
               logAppleCallback("Stored access token from Apple callback", {
-                localToken: !!localStorage.getItem("user_accessToken"),
-                sessionToken: !!sessionStorage.getItem("user_accessToken"),
+                localToken: !!localStorage.getItem(`${effectiveRole}_accessToken`),
+                sessionToken: !!sessionStorage.getItem(`${effectiveRole}_accessToken`),
               })
             }
-            window.dispatchEvent(new Event("userAuthChanged"))
-            registerFcmTokenForLoggedInUser().catch(() => {})
+            window.dispatchEvent(new Event(`${effectiveRole}AuthChanged`))
+            registerFcmTokenForLoggedInUser(effectiveRole).catch(() => {})
 
             setStatus("success")
             setTimeout(() => {
               if (providerParam === "apple") {
-                logAppleCallback("Redirecting to home after Apple callback success")
+                logAppleCallback("Redirecting to dashboard after Apple callback success")
                 syncAppleLogs()
               }
-              redirectToUserHome()
+              redirectToDashboard(data.user, state)
             }, 800)
             return
           }
@@ -175,31 +193,25 @@ export default function AuthCallback() {
           try {
             const user = userStr ? JSON.parse(userStr) : null
 
-            // Save auth data
-            setAuthData("user", token, user)
-            if (providerParam === "apple") {
-              logAppleCallback("Stored token from direct backend callback", {
-                hasUser: !!user,
-                localToken: !!localStorage.getItem("user_accessToken"),
-                sessionToken: !!sessionStorage.getItem("user_accessToken"),
-              })
-            }
+            console.log(`[AuthCallback] Storing auth data for role: ${effectiveRole}`);
+            setAuthData(effectiveRole, token, user)
+            
+            // Verify storage
+            console.log(`[AuthCallback] Storage check: ${effectiveRole}_accessToken = ${!!localStorage.getItem(`${effectiveRole}_accessToken`)}`);
 
             // Notify app of auth change
-            window.dispatchEvent(new Event("userAuthChanged"))
-
-            // Register FCM token for push notifications
-            registerFcmTokenForLoggedInUser().catch(() => {})
+            window.dispatchEvent(new Event(`${effectiveRole}AuthChanged`))
+            registerFcmTokenForLoggedInUser(effectiveRole).catch(() => {})
 
             setStatus("success")
 
             // Redirect to home after short delay
             setTimeout(() => {
               if (providerParam === "apple") {
-                logAppleCallback("Redirecting to home after direct Apple callback success")
+                logAppleCallback("Redirecting to dashboard after direct Apple callback success")
                 syncAppleLogs()
               }
-              redirectToUserHome()
+              redirectToDashboard(user, state)
             }, 1000)
             return
           } catch (err) {
@@ -253,9 +265,9 @@ export default function AuthCallback() {
 
         setStatus("success")
 
-        // Redirect to home
+        // Redirect to dashboard
         setTimeout(() => {
-          redirectToUserHome()
+          redirectToDashboard(data.user, state)
         }, 1500)
       } catch (err) {
         if (provider === "apple" || window.location.pathname.includes("/auth/apple/callback")) {

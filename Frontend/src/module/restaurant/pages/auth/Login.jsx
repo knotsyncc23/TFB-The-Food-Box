@@ -14,6 +14,8 @@ import { restaurantAPI } from "@/lib/api"
 import { firebaseAuth, googleProvider, appleProvider, ensureFirebaseInitialized } from "@/lib/firebase"
 import { hasFlutterGoogleBridge, nativeGoogleSignIn } from "@/lib/utils/flutterGoogleAuthBridge"
 import { useCompanyName } from "@/lib/hooks/useCompanyName"
+import LoginWithApple from "@/module/user/components/auth/LoginWithApple"
+import { authAPI } from "@/lib/api"
 
 // Common country codes
 const countryCodes = [
@@ -59,6 +61,7 @@ export default function RestaurantLogin() {
   const [isSending, setIsSending] = useState(false)
   const [isAppleLoading, setIsAppleLoading] = useState(false)
   const [apiError, setApiError] = useState("")
+  const [appleConfig, setAppleConfig] = useState(null)
   const isIOSBrowser = /iPad|iPhone|iPod/i.test(
     typeof navigator !== "undefined" ? navigator.userAgent : "",
   )
@@ -347,7 +350,64 @@ export default function RestaurantLogin() {
     setupAuthListener()
     setTimeout(handleRedirectResult, 500)
 
-    return () => { if (unsubscribe) unsubscribe() }
+    // Manual Apple Login Listener
+    const handleAppleCallbackMessage = async (event) => {
+      const { type, token, user, role, provider } = event.data || {};
+      
+      if (type === 'APPLE_LOGIN_SUCCESS') {
+        const targetRole = role || user?.role || "restaurant";
+        console.log(`[RestaurantAuth] Apple Login Success. Target Role: ${targetRole}`);
+        setIsAppleLoading(true);
+
+        try {
+          if (token && user) {
+            console.log(`[RestaurantAuth] Storing auth data for: ${targetRole}`);
+            setAuthData(targetRole, token, user);
+            
+            // Verify storage
+            console.log(`[RestaurantAuth] Storage check: ${targetRole}_accessToken = ${!!localStorage.getItem(`${targetRole}_accessToken`)}`);
+
+            window.dispatchEvent(new Event(`${targetRole}AuthChanged`));
+            
+            // Force navigate to correct portal
+            if (targetRole === "restaurant") {
+                console.log("[RestaurantAuth] Navigating to /restaurant");
+                navigate("/restaurant", { replace: true });
+            } else {
+                console.log("[RestaurantAuth] Unexpected role, navigating to home");
+                navigate("/", { replace: true });
+            }
+          }
+        } catch (err) {
+          console.error("[RestaurantAuth] Finalization failed:", err);
+          setApiError("Failed to finalize Apple login");
+        } finally {
+          setIsAppleLoading(false);
+        }
+      } else if (type === 'APPLE_LOGIN_ERROR') {
+        setApiError(event.data.message || "Apple login failed");
+      }
+    };
+
+    window.addEventListener('message', handleAppleCallbackMessage);
+
+    // Fetch Apple Config
+    const fetchAppleConfig = async () => {
+      try {
+        const response = await authAPI.getAppleConfig();
+        if (response.data?.success) {
+          setAppleConfig(response.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch Apple config", err);
+      }
+    };
+    fetchAppleConfig();
+
+    return () => { 
+      if (unsubscribe) unsubscribe();
+      window.removeEventListener('message', handleAppleCallbackMessage);
+    }
   }, [navigate])
 
   const handleGoogleLogin = async () => {
@@ -445,47 +505,8 @@ export default function RestaurantLogin() {
     }
   }
 
-  const handleAppleLogin = async () => {
-    setApiError("")
-    setIsAppleLoading(true)
-    redirectHandledRef.current = false
-
-    try {
-      await ensureFirebaseInitialized()
-
-      if (!firebaseAuth || !appleProvider) {
-        throw new Error("Firebase is not configured correctly for Apple login")
-      }
-
-      const {
-        browserLocalPersistence,
-        setPersistence,
-        signInWithPopup,
-      } = await import("firebase/auth")
-
-      await setPersistence(firebaseAuth, browserLocalPersistence)
-
-      const result = await signInWithPopup(firebaseAuth, appleProvider)
-      if (result?.user) {
-        await processSignedInUser(result.user, "apple-popup-result", "apple")
-        return
-      }
-
-      throw new Error("Apple sign-in completed without returning a Firebase user")
-    } catch (error) {
-      console.error("Firebase Apple login error:", error)
-      redirectHandledRef.current = false
-      setApiError(
-        error?.code === "auth/popup-blocked"
-          ? "Popup was blocked. Please allow popups and try again."
-          : error?.code === "auth/popup-closed-by-user"
-            ? "Apple sign-in was cancelled."
-            : error?.message || "Apple sign-in failed",
-      )
-    } finally {
-      setIsAppleLoading(false)
-      setIsSending(false)
-    }
+  const handleAppleLogin = () => {
+    // This is now handled by the LoginWithApple component
   }
 
   const maxPhoneLength = formData.countryCode === "+91" ? 10 : 15
@@ -726,19 +747,12 @@ export default function RestaurantLogin() {
               <span className="mr-auto text-gray-900">Login with Google</span>
             </Button>
 
-            <Button
-              onClick={handleAppleLogin}
-              disabled={isSending || isAppleLoading}
-              variant="outline"
-              className="w-full h-12 rounded-lg border border-gray- hover:border-gray-400 hover:bg-gray-50 text-gray-900 font-semibold text-base flex items-center justify-center gap-3"
-            >
-              <svg className="w-5 h-5 mr-auto text-black" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.674.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701z" />
-              </svg>
-              <span className="mr-auto text-gray-900">
-                {isAppleLoading ? "Signing in with Apple" : "Login with Apple"}
-              </span>
-            </Button>
+            <LoginWithApple 
+              clientId={appleConfig?.clientId}
+              redirectURI={appleConfig?.redirectURI}
+              isLoading={isAppleLoading}
+              state="restaurant"
+            />
           </div>
         </div>
       </div>

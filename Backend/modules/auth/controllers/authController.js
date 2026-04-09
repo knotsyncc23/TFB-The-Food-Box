@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import Restaurant from "../../restaurant/models/Restaurant.js";
 import otpService from "../services/otpService.js";
 import jwtService from "../services/jwtService.js";
 import googleAuthService from "../services/googleAuthService.js";
@@ -849,12 +850,9 @@ async function handleFirebaseSocialLogin(
     let user = await User.findOne({ $or: lookupConditions });
 
     if (user) {
+      // Log role mismatch for debugging but allow login
       if (user.role !== userRole) {
-        return errorResponse(
-          res,
-          403,
-          `This account is registered as ${user.role}, not ${userRole}`,
-        );
+        logger.info(`Social Login Role Mismatch: User is ${user.role}, logging in as ${userRole}`);
       }
 
       let shouldSave = false;
@@ -1115,8 +1113,12 @@ export const googleCallback = asyncHandler(async (req, res) => {
       );
     }
 
-    // Find or create user
-    let user = await User.findOne({
+    // Determine which model to use
+    const AuthModel = userRole === "restaurant" ? Restaurant : User;
+    logger.info(`Google Callback: Using model ${userRole === "restaurant" ? "Restaurant" : "User"} for role ${userRole}`);
+
+    // FIND: existing account by Google ID or email
+    let user = await AuthModel.findOne({
       $or: [{ googleId: googleUser.googleId }, { email: googleUser.email }],
     });
 
@@ -1126,7 +1128,12 @@ export const googleCallback = asyncHandler(async (req, res) => {
         user.googleId = googleUser.googleId;
         user.googleEmail = googleUser.email;
         if (!user.profileImage && googleUser.picture) {
-          user.profileImage = googleUser.picture;
+           // Restaurant model uses url object for profileImage
+          if (userRole === "restaurant") {
+            user.profileImage = { url: googleUser.picture };
+          } else {
+            user.profileImage = googleUser.picture;
+          }
         }
         // Update signupMethod if not already set
         if (!user.signupMethod) {
@@ -1134,29 +1141,33 @@ export const googleCallback = asyncHandler(async (req, res) => {
         }
         await user.save();
       }
-
-      // Ensure role matches (for restaurant login, user should be restaurant)
+      
+      // Log role mismatch for debugging but allow login
       if (userRole === "restaurant" && user.role !== "restaurant") {
-        return res.redirect(
-          `${process.env.FRONTEND_URL || "http://localhost:5173"}/restaurant/login?error=wrong_role`,
-        );
+        logger.info(`Google Login Role Mismatch: Account is ${user.role}, logging in from restaurant portal (Model: ${userRole === "restaurant" ? "Restaurant" : "User"})`);
       }
     } else {
-      // Create new user
-      const userData = {
+      // CREATE: new account
+      const accountData = {
         name: googleUser.name || "Google User",
         email: googleUser.email,
         googleId: googleUser.googleId,
         googleEmail: googleUser.email,
         role: userRole,
         signupMethod: "google",
-        profileImage: googleUser.picture || null,
+        profileImage: userRole === "restaurant" ? (googleUser.picture ? { url: googleUser.picture } : null) : googleUser.picture,
+        // If restaurant, add required owner fields
+        ...(userRole === "restaurant" && {
+          ownerName: googleUser.name || "Restaurant Owner",
+          ownerEmail: googleUser.email,
+          isActive: process.env.NODE_ENV === "development" || true // Set true to allow social entry
+        })
       };
 
-      user = await User.create(userData);
-      logger.info(`New user registered via Google: ${user._id}`, {
+      user = await AuthModel.create(accountData);
+      logger.info(`New ${userRole} registered via Google: ${user._id}`, {
         email: googleUser.email,
-        userId: user._id,
+        id: user._id,
         role: userRole,
       });
     }
@@ -1164,7 +1175,7 @@ export const googleCallback = asyncHandler(async (req, res) => {
     // Generate JWT tokens
     const jwtTokens = jwtService.generateTokens({
       userId: user._id.toString(),
-      role: user.role,
+      role: user.role || userRole,
       email: user.email,
     });
 
@@ -1180,12 +1191,7 @@ export const googleCallback = asyncHandler(async (req, res) => {
 
     // Redirect to frontend with access token as query param
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-    const redirectPath =
-      userRole === "restaurant"
-        ? "/restaurant/auth/google-callback"
-        : userRole === "delivery"
-          ? "/delivery/auth/google-callback"
-          : "/user/auth/google-callback";
+    const redirectPath = "/auth/callback";
 
     const userData = {
       id: user._id,
@@ -1198,11 +1204,14 @@ export const googleCallback = asyncHandler(async (req, res) => {
       signupMethod: user.signupMethod,
     };
 
+    const redirectUrl = `${frontendUrl}${redirectPath}?token=${jwtTokens.accessToken}&user=${encodeURIComponent(JSON.stringify(userData))}&state=${userRole}&provider=google`;
+    logger.info(`Google Login Successful: Redirecting to ${redirectUrl}`);
     return res.redirect(redirectUrl);
   } catch (error) {
     logger.error(`Error in Google OAuth callback: ${error.message}`);
+    const errorRedirectBase = (req.query.role === "restaurant" || req.body.state === "restaurant") ? "/restaurant/login" : "/auth/sign-in";
     return res.redirect(
-      `${process.env.FRONTEND_URL || "http://localhost:5173"}/restaurant/login?error=auth_failed`,
+      `${process.env.FRONTEND_URL || "http://localhost:5173"}${errorRedirectBase}?error=auth_failed`,
     );
   }
 });
@@ -1474,10 +1483,14 @@ export const appleCallback = asyncHandler(async (req, res) => {
 
   const code = body.code || query.code;
   const id_token = body.id_token || query.id_token;
-  const state = body.state || query.state; // Role is usually passed in state
+  const state = body.state || query.state; // state from Apple
+  const roleFromQuery = query.role || body.role; // custom role parameter
   const appleUserJson = body.user || query.user;
   const error = body.error || query.error;
   const passedClientId = body.clientId || query.clientId;
+  
+  // Use role from query if provided, otherwise fallback to state
+  const effectiveRole = roleFromQuery || state || "user";
 
   // 2. Logging for production debugging
   logger.info("Apple OAuth callback received", {
@@ -1503,6 +1516,9 @@ export const appleCallback = asyncHandler(async (req, res) => {
   const loginUrl = `${frontendUrl}/user/auth/sign-in`;
   // Use /auth/callback as defined in UserRouter.jsx
   const callbackPageUrl = `${frontendUrl}/auth/callback`;
+  // Robust error redirection based on the actual intended role
+  const errorRedirectBase = effectiveRole === "restaurant" ? "/restaurant/login" : "/auth/sign-in";
+  const errorRedirectUrl = `${frontendUrl}${errorRedirectBase}`;
 
   // Helper for safe error responses (supports both popup and redirect)
   const sendErrorResponse = (errCode, message) => {
@@ -1531,7 +1547,7 @@ export const appleCallback = asyncHandler(async (req, res) => {
             window.opener.postMessage(errorData, '*');
             setTimeout(function() { window.close(); }, 500);
           } else {
-            window.location.href = "${loginUrl}?error=${errCode}";
+            window.location.href = "${errorRedirectUrl}?error=${errCode}";
           }
         })();
       </script>
@@ -1588,38 +1604,56 @@ export const appleCallback = asyncHandler(async (req, res) => {
     }
 
     const fullName = [firstName, lastName].filter(Boolean).join(" ") || email?.split("@")[0] || "Apple User";
-    const userRole = state || "user";
+    const userRole = effectiveRole;
 
-    // 5. Find or create user
+    // Determine which model to use
+    const AuthModel = userRole === "restaurant" ? Restaurant : User;
+
+    // 5. Find or create account
     const lookupConditions = [{ appleId }];
     if (email) {
-      lookupConditions.push({ email, role: userRole });
+      lookupConditions.push({ email });
     }
 
-    let user = await User.findOne({ $or: lookupConditions });
+    let user = await AuthModel.findOne({ $or: lookupConditions });
 
-    if (user && user.role !== userRole) {
-      return sendErrorResponse("wrong_role", `This account is registered as ${user.role}, not ${userRole}`);
+    // Log role mismatch for debugging
+    if (user && user.role && user.role !== userRole) {
+       logger.info(`Apple Login Status: Account role is ${user.role}, but logging into ${userRole} portal (Model: ${userRole === "restaurant" ? "Restaurant" : "User"}).`);
     }
 
     if (user) {
-      // Update existing user
+      // Update existing account
       let shouldSave = false;
       if (!user.appleId) { user.appleId = appleId; shouldSave = true; }
       if (user.signupMethod !== "apple") { user.signupMethod = "apple"; shouldSave = true; }
-      if (user.authProvider !== "apple") { user.authProvider = "apple"; shouldSave = true; }
+      
+      // Update profile image if missing and we have a name
+      if (!user.profileImage && fullName && userRole === "user") {
+        // user.profileImage = ...
+      }
+      
       if (shouldSave) await user.save();
     } else {
-      // Create new user
-      user = await User.create({
+      // Create new account
+      const accountData = {
         name: fullName,
         email,
         appleId,
         role: userRole,
         signupMethod: "apple",
         authProvider: "apple",
-        isActive: true,
-      });
+        isActive: true, // Default to true for social
+        // If restaurant, add required owner fields
+        ...(userRole === "restaurant" && {
+          ownerName: fullName,
+          ownerEmail: email,
+          isActive: process.env.NODE_ENV === "development" || true // Set true to allow social entry
+        })
+      };
+      
+      user = await AuthModel.create(accountData);
+      logger.info(`New ${userRole} created via Apple: ${user._id}`);
     }
 
     if (!user.isActive) {
@@ -1627,9 +1661,12 @@ export const appleCallback = asyncHandler(async (req, res) => {
     }
 
     // 6. Generate session tokens
+    const finalRole = user.role || effectiveRole;
+    logger.info(`Apple Callback: Generating token for role: ${finalRole} (DB Role: ${user.role}, Effective: ${effectiveRole})`);
+
     const jwtTokens = jwtService.generateTokens({
       userId: user._id.toString(),
-      role: user.role,
+      role: finalRole,
       email: user.email,
     });
 
@@ -1650,16 +1687,33 @@ export const appleCallback = asyncHandler(async (req, res) => {
       type: 'APPLE_LOGIN_SUCCESS',
       token: jwtTokens.accessToken,
       user: userData,
-      provider: 'apple'
+      provider: 'apple',
+      role: effectiveRole // Explicitly pass the state/role from the login initiation
     };
+
+    // Construct standard redirect URL
+    const redirectPath = "/auth/callback";
+    const redirectUrl = `${frontendUrl}${redirectPath}?token=${jwtTokens.accessToken}&user=${encodeURIComponent(JSON.stringify(userData))}&state=${effectiveRole}`;
+    
+    // IF RESTAURANT: Direct redirect to dashboard as requested by user
+    if (effectiveRole === "restaurant") {
+      const directRestaurantUrl = `${frontendUrl}/restaurant?token=${jwtTokens.accessToken}`;
+      logger.info(`Apple Login Success (Restaurant): Direct redirect to ${directRestaurantUrl}`);
+      return res.redirect(directRestaurantUrl);
+    }
+    
+    logger.info(`Apple Login Successful: Redirecting to ${redirectUrl} for role ${effectiveRole}`);
 
     // Support JSON response for native apps (Mobile)
     const isNative = req.headers["user-agent"]?.includes("Dart") || req.headers["user-agent"]?.includes("Flutter");
     if (isNative || req.headers["accept"]?.includes("application/json")) {
-      return successResponse(res, 200, "Apple auth successful", {
-        accessToken: jwtTokens.accessToken,
-        user: userData,
-        provider: 'apple'
+      return res.status(200).json({
+        success: true,
+        data: {
+          accessToken: jwtTokens.accessToken,
+          user: userData,
+          role: effectiveRole
+        },
       });
     }
 
@@ -1678,16 +1732,19 @@ export const appleCallback = asyncHandler(async (req, res) => {
             setTimeout(function() { window.close(); }, 500);
           } else {
             // Full-page redirect flow
-            var token = data.token;
-            var userParam = encodeURIComponent(JSON.stringify(data.user));
-            window.location.href = "${callbackPageUrl}?token=" + token + "&user=" + userParam + "&provider=apple";
+            window.location.href = "${redirectUrl}";
           }
         })();
       </script>
     `);
 
   } catch (err) {
-    logger.error("Apple callback processing failed", { message: err.message, stack: err.stack });
+    logger.error("Apple callback processing failed", { 
+      message: err.message, 
+      stack: err.stack,
+      response: err.response?.data
+    });
+    console.error("❌ APPLE LOGIN FATAL ERROR:", err);
     return sendErrorResponse("processing_failed", err.message);
   }
 });

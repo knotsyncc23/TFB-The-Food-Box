@@ -90,8 +90,8 @@ export function initializeFirebaseRealtime() {
   if (!creds) {
     console.warn(
       "⚠️ Firebase Realtime Database not initialized: missing credentials. " +
-        "Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY in .env " +
-        "or place serviceAccountKey.json in Backend/config/ (see config/firebaseRealtime.js)."
+      "Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY in .env " +
+      "or place serviceAccountKey.json in Backend/config/ (see config/firebaseRealtime.js)."
     );
     return null;
   }

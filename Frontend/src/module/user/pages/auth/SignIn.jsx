@@ -215,27 +215,31 @@ export default function SignIn() {
       hostname === "127.0.0.1" ||
       hostname.endsWith(".local"))
 
-  // Listen for message from Apple OAuth popup
   const handleMessage = useCallback(async (event) => {
     const { type, token, user, error, provider } = event.data || {}
 
     if (type === "APPLE_LOGIN_SUCCESS" && provider === "apple") {
-      console.log("[AppleAuth] Success message received from popup:", { hasToken: !!token, hasUser: !!user });
-      logAppleDebug("Received APPLE_LOGIN_SUCCESS message from popup", {
-        hasToken: !!token,
-        hasUser: !!user,
-      })
+      const targetRole = event.data.role || user?.role || "user";
+      console.log(`[AppleAuth] Decision Logic: targetRole=${targetRole}`);
 
       if (token && user) {
         clearPendingProvider()
-        setAuthData("user", token, user)
-        window.dispatchEvent(new Event("userAuthChanged"))
+        // Save auth data for the CORRECT role
+        setAuthData(targetRole, token, user)
+        window.dispatchEvent(new Event(`${targetRole}AuthChanged`))
 
         // Register FCM token
-        registerFcmTokenForLoggedInUser().catch(() => { })
+        registerFcmTokenForLoggedInUser(targetRole).catch(() => { })
 
-        logAppleDebug("Apple login finalized via message listener")
-        redirectToUserHome()
+        logAppleDebug(`Apple login finalized for role: ${targetRole}`)
+        
+        if (targetRole === "restaurant") {
+          navigate("/restaurant", { replace: true });
+        } else if (targetRole === "delivery") {
+          navigate("/delivery", { replace: true });
+        } else {
+          redirectToUserHome();
+        }
       }
     } else if (type === "APPLE_LOGIN_ERROR") {
       console.error("[AppleAuth] Error message received from popup:", error);
@@ -1223,8 +1227,21 @@ export default function SignIn() {
             </div>
 
             {/* Social Login Error Messages */}
-            <div className="text-center space-y-1">
+            <div className="text-center space-y-2">
               {appleError && <p className="text-xs text-red-600 font-medium">{appleError}</p>}
+              {searchParams.get("error") === "wrong_role" && (
+                <div className="bg-red-50 p-4 rounded-lg border border-red-100 space-y-2">
+                  <p className="text-sm text-red-700 font-medium">
+                    It looks like you are trying to log in as a Restaurant Partner using a User account, or vice versa.
+                  </p>
+                  <Link 
+                    to="/restaurant/login" 
+                    className="block w-full py-2 bg-red-600 text-white rounded text-sm font-bold hover:bg-red-700 transition-colors"
+                  >
+                    Go to Restaurant Login
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Legal Disclaimer */}

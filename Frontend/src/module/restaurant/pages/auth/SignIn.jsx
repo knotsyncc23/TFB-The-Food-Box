@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import loginBg from "@/assets/loginbanner.jpg"
 import { useCompanyName } from "@/lib/hooks/useCompanyName"
+import LoginWithApple from "../../../user/components/auth/LoginWithApple"
+import { useCallback } from "react"
 
 export default function RestaurantSignIn() {
   const navigate = useNavigate()
@@ -19,6 +21,32 @@ export default function RestaurantSignIn() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const companyName = useCompanyName()
+
+  // Listen for message from Apple OAuth popup
+  const handleMessage = useCallback(async (event) => {
+    const { type, token, user, error, provider } = event.data || {}
+
+    if (type === "APPLE_LOGIN_SUCCESS" && provider === "apple") {
+      const targetRole = event.data.role || user?.role || "restaurant";
+      console.log(`[RestaurantAuth] Decision Logic: targetRole=${targetRole}`);
+
+      if (token && user) {
+        setAuthData(targetRole, token, user)
+        window.dispatchEvent(new Event(`${targetRole}AuthChanged`))
+        
+        if (targetRole === "restaurant") {
+            navigate("/restaurant", { replace: true });
+        } else {
+            navigate("/", { replace: true });
+        }
+      }
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    window.addEventListener("message", handleMessage)
+    return () => window.removeEventListener("message", handleMessage)
+  }, [handleMessage])
 
   // Redirect to restaurant home if already authenticated
   useEffect(() => {
@@ -210,7 +238,6 @@ export default function RestaurantSignIn() {
                 Forgot Password
               </button>
             </div>
-
             {/* Sign in button */}
             <Button
               type="submit"
@@ -219,6 +246,21 @@ export default function RestaurantSignIn() {
             >
               {isLoading ? "Signing in..." : "Sign in"}
             </Button>
+
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-gray-500">Or continue with</span>
+              </div>
+            </div>
+
+            {/* Apple Login Button for Restaurant */}
+            <LoginWithApple 
+                state="restaurant" 
+                isLoading={isLoading} 
+            />
           </form>
 
           {/* Sign up link */}

@@ -13,6 +13,7 @@ import { useRestaurantNotifications } from "../hooks/useRestaurantNotifications"
 import { getWebNotificationPermission, registerFcmTokenForRestaurant } from "@/lib/notifications/fcmWeb"
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
+import { setAuthData } from "@/lib/utils/auth"
 
 const STORAGE_KEY = "restaurant_online_status"
 
@@ -583,6 +584,28 @@ export default function OrdersMain() {
   const location = useLocation()
   const [activeFilter, setActiveFilter] = useState("preparing")
   const [isTransitioning, setIsTransitioning] = useState(false)
+
+  // Handle direct token redirect from login (e.g., Apple/Google)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const token = params.get("token")
+    const userParam = params.get("user")
+    
+    if (token) {
+      try {
+        const userData = userParam ? JSON.parse(decodeURIComponent(userParam)) : null
+        setAuthData("restaurant", token, userData)
+        // Notify app of auth change
+        window.dispatchEvent(new Event("restaurantAuthChanged"))
+        // Clean up URL
+        navigate("/restaurant", { replace: true })
+        // Refresh page to ensure all contexts are updated if needed
+        window.location.reload()
+      } catch (err) {
+        console.error("Error processing token from URL:", err)
+      }
+    }
+  }, [location.search, navigate])
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const contentRef = useRef(null)
