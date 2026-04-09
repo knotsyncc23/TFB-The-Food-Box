@@ -160,8 +160,9 @@ router.post('/firebase/google-login', firebaseGoogleLogin);
 router.post('/firebase/social-login', validate(firebaseSocialLoginSchema), firebaseSocialLogin);
 router.get('/apple/config', getAppleConfig);
 router.post('/apple', validate(appleLoginSchema), appleLogin);
-router.post('/apple/callback', appleCallback);
-router.get('/apple/callback', appleCallback);
+router.route('/apple/callback')
+  .get(appleCallback)
+  .post(appleCallback);
 
 // Google OAuth routes
 router.get('/google/:role', googleAuth);

@@ -12,10 +12,10 @@ const isProd =
   import.meta.env.MODE === "production" ||
   (typeof window !== "undefined" && !/localhost|127\.0\.0\.1/.test(window.location.hostname));
 const hostLooksLikeAppDomain =
-  typeof window !== "undefined" && 
-  (/(^|\.)app\.tifunbox\.com$/i.test(window.location.hostname) || 
-   window.location.hostname.endsWith(".firebaseapp.com") || 
-   window.location.hostname.endsWith(".web.app"));
+  typeof window !== "undefined" &&
+  (/(^|\.)app\.tifunbox\.com$/i.test(window.location.hostname) ||
+    window.location.hostname.endsWith(".firebaseapp.com") ||
+    window.location.hostname.endsWith(".web.app"));
 
 let rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 if (!rawApiBaseUrl || String(rawApiBaseUrl).trim() === "") {
@@ -66,11 +66,10 @@ if (rawApiBaseUrl && typeof rawApiBaseUrl === "string") {
 
 export let API_BASE_URL = rawApiBaseUrl;
 
-// Safety override for production app domain if env accidentally points to app-domain /api or localhost.
+// Safety override for production app domain if env accidentally points to localhost.
 if (isProd && hostLooksLikeAppDomain) {
   const isLocalhostTarget = /localhost|127\.0\.0\.1/.test(API_BASE_URL);
-  const pointsToAppDomainApi = /^https?:\/\/app\.tifunbox\.com\/api/i.test(API_BASE_URL);
-  if (isLocalhostTarget || pointsToAppDomainApi) {
+  if (isLocalhostTarget) {
     console.warn("⚠️ Overriding API base URL to production backend fallback:", PROD_BACKEND_FALLBACK);
     API_BASE_URL = PROD_BACKEND_FALLBACK;
   }

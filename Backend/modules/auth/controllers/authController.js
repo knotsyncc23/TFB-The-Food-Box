@@ -1450,9 +1450,9 @@ export const getAppleConfig = asyncHandler(async (req, res) => {
     logger.info("Apple redirectUri was empty, constructed from request", { redirectUri });
   }
 
-  logger.info("Apple config requested", { 
-    clientId, 
-    redirectUri, 
+  logger.info("Apple config requested", {
+    clientId,
+    redirectUri,
     envRedirect: process.env.APPLE_REDIRECT_URI ? "present" : "missing",
     dbRedirect: (await getEnvVar("APPLE_REDIRECT_URI")) ? "present" : "missing"
   });
@@ -1468,74 +1468,89 @@ export const getAppleConfig = asyncHandler(async (req, res) => {
  * POST /api/auth/apple/callback
  */
 export const appleCallback = asyncHandler(async (req, res) => {
-  const { code, id_token, state, user: appleUserJson, error, clientId: passedClientId } = { ...req.query, ...req.body };
-  
-  // Robust JSON preference detection
-  const isNative = req.headers["user-agent"]?.includes("Dart") || req.headers["user-agent"]?.includes("Flutter");
-  const isApiPost = req.method === "POST" && !req.headers["content-type"]?.includes("application/x-www-form-urlencoded");
-  const isXmlHttp = req.headers["x-requested-with"] === "XMLHttpRequest" || req.headers["accept"]?.includes("application/json");
+  // 1. Robustly extract data from both body and query
+  const body = req.body || {};
+  const query = req.query || {};
 
-  const expectsJson = 
-    isXmlHttp ||
-    isNative ||
-    isApiPost ||
-    req.headers["content-type"]?.includes("application/json") ||
-    req.query.format === "json" ||
-    req.body.format === "json";
+  const code = body.code || query.code;
+  const id_token = body.id_token || query.id_token;
+  const state = body.state || query.state; // Role is usually passed in state
+  const appleUserJson = body.user || query.user;
+  const error = body.error || query.error;
+  const passedClientId = body.clientId || query.clientId;
 
-  logger.info("Apple OAuth callback received", { 
-    hasCode: !!code, 
-    hasIdToken: !!id_token, 
-    state, 
-    expectsJson,
-    isApiPost,
-    passedClientId,
+  // 2. Logging for production debugging
+  logger.info("Apple OAuth callback received", {
     method: req.method,
-    url: req.originalUrl
+    url: req.originalUrl,
+    hasCode: !!code,
+    hasIdToken: !!id_token,
+    hasAppleUser: !!appleUserJson,
+    state,
+    error,
+    body: JSON.stringify(body),
+    query: JSON.stringify(query)
   });
 
-  if (error) {
-    logger.error("Apple OAuth callback error", { error });
-    if (expectsJson) {
-      return errorResponse(res, 400, error);
+  console.log("🍎 Apple Callback Debug:", {
+    method: req.method,
+    code: code ? (code.substring(0, 5) + "...") : null,
+    error
+  });
+
+  // Determine redirection target (Frontend App)
+  const frontendUrl = getEnvVar("FRONTEND_URL") || "https://app.tifunbox.com";
+  const loginUrl = `${frontendUrl}/user/auth/sign-in`;
+  // Use /auth/callback as defined in UserRouter.jsx
+  const callbackPageUrl = `${frontendUrl}/auth/callback`;
+
+  // Helper for safe error responses (supports both popup and redirect)
+  const sendErrorResponse = (errCode, message) => {
+    logger.error(`Apple Login Error: ${errCode}`, { message });
+
+    // If it's a native app or specific JSON request
+    const isNative = req.headers["user-agent"]?.includes("Dart") || req.headers["user-agent"]?.includes("Flutter");
+    if (isNative || req.headers["accept"]?.includes("application/json")) {
+      return errorResponse(res, 400, message || errCode);
     }
+
+    // Try popup message first, then fallback to redirect
     return res.status(200).send(`
       <script>
         (function() {
-          var errorData = { type: 'APPLE_LOGIN_ERROR', error: '${error}' };
+          var errorData = { 
+            type: 'APPLE_LOGIN_ERROR', 
+            error: '${errCode}', 
+            message: '${(message || "").replace(/'/g, "\\'")}' 
+          };
+          console.log("Apple Login Error:", errorData);
           if (window.opener) {
             window.opener.postMessage(errorData, '*');
+            setTimeout(function() { window.close(); }, 500);
+          } else {
+            window.location.href = "${loginUrl}?error=${errCode}";
           }
-          setTimeout(function() { window.close(); }, 500);
         })();
       </script>
     `);
+  };
+
+  if (error) {
+    return sendErrorResponse(error, "Apple authentication error");
   }
 
   if (!code) {
-    logger.error("Apple OAuth callback missing code");
-    if (expectsJson) {
-      return errorResponse(res, 400, "Authorization code is missing");
-    }
-    return res.status(200).send(`
-      <script>
-        if (window.opener) {
-          window.opener.postMessage({ type: 'APPLE_LOGIN_ERROR', error: 'no_code' }, '*');
-        }
-        window.close();
-      </script>
-    `);
+    return sendErrorResponse("apple_no_code", "Authorization code is missing");
   }
 
   try {
-    const startTime = Date.now();
-    // Exchange code for tokens
-    logger.info("[AppleAuth] Logic reached. Starting code exchange...", { code: code ? code.substring(0, 5) + '...' : null });
-    
+    // 3. Exchange code for tokens
+    logger.info("[AppleAuth] Logic reached. Starting code exchange...");
+
     let tokens;
     try {
       tokens = await appleAuthService.exchangeCode(code, null, passedClientId);
-      logger.info("[AppleAuth] Step 1: Code exchange successful", { duration: Date.now() - startTime });
+      logger.info("[AppleAuth] Step 1: Code exchange successful");
     } catch (exchangeError) {
       const isMismatch = exchangeError.message.includes("client_id mismatch") || exchangeError.message.includes("invalid_client");
       if (isMismatch) {
@@ -1545,12 +1560,14 @@ export const appleCallback = asyncHandler(async (req, res) => {
         throw exchangeError;
       }
     }
+
     const identityToken = tokens.id_token || id_token;
-    
-    // Verify token
+
+    // 4. Verify token
     logger.info("[AppleAuth] Step 2: Verifying identity token...");
     const applePayload = await appleAuthService.verifyIdentityToken(identityToken);
     logger.info("[AppleAuth] Step 2 Success: Token verified", { sub: applePayload.sub });
+
     const appleId = applePayload.sub;
     const email = applePayload.email?.toLowerCase().trim();
 
@@ -1559,7 +1576,7 @@ export const appleCallback = asyncHandler(async (req, res) => {
     let lastName = "";
     if (appleUserJson) {
       try {
-        const parsed = JSON.parse(appleUserJson);
+        const parsed = typeof appleUserJson === 'string' ? JSON.parse(appleUserJson) : appleUserJson;
         firstName = parsed.name?.firstName || "";
         lastName = parsed.name?.lastName || "";
       } catch (e) {
@@ -1568,10 +1585,9 @@ export const appleCallback = asyncHandler(async (req, res) => {
     }
 
     const fullName = [firstName, lastName].filter(Boolean).join(" ") || email?.split("@")[0] || "Apple User";
+    const userRole = state || "user";
 
-    const userRole = state || "user"; // We use state to pass the role
-
-    // Find or create user
+    // 5. Find or create user
     const lookupConditions = [{ appleId }];
     if (email) {
       lookupConditions.push({ email, role: userRole });
@@ -1580,39 +1596,15 @@ export const appleCallback = asyncHandler(async (req, res) => {
     let user = await User.findOne({ $or: lookupConditions });
 
     if (user && user.role !== userRole) {
-      const roleErrorMessage = `This account is registered as ${user.role}, not ${userRole}`;
-      if (expectsJson) {
-        return errorResponse(res, 400, roleErrorMessage);
-      }
-      return res.status(200).send(`
-        <script>
-          if (window.opener) {
-            window.opener.postMessage({ 
-              type: 'APPLE_LOGIN_ERROR', 
-              error: 'wrong_role',
-              message: '${roleErrorMessage}'
-            }, '*');
-          }
-          window.close();
-        </script>
-      `);
+      return sendErrorResponse("wrong_role", `This account is registered as ${user.role}, not ${userRole}`);
     }
 
     if (user) {
-      // Update existing user with Apple ID if missing
+      // Update existing user
       let shouldSave = false;
-      if (!user.appleId) {
-        user.appleId = appleId;
-        shouldSave = true;
-      }
-      if (user.signupMethod !== "apple") {
-        user.signupMethod = "apple";
-        shouldSave = true;
-      }
-      if (user.authProvider !== "apple") {
-        user.authProvider = "apple";
-        shouldSave = true;
-      }
+      if (!user.appleId) { user.appleId = appleId; shouldSave = true; }
+      if (user.signupMethod !== "apple") { user.signupMethod = "apple"; shouldSave = true; }
+      if (user.authProvider !== "apple") { user.authProvider = "apple"; shouldSave = true; }
       if (shouldSave) await user.save();
     } else {
       // Create new user
@@ -1628,25 +1620,10 @@ export const appleCallback = asyncHandler(async (req, res) => {
     }
 
     if (!user.isActive) {
-      const deactivationMessage = "Account is inactive. Please contact support.";
-      if (expectsJson) {
-        return errorResponse(res, 401, deactivationMessage);
-      }
-      return res.status(200).send(`
-        <script>
-          if (window.opener) {
-            window.opener.postMessage({ 
-              type: 'APPLE_LOGIN_ERROR', 
-              error: 'account_deactivated',
-              message: '${deactivationMessage}'
-            }, '*');
-          }
-          window.close();
-        </script>
-      `);
+      return sendErrorResponse("account_deactivated", "Account is inactive. Please contact support.");
     }
 
-    // Generate session tokens
+    // 6. Generate session tokens
     const jwtTokens = jwtService.generateTokens({
       userId: user._id.toString(),
       role: user.role,
@@ -1656,7 +1633,7 @@ export const appleCallback = asyncHandler(async (req, res) => {
     // Set refresh token cookie
     res.cookie("refreshToken", jwtTokens.refreshToken, getRefreshTokenCookieOptions());
 
-    // Send success message
+    // 7. Success Response (supports Popup postMessage and Redirect)
     const userData = {
       id: user._id,
       name: user.name,
@@ -1666,60 +1643,45 @@ export const appleCallback = asyncHandler(async (req, res) => {
       signupMethod: user.signupMethod,
     };
 
-    if (expectsJson) {
-      return successResponse(res, 200, "Apple authentication successful", {
+    const successData = {
+      type: 'APPLE_LOGIN_SUCCESS',
+      token: jwtTokens.accessToken,
+      user: userData,
+      provider: 'apple'
+    };
+
+    // Support JSON response for native apps (Mobile)
+    const isNative = req.headers["user-agent"]?.includes("Dart") || req.headers["user-agent"]?.includes("Flutter");
+    if (isNative || req.headers["accept"]?.includes("application/json")) {
+      return successResponse(res, 200, "Apple auth successful", {
         accessToken: jwtTokens.accessToken,
         user: userData,
         provider: 'apple'
       });
     }
 
+    // Robust delivery mechanism for Web
     return res.status(200).send(`
       <script>
         (function() {
-          var data = {
-            type: 'APPLE_LOGIN_SUCCESS',
-            token: '${jwtTokens.accessToken}',
-            user: ${JSON.stringify(userData)},
-            provider: 'apple'
-          };
+          var data = ${JSON.stringify(successData)};
           
           if (window.opener) {
-            // First attempt
+            // Popup flow
             window.opener.postMessage(data, '*');
-            
-            // Second attempt after a tiny delay to ensure delivery
-            setTimeout(function() {
-              window.opener.postMessage(data, '*');
-            }, 100);
+            setTimeout(function() { window.close(); }, 500);
+          } else {
+            // Full-page redirect flow
+            var token = data.token;
+            var userParam = encodeURIComponent(JSON.stringify(data.user));
+            window.location.href = "${callbackPageUrl}?token=" + token + "&user=" + userParam + "&provider=apple";
           }
-          
-          // Delayed close to ensure message delivery
-          setTimeout(function() {
-            window.close();
-          }, 500);
         })();
       </script>
     `);
+
   } catch (err) {
     logger.error("Apple callback processing failed", { message: err.message, stack: err.stack });
-    
-    if (expectsJson) {
-      return errorResponse(res, 400, "Processing failed: " + err.message);
-    }
-    
-    // For browser popups, we must return 200 with a script so it can close and show the error
-    return res.status(200).send(`
-      <script>
-        if (window.opener) {
-          window.opener.postMessage({ 
-            type: 'APPLE_LOGIN_ERROR', 
-            error: 'processing_failed',
-            message: '${err.message.replace(/'/g, "\\'")}'
-          }, '*');
-        }
-        window.close();
-      </script>
-    `);
+    return sendErrorResponse("processing_failed", err.message);
   }
 });
