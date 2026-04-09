@@ -56,6 +56,16 @@ const logAppleDebug = (message, details = null) => {
   console.log(`[AppleAuth] ${message}`)
 }
 
+const isAppleCancelError = (error) => {
+  if (!error) return false;
+  const errorData = typeof error === 'string' ? error : (error.error || error.message || "");
+  return (
+    errorData === "user-cancelled" ||
+    errorData === "popup_closed_by_user" ||
+    errorData === "user_cancelled"
+  );
+};
+
 export default function SignIn() {
   const navigate = useNavigate()
   const redirectToUserHome = () => {
@@ -70,7 +80,7 @@ export default function SignIn() {
     try {
       if (typeof localStorage === "undefined") return
       localStorage.setItem(key, value)
-    } catch {}
+    } catch { }
   }
   const safeLocalGet = (key) => {
     try {
@@ -84,13 +94,13 @@ export default function SignIn() {
     try {
       if (typeof localStorage === "undefined") return
       localStorage.removeItem(key)
-    } catch {}
+    } catch { }
   }
   const safeSessionSet = (key, value) => {
     try {
       if (typeof sessionStorage === "undefined") return
       sessionStorage.setItem(key, value)
-    } catch {}
+    } catch { }
   }
   const safeSessionGet = (key) => {
     try {
@@ -104,7 +114,7 @@ export default function SignIn() {
     try {
       if (typeof sessionStorage === "undefined") return
       sessionStorage.removeItem(key)
-    } catch {}
+    } catch { }
   }
   const setPendingProvider = (provider) => {
     if (!provider) return
@@ -150,7 +160,7 @@ export default function SignIn() {
             document.head.appendChild(script)
           })
         }
-        
+
         // Backend config load
         const configResponse = await authAPI.getAppleConfig()
         setAppleConfig(configResponse.data.data)
@@ -210,7 +220,7 @@ export default function SignIn() {
     const isSameOrigin = origin === window.location.origin;
     const isTifunboxDomain = origin.endsWith('tifunbox.com');
     const isLocal = import.meta.env.DEV && (origin.includes('localhost') || origin.includes('127.0.0.1'));
-    
+
     // Log incoming messages for debugging
     if (origin.includes('apple') || origin.includes('tifunbox')) {
       console.log("[AppleAuth] Message received from origin:", origin, "data type:", typeof event.data);
@@ -242,14 +252,14 @@ export default function SignIn() {
           // Clear loading immediately once we have data
           setIsAppleLoading(false);
           clearPendingProvider();
-          
+
           // Save auth data
           setAuthData("user", token, user);
-          
+
           // Notify app
           window.dispatchEvent(new Event("userAuthChanged"));
-          registerFcmTokenForLoggedInUser().catch(() => {});
-          
+          registerFcmTokenForLoggedInUser().catch(() => { });
+
           console.log("[AppleAuth] Auth data set. Navigating home...");
           // Immediate navigation
           navigate("/", { replace: true });
@@ -347,7 +357,7 @@ export default function SignIn() {
           }))
         }
       }
-    } catch (_) {}
+    } catch (_) { }
   }, [])
 
   // Helper function to process signed-in user
@@ -431,7 +441,7 @@ export default function SignIn() {
         window.dispatchEvent(new Event("userAuthChanged"))
 
         // Register FCM token for push notifications (fire-and-forget)
-        registerFcmTokenForLoggedInUser().catch(() => {})
+        registerFcmTokenForLoggedInUser().catch(() => { })
 
         // Clear any URL hash or params
         const hasHash = window.location.hash.length > 0
@@ -472,7 +482,7 @@ export default function SignIn() {
         try {
           const { signOut } = await import("firebase/auth")
           await signOut(firebaseAuth)
-        } catch (_) {}
+        } catch (_) { }
       }
 
       let errorMessage = "Failed to complete sign-in. Please try again."
@@ -496,7 +506,7 @@ export default function SignIn() {
     setAuthData("user", accessToken, appUser)
     window.dispatchEvent(new Event("userAuthChanged"))
 
-    registerFcmTokenForLoggedInUser().catch(() => {})
+    registerFcmTokenForLoggedInUser().catch(() => { })
 
     const hasHash = window.location.hash.length > 0
     const hasQueryParams = window.location.search.length > 0
@@ -899,7 +909,7 @@ export default function SignIn() {
           const { signInWithRedirect } = await import("firebase/auth")
           await signInWithRedirect(firebaseAuth, googleProvider)
           return
-        } catch (_) {}
+        } catch (_) { }
         message = "Popup was blocked. Please allow popups and try again."
       } else if (errorCode === "auth/popup-closed-by-user" || errorCode === "auth/cancelled-popup-request") {
         message = "Sign-in was cancelled."
@@ -1001,186 +1011,186 @@ export default function SignIn() {
       {/* Mobile: Bottom Section - White Login Form; Desktop: Right Section - Login Form */}
       <div className="flex-1 flex flex-col md:w-1/2 md:min-h-0 md:overflow-y-auto">
         <div className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 xl:p-10 md:flex md:items-center md:justify-center bg-white dark:bg-[#1a1a1a]">
-        <div className="max-w-md lg:max-w-lg xl:max-w-xl mx-auto space-y-6 md:space-y-8 lg:space-y-10 w-full">
-          {/* Heading */}
-          <div className="text-center space-y-2 md:space-y-3">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-black dark:text-white leading-tight">
-              India's #1 Food Delivery and Dining App
-            </h2>
-            <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-400">
-              Log in or sign up
-            </p>
-          </div>
+          <div className="max-w-md lg:max-w-lg xl:max-w-xl mx-auto space-y-6 md:space-y-8 lg:space-y-10 w-full">
+            {/* Heading */}
+            <div className="text-center space-y-2 md:space-y-3">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-black dark:text-white leading-tight">
+                India's #1 Food Delivery and Dining App
+              </h2>
+              <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-400">
+                Log in or sign up
+              </p>
+            </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
-            {/* Name field for sign up - hidden by default, shown only when needed */}
-            {isSignUp && (
-              <div className="space-y-2">
-                <Input
-                  id="name"
-                  name="name"
-                  placeholder="Enter your full name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className={`text-base md:text-lg h-12 md:h-14 bg-white dark:bg-[#1a1a1a] text-black dark:text-white ${errors.name ? "border-red-500" : "border-gray-300 dark:border-gray-700"} transition-colors`}
-                  aria-invalid={errors.name ? "true" : "false"}
-                />
-                {errors.name && (
-                  <div className="flex items-center gap-1 text-xs text-red-600">
-                    <AlertCircle className="h-3 w-3" />
-                    <span>{errors.name}</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Phone Number Input */}
-            {authMethod === "phone" && (
-              <div className="space-y-2">
-                <div className="flex gap-2 items-stretch">
-                  <Select
-                    value={formData.countryCode}
-                    onValueChange={handleCountryCodeChange}
-                  >
-                    <SelectTrigger
-                      className="w-[100px] md:w-[120px] !h-12 md:!h-14 border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] text-black dark:text-white rounded-lg flex items-center transition-colors"
-                      size="default"
-                      aria-label="Select country code"
-                    >
-                      <SelectValue>
-                        <span className="flex items-center gap-2 text-sm md:text-base">
-                          <span>{selectedCountry.country}</span>
-                          <span>{selectedCountry.code}</span>
-                        </span>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px] overflow-y-auto">
-                      {countryCodes.map((country) => (
-                        <SelectItem key={country.code} value={country.code}>
-                          <span className="flex items-center gap-2">
-                            <span>{country.country}</span>
-                            <span>{country.code}</span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
+              {/* Name field for sign up - hidden by default, shown only when needed */}
+              {isSignUp && (
+                <div className="space-y-2">
                   <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    inputMode="numeric"
-                    autoComplete="tel-national"
-                    placeholder="Enter Phone Number"
-                    value={formData.phone}
+                    id="name"
+                    name="name"
+                    placeholder="Enter your full name"
+                    value={formData.name}
                     onChange={handleChange}
-                    className={`flex-1 h-12 md:h-14 text-base md:text-lg bg-white dark:bg-[#1a1a1a] text-black dark:text-white border-gray-300 dark:border-gray-700 rounded-lg ${errors.phone ? "border-red-500" : ""} transition-colors`}
-                    aria-invalid={errors.phone ? "true" : "false"}
+                    className={`text-base md:text-lg h-12 md:h-14 bg-white dark:bg-[#1a1a1a] text-black dark:text-white ${errors.name ? "border-red-500" : "border-gray-300 dark:border-gray-700"} transition-colors`}
+                    aria-invalid={errors.name ? "true" : "false"}
                   />
+                  {errors.name && (
+                    <div className="flex items-center gap-1 text-xs text-red-600">
+                      <AlertCircle className="h-3 w-3" />
+                      <span>{errors.name}</span>
+                    </div>
+                  )}
                 </div>
-                {errors.phone && (
-                  <div className="flex items-center gap-1 text-xs text-red-600">
-                    <AlertCircle className="h-3 w-3" />
-                    <span>{errors.phone}</span>
-                  </div>
-                )}
-                {apiError && authMethod === "phone" && (
-                  <div className="flex items-center gap-1 text-xs text-red-600">
-                    <AlertCircle className="h-3 w-3" />
-                    <span>{apiError}</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Email Input */}
-            {authMethod === "email" && (
-              <div className="space-y-2">
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="Enter your email address"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className={`w-full h-12 md:h-14 text-base md:text-lg bg-white dark:bg-[#1a1a1a] text-black dark:text-white border-gray-300 dark:border-gray-700 rounded-lg ${errors.email ? "border-red-500" : ""} transition-colors`}
-                  aria-invalid={errors.email ? "true" : "false"}
-                />
-                {errors.email && (
-                  <div className="flex items-center gap-1 text-xs text-red-600">
-                    <AlertCircle className="h-3 w-3" />
-                    <span>{errors.email}</span>
-                  </div>
-                )}
-                {apiError && authMethod === "email" && (
-                  <div className="flex items-center gap-1 text-xs text-red-600">
-                    <AlertCircle className="h-3 w-3" />
-                    <span>{apiError}</span>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMethod("phone")
-                    setApiError("")
-                  }}
-                  className="text-xs text-[#671E1F] hover:underline text-left"
-                >
-                  Use phone instead
-                </button>
-              </div>
-            )}
-
-            {/* Remember Me Checkbox */}
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="rememberMe"
-                checked={formData.rememberMe}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, rememberMe: checked === true })
-                }
-                className="w-4 h-4 border-2 border-gray-300 rounded data-[state=checked]:bg-[#671E1F] data-[state=checked]:border-[#671E1F] flex items-center justify-center text-white"
-              />
-              <label
-                htmlFor="rememberMe"
-                className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none"
-              >
-                Remember my login for faster sign-in
-              </label>
-            </div>
-
-            {/* Continue Button */}
-            <Button
-              type="submit"
-              className="w-full h-12 md:h-14 text-white font-bold text-base md:text-lg rounded-lg transition-all hover:shadow-lg active:scale-[0.98]"
-              style={{ backgroundColor: "#671E1F" }}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {isSignUp ? "Creating Account..." : "Signing In..."}
-                </>
-              ) : (
-                "Continue"
               )}
-            </Button>
-          </form>
 
-          {/* Or Separator */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-gray-300" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-white dark:bg-[#1a1a1a] px-2 text-sm text-gray-500 dark:text-gray-400">
-                or
-              </span>
-            </div>
-          </div>
+              {/* Phone Number Input */}
+              {authMethod === "phone" && (
+                <div className="space-y-2">
+                  <div className="flex gap-2 items-stretch">
+                    <Select
+                      value={formData.countryCode}
+                      onValueChange={handleCountryCodeChange}
+                    >
+                      <SelectTrigger
+                        className="w-[100px] md:w-[120px] !h-12 md:!h-14 border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] text-black dark:text-white rounded-lg flex items-center transition-colors"
+                        size="default"
+                        aria-label="Select country code"
+                      >
+                        <SelectValue>
+                          <span className="flex items-center gap-2 text-sm md:text-base">
+                            <span>{selectedCountry.country}</span>
+                            <span>{selectedCountry.code}</span>
+                          </span>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px] overflow-y-auto">
+                        {countryCodes.map((country) => (
+                          <SelectItem key={country.code} value={country.code}>
+                            <span className="flex items-center gap-2">
+                              <span>{country.country}</span>
+                              <span>{country.code}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel-national"
+                      placeholder="Enter Phone Number"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className={`flex-1 h-12 md:h-14 text-base md:text-lg bg-white dark:bg-[#1a1a1a] text-black dark:text-white border-gray-300 dark:border-gray-700 rounded-lg ${errors.phone ? "border-red-500" : ""} transition-colors`}
+                      aria-invalid={errors.phone ? "true" : "false"}
+                    />
+                  </div>
+                  {errors.phone && (
+                    <div className="flex items-center gap-1 text-xs text-red-600">
+                      <AlertCircle className="h-3 w-3" />
+                      <span>{errors.phone}</span>
+                    </div>
+                  )}
+                  {apiError && authMethod === "phone" && (
+                    <div className="flex items-center gap-1 text-xs text-red-600">
+                      <AlertCircle className="h-3 w-3" />
+                      <span>{apiError}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
-          {/* Social Login Controls */}
+              {/* Email Input */}
+              {authMethod === "email" && (
+                <div className="space-y-2">
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="Enter your email address"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={`w-full h-12 md:h-14 text-base md:text-lg bg-white dark:bg-[#1a1a1a] text-black dark:text-white border-gray-300 dark:border-gray-700 rounded-lg ${errors.email ? "border-red-500" : ""} transition-colors`}
+                    aria-invalid={errors.email ? "true" : "false"}
+                  />
+                  {errors.email && (
+                    <div className="flex items-center gap-1 text-xs text-red-600">
+                      <AlertCircle className="h-3 w-3" />
+                      <span>{errors.email}</span>
+                    </div>
+                  )}
+                  {apiError && authMethod === "email" && (
+                    <div className="flex items-center gap-1 text-xs text-red-600">
+                      <AlertCircle className="h-3 w-3" />
+                      <span>{apiError}</span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMethod("phone")
+                      setApiError("")
+                    }}
+                    className="text-xs text-[#671E1F] hover:underline text-left"
+                  >
+                    Use phone instead
+                  </button>
+                </div>
+              )}
+
+              {/* Remember Me Checkbox */}
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="rememberMe"
+                  checked={formData.rememberMe}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, rememberMe: checked === true })
+                  }
+                  className="w-4 h-4 border-2 border-gray-300 rounded data-[state=checked]:bg-[#671E1F] data-[state=checked]:border-[#671E1F] flex items-center justify-center text-white"
+                />
+                <label
+                  htmlFor="rememberMe"
+                  className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none"
+                >
+                  Remember my login for faster sign-in
+                </label>
+              </div>
+
+              {/* Continue Button */}
+              <Button
+                type="submit"
+                className="w-full h-12 md:h-14 text-white font-bold text-base md:text-lg rounded-lg transition-all hover:shadow-lg active:scale-[0.98]"
+                style={{ backgroundColor: "#671E1F" }}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {isSignUp ? "Creating Account..." : "Signing In..."}
+                  </>
+                ) : (
+                  "Continue"
+                )}
+              </Button>
+            </form>
+
+            {/* Or Separator */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-white dark:bg-[#1a1a1a] px-2 text-sm text-gray-500 dark:text-gray-400">
+                  or
+                </span>
+              </div>
+            </div>
+
+            {/* Social Login Controls */}
             <div className="flex justify-center items-center gap-4 md:gap-6">
               {/* Apple Login Component */}
               <div className="relative group">
@@ -1246,20 +1256,20 @@ export default function SignIn() {
               {appleError && <p className="text-xs text-red-600 font-medium">{appleError}</p>}
             </div>
 
-          {/* Legal Disclaimer */}
-          <div className="text-center text-xs md:text-sm text-gray-500 dark:text-gray-400 pt-4 md:pt-6">
-            <p className="mb-1 md:mb-2">
-              By continuing, you agree to our
-            </p>
-            <div className="flex justify-center gap-2 flex-wrap">
-              <Link to="/terms" className="underline hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Terms of Service</Link>
-              <span>•</span>
-              <Link to="/privacy" className="underline hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Privacy Policy</Link>
-              <span>•</span>
-              <Link to="/content-policy" className="underline hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Content Policy</Link>
+            {/* Legal Disclaimer */}
+            <div className="text-center text-xs md:text-sm text-gray-500 dark:text-gray-400 pt-4 md:pt-6">
+              <p className="mb-1 md:mb-2">
+                By continuing, you agree to our
+              </p>
+              <div className="flex justify-center gap-2 flex-wrap">
+                <Link to="/terms" className="underline hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Terms of Service</Link>
+                <span>•</span>
+                <Link to="/privacy" className="underline hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Privacy Policy</Link>
+                <span>•</span>
+                <Link to="/content-policy" className="underline hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Content Policy</Link>
+              </div>
             </div>
           </div>
-        </div>
         </div>
       </div>
     </AnimatedPage>
