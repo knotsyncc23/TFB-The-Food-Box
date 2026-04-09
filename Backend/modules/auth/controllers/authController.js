@@ -1514,6 +1514,9 @@ export const appleCallback = asyncHandler(async (req, res) => {
       return errorResponse(res, 400, message || errCode);
     }
 
+    // Add CSP header to allow the inline script we're about to send
+    res.setHeader("Content-Security-Policy", "script-src 'self' 'unsafe-inline';");
+
     // Try popup message first, then fallback to redirect
     return res.status(200).send(`
       <script>
@@ -1659,6 +1662,9 @@ export const appleCallback = asyncHandler(async (req, res) => {
         provider: 'apple'
       });
     }
+
+    // Add CSP header to allow the inline script we're about to send
+    res.setHeader("Content-Security-Policy", "script-src 'self' 'unsafe-inline';");
 
     // Robust delivery mechanism for Web
     return res.status(200).send(`
