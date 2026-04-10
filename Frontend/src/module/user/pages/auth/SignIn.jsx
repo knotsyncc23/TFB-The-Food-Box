@@ -594,11 +594,27 @@ export default function SignIn() {
     }
 
     init()
+    
+    // Listen for storage events (e.g. from the Apple OAuth popup)
+    const handleStorageChange = (e) => {
+      // Check for user login
+      if (e.key === "user_authenticated" && e.newValue === "true") {
+        console.log("[SignIn] Detected successful user auth in another window");
+        redirectToUserHome();
+      }
+      // Handle cross-module redirects if needed
+      if (e.key === "restaurant_authenticated" && e.newValue === "true") {
+        console.log("[SignIn] Detected restaurant auth, redirecting...");
+        navigate("/restaurant", { replace: true });
+      }
+    };
 
+    window.addEventListener("storage", handleStorageChange);
     return () => {
-      if (unsubscribe) unsubscribe()
+      if (unsubscribe) unsubscribe();
+      window.removeEventListener("storage", handleStorageChange);
     }
-  }, [navigate])
+  }, [navigate]);
 
   // Get selected country details dynamically
   const selectedCountry = countryCodes.find(c => c.code === formData.countryCode) || countryCodes[2] // Default to India (+91)

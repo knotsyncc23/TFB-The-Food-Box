@@ -31,6 +31,33 @@ export default function AuthCallback() {
     const effectiveRole = urlState || userData?.role || "user";
     console.log(`[AuthCallback] Decision Logic: state=${urlState}, userRole=${userData?.role} => effectiveRole=${effectiveRole}`);
     
+    // Check if we are in a popup window
+    const isPopup = window.opener !== null || window.name === "Apple Login";
+    
+    if (isPopup) {
+      console.log("[AuthCallback] Success in popup, attempting to notify opener and close...");
+      
+      // Try to notify opener via postMessage (if still linked)
+      if (window.opener) {
+        window.opener.postMessage({
+          type: "APPLE_LOGIN_SUCCESS",
+          provider: "apple",
+          token: localStorage.getItem(`${effectiveRole}_accessToken`),
+          user: userData,
+          role: effectiveRole
+        }, "*");
+        
+        // Give a tiny bit of time for postMessage then close
+        setTimeout(() => window.close(), 100);
+        return;
+      } else {
+        // Opener link is dead (common on iOS Safari native login)
+        // Since we saved to localStorage, the main window's storage listener will pick it up.
+        console.log("[AuthCallback] Opener is null, storage listener should handle redirection in main window.");
+        // We can show a success message here or redirect to the dashboard inside the popup as fallback
+      }
+    }
+
     if (effectiveRole === "restaurant") {
       console.log("[AuthCallback] Navigating to RESTAURANT portal (/restaurant)");
       navigate("/restaurant", { replace: true })
@@ -362,9 +389,19 @@ export default function AuthCallback() {
                   Welcome!
                 </h3>
                 <p className="text-sm md:text-base text-muted-foreground">
-                  Redirecting you to the home page...
+                  {(window.opener === null && window.name === "Apple Login") 
+                    ? "Login successful! You can now close this window."
+                    : "Redirecting you to the home page..."}
                 </p>
               </div>
+              {(window.opener === null && window.name === "Apple Login") && (
+                <Button 
+                  onClick={() => window.close()}
+                  className="w-full bg-black hover:bg-gray-800 text-white"
+                >
+                  Close This Window
+                </Button>
+              )}
             </div>
           )}
 

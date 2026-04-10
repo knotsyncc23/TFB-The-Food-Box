@@ -50,11 +50,26 @@ export default function RestaurantSignIn() {
 
   // Redirect to restaurant home if already authenticated
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem("restaurant_authenticated") === "true"
-    if (isAuthenticated) {
-      navigate("/restaurant", { replace: true })
-    }
-  }, [navigate])
+    const checkAuth = () => {
+      const isAuthenticated = localStorage.getItem("restaurant_authenticated") === "true";
+      if (isAuthenticated) {
+        navigate("/restaurant", { replace: true });
+      }
+    };
+
+    checkAuth();
+
+    // Listen for storage events (e.g. from the Apple OAuth popup)
+    const handleStorageChange = (e) => {
+      if (e.key === "restaurant_authenticated" && e.newValue === "true") {
+        console.log("[RestaurantSignIn] Detected successful auth in another window");
+        navigate("/restaurant", { replace: true });
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault()
