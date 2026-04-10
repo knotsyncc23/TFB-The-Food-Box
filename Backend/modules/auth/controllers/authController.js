@@ -1128,7 +1128,7 @@ export const googleCallback = asyncHandler(async (req, res) => {
         user.googleId = googleUser.googleId;
         user.googleEmail = googleUser.email;
         if (!user.profileImage && googleUser.picture) {
-           // Restaurant model uses url object for profileImage
+          // Restaurant model uses url object for profileImage
           if (userRole === "restaurant") {
             user.profileImage = { url: googleUser.picture };
           } else {
@@ -1141,7 +1141,7 @@ export const googleCallback = asyncHandler(async (req, res) => {
         }
         await user.save();
       }
-      
+
       // Log role mismatch for debugging but allow login
       if (userRole === "restaurant" && user.role !== "restaurant") {
         logger.info(`Google Login Role Mismatch: Account is ${user.role}, logging in from restaurant portal (Model: ${userRole === "restaurant" ? "Restaurant" : "User"})`);
@@ -1488,7 +1488,7 @@ export const appleCallback = asyncHandler(async (req, res) => {
   const appleUserJson = body.user || query.user;
   const error = body.error || query.error;
   const passedClientId = body.clientId || query.clientId;
-  
+
   // Use role from query if provided, otherwise fallback to state
   const effectiveRole = roleFromQuery || state || "user";
 
@@ -1613,33 +1613,79 @@ export const appleCallback = asyncHandler(async (req, res) => {
     const AuthModel = userRole === "restaurant" ? Restaurant : User;
 
     // 5. Find or create account
-    const lookupConditions = [{ appleId }];
-    if (email) {
-      lookupConditions.push({ email });
-    }
+    // 1. PRIMARY: Match by appleId
+    let user = await AuthModel.findOne({ appleId });
 
-    let user = await AuthModel.findOne({ $or: lookupConditions });
+    // 2. FALLBACK: Match by email (Only for safe linking)
+    if (!user && email) {
+      const emailUser = await AuthModel.findOne({ email });
 
-    // Log role mismatch for debugging
-    if (user && user.role && user.role !== userRole) {
-       logger.info(`Apple Login Status: Account role is ${user.role}, but logging into ${userRole} portal (Model: ${userRole === "restaurant" ? "Restaurant" : "User"}).`);
-    }
-
-    if (!user && !email) {
-       logger.warn("Apple Login Warning: No existing user found and no email received from Apple. This will create a new account without email matching.", { appleId, role: userRole });
+      if (emailUser) {
+        if (!emailUser.appleId) {
+          // ✅ SAFE TO LINK: Fresh account from OTP/Email
+          emailUser.appleId = appleId;
+          emailUser.signupMethod = "apple";
+          await emailUser.save();
+          user = emailUser;
+          logger.info(`[AppleAuth] Linked existing ${userRole} via email: ${email}`);
+        } else {
+          // ❌ CONFLICT: Email already linked to a DIFFERENT Apple ID
+          logger.error(`[AppleAuth] Conflict: Email ${email} already linked to another Apple ID.`);
+          return res.status(403).send(`
+            <html>
+              <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+                <div style="text-align: center; padding: 20px;">
+                  <h2 style="color: #e23744;">Login Conflict</h2>
+                  <p>This email is already associated with a different Apple account.</p>
+                  <p style="color: #666; font-size: 14px;">Please use the correct Apple ID to login.</p>
+                </div>
+                <script>
+                  if (window.opener) {
+                    window.opener.postMessage({ 
+                      type: "APPLE_LOGIN_ERROR", 
+                      error: "This email is already associated with a different Apple account." 
+                    }, "*");
+                  }
+                  setTimeout(() => window.close(), 4000);
+                </script>
+              </body>
+            </html>
+          `);
+        }
+      }
     }
 
     if (user) {
-      // Update existing account
-      let shouldSave = false;
-      if (!user.appleId) { user.appleId = appleId; shouldSave = true; }
-      if (user.signupMethod !== "apple") { user.signupMethod = "apple"; shouldSave = true; }
-      
-      // Update profile image if missing and we have a name
-      if (!user.profileImage && fullName && userRole === "user") {
-        // user.profileImage = ...
+      // Role mismatch check (Strict)
+      if (user.role !== userRole) {
+        logger.error(`[AppleAuth] Role mismatch: User is ${user.role}, but tried to login as ${userRole}`);
+        return res.status(403).send(`
+          <html>
+            <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+              <div style="text-align: center; padding: 20px;">
+                <h2 style="color: #e23744;">Access Denied</h2>
+                <p>Mismatched account type. Please use the correct login portal.</p>
+              </div>
+              <script>
+                if (window.opener) {
+                  window.opener.postMessage({ 
+                    type: "APPLE_LOGIN_ERROR", 
+                    error: "Mismatched account type. Please use the correct login portal." 
+                  }, "*");
+                }
+                setTimeout(() => window.close(), 4000);
+              </script>
+            </body>
+          </html>
+        `);
       }
-      
+
+      // Update existing account fields if necessary
+      let shouldSave = false;
+      if (user.signupMethod !== "apple") {
+        user.signupMethod = "apple";
+        shouldSave = true;
+      }
       if (shouldSave) await user.save();
     } else {
       // Create new account
@@ -1658,7 +1704,7 @@ export const appleCallback = asyncHandler(async (req, res) => {
           isActive: process.env.NODE_ENV === "development" || true // Set true to allow social entry
         })
       };
-      
+
       user = await AuthModel.create(accountData);
       logger.info(`New ${userRole} created via Apple: ${user._id}`);
     }
@@ -1701,7 +1747,7 @@ export const appleCallback = asyncHandler(async (req, res) => {
     // Construct standard redirect URL
     const redirectPath = "/auth/callback";
     const redirectUrl = `${frontendUrl}${redirectPath}?token=${jwtTokens.accessToken}&user=${encodeURIComponent(JSON.stringify(userData))}&state=${effectiveRole}`;
-    
+
     logger.info(`Apple Login Successful: Redirecting to ${redirectUrl} for role ${effectiveRole}`);
 
     // Support JSON response for native apps (Mobile)
@@ -1739,8 +1785,8 @@ export const appleCallback = asyncHandler(async (req, res) => {
     `);
 
   } catch (err) {
-    logger.error("Apple callback processing failed", { 
-      message: err.message, 
+    logger.error("Apple callback processing failed", {
+      message: err.message,
       stack: err.stack,
       response: err.response?.data
     });
