@@ -17,6 +17,13 @@ const LoginWithApple = ({ clientId, redirectURI, isLoading, state = "user" }) =>
       `state=${state}&` +
       `role=${state}`;
 
+    // Store pending provider for the loading screen
+    try {
+      const payload = JSON.stringify({ provider: "apple", startedAt: Date.now() });
+      sessionStorage.setItem("pendingSocialProvider", payload);
+      localStorage.setItem("pendingSocialProvider", payload);
+    } catch (e) {}
+
     // Open popup
     const width = 600;
     const height = 600;

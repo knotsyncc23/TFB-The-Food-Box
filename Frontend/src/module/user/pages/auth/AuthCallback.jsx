@@ -54,10 +54,20 @@ export default function AuthCallback() {
     const handleAuthCallback = async () => {
       try {
         syncAppleLogs()
-        // Get provider from URL params
+        // Get provider from storage if available (set by the login buttons)
+        const getStoredProvider = () => {
+          try {
+            const stored = sessionStorage.getItem("pendingSocialProvider") || localStorage.getItem("pendingSocialProvider")
+            if (!stored) return null
+            const parsed = JSON.parse(stored)
+            return typeof parsed?.provider === "string" ? parsed.provider : null
+          } catch { return null }
+        }
+
         const providerParam =
           searchParams.get("provider") ||
-          (window.location.pathname.includes("apple") || searchParams.has("id_token") ? "apple" : "google")
+          getStoredProvider() ||
+          (window.location.pathname.toLowerCase().includes("apple") || searchParams.has("id_token") ? "apple" : "google")
         setProvider(providerParam)
         if (providerParam === "apple") {
           logAppleCallback("Callback handler started", {
