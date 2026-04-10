@@ -57,10 +57,20 @@ export default function AuthCallback() {
         // Get provider from storage if available (set by the login buttons)
         const getStoredProvider = () => {
           try {
+            // Check for direct provider flag
             const stored = sessionStorage.getItem("pendingSocialProvider") || localStorage.getItem("pendingSocialProvider")
-            if (!stored) return null
-            const parsed = JSON.parse(stored)
-            return typeof parsed?.provider === "string" ? parsed.provider : null
+            if (stored) {
+              const parsed = JSON.parse(stored)
+              if (typeof parsed?.provider === "string") return parsed.provider
+            }
+            
+            // Fallback: Check for user-side specific apple flag
+            if (sessionStorage.getItem("apple_signin_started") === "1" || 
+                localStorage.getItem("apple_signin_started") === "1") {
+              return "apple";
+            }
+            
+            return null
           } catch { return null }
         }
 
