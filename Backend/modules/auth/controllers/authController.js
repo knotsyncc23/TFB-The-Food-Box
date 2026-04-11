@@ -1576,8 +1576,24 @@ export const appleCallback = asyncHandler(async (req, res) => {
     } catch (exchangeError) {
       const isMismatch = exchangeError.message.includes("client_id mismatch") || exchangeError.message.includes("invalid_client");
       if (isMismatch) {
-        logger.info("[AppleAuth] Step 1 Fallback: Retrying with app.tifunbox.com...");
-        tokens = await appleAuthService.exchangeCode(code, null, "app.tifunbox.com");
+        logger.info("[AppleAuth] Step 1 Fallback: Retrying with alternate client IDs...");
+        try {
+          // Try User Web ID
+          tokens = await appleAuthService.exchangeCode(code, null, "app.tifunbox.com");
+        } catch (e2) {
+          try {
+            // Try Restaurant App ID
+            tokens = await appleAuthService.exchangeCode(code, null, "app.tifunbox.com.restaurant");
+          } catch (e3) {
+            try {
+              // Try Delivery App ID
+              tokens = await appleAuthService.exchangeCode(code, null, "com.tifunbox.delivery");
+            } catch (e4) {
+              // If all fallbacks fail, throw the original error or the most recent one
+              throw exchangeError;
+            }
+          }
+        }
       } else {
         throw exchangeError;
       }
@@ -1734,14 +1750,18 @@ export const appleCallback = asyncHandler(async (req, res) => {
       role: user.role,
       profileImage: user.profileImage,
       signupMethod: user.signupMethod,
+      accessToken: jwtTokens.accessToken,
     };
 
     const successData = {
       type: 'APPLE_LOGIN_SUCCESS',
       token: jwtTokens.accessToken,
+      accessToken: jwtTokens.accessToken,
       user: userData,
-      provider: 'apple',
-      role: effectiveRole // Explicitly pass the state/role from the login initiation
+      name: user.name || userData.name,
+      role: effectiveRole,
+      signupMethod: user.signupMethod || 'apple',
+      provider: 'apple'
     };
 
     // Construct standard redirect URL
@@ -1756,9 +1776,11 @@ export const appleCallback = asyncHandler(async (req, res) => {
       return res.status(200).json({
         success: true,
         data: {
+          token: jwtTokens.accessToken,
           accessToken: jwtTokens.accessToken,
           user: userData,
-          role: effectiveRole
+          role: effectiveRole,
+          signupMethod: user.signupMethod || 'apple'
         },
       });
     }
