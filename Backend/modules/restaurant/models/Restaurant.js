@@ -82,6 +82,11 @@ const restaurantSchema = new mongoose.Schema(
       enum: ["google", "apple", "phone", "email"],
       default: null,
     },
+    authProvider: {
+      type: String,
+      enum: ["email", "phone", "google", "apple"],
+      default: "email",
+    },
     // Owner information (now stored directly in restaurant)
     ownerName: {
       type: String,

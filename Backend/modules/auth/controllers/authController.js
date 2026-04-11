@@ -1750,11 +1750,11 @@ export const appleCallback = asyncHandler(async (req, res) => {
     // 7. Success Response (supports Popup postMessage and Redirect)
     const userData = {
       id: user._id,
-      name: user.name,
+      name: user.name || user.ownerName || fullName || "Apple User",
       email: user.email,
-      role: user.role,
+      role: user.role || effectiveRole,
       profileImage: user.profileImage,
-      signupMethod: user.signupMethod,
+      signupMethod: user.signupMethod || "apple",
       accessToken: jwtTokens.accessToken,
     };
 
@@ -1763,9 +1763,8 @@ export const appleCallback = asyncHandler(async (req, res) => {
       token: jwtTokens.accessToken,
       accessToken: jwtTokens.accessToken,
       user: userData,
-      name: user.name || userData.name,
-      role: effectiveRole,
-      signupMethod: user.signupMethod || 'apple',
+      role: user.role || effectiveRole,
+      signupMethod: user.signupMethod || "apple",
       provider: 'apple'
     };
 
@@ -1806,6 +1805,13 @@ export const appleCallback = asyncHandler(async (req, res) => {
             url: window.location.href, 
             body: data 
           });
+
+          // Persistent communication fallback for iOS Safari/WebViews
+          try {
+            localStorage.setItem(data.role + "_authenticated", "true");
+            localStorage.setItem(data.role + "_token", data.token);
+            localStorage.setItem(data.role + "_user", JSON.stringify(data.user));
+          } catch (e) {}
           
           if (window.opener) {
             // Popup flow
