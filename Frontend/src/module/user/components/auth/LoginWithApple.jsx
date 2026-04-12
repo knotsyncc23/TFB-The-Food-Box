@@ -2,20 +2,44 @@ import React from 'react';
 import AppleLogin from 'react-apple-login';
 
 const LoginWithApple = ({ clientId, redirectURI, isLoading, state = "user" }) => {
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (isLoading) return;
 
+    // Generate state with role and client ID to help the backend prioritize correctly
     const finalClientId = clientId || "com.tifunbox.web";
     const finalRedirectURI = redirectURI || "https://backend.tifunbox.com/api/auth/apple/callback";
+    const appleState = `${state}:${finalClientId}`;
+    
+    // Check if we are on iOS Safari - official library handles native UI (Passkeys) much better
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const useOfficialLib = (isIOS || isSafari) && window.AppleID;
 
-    // Construct Apple Auth URL
+    if (useOfficialLib) {
+      console.log("[LoginWithApple] Using official Apple library for better iOS/Passkey support");
+      try {
+        window.AppleID.auth.init({
+          clientId: finalClientId,
+          scope: "name email",
+          redirectURI: finalRedirectURI,
+          state: appleState,
+          usePopup: true,
+        });
+        await window.AppleID.auth.signIn();
+        return;
+      } catch (err) {
+        console.error("[LoginWithApple] Official lib failed, falling back to popup", err);
+      }
+    }
+
+    // Fallback: Construct Apple Auth URL manually
     const authUrl = `https://appleid.apple.com/auth/authorize?` +
       `client_id=${finalClientId}&` +
       `redirect_uri=${encodeURIComponent(finalRedirectURI)}&` +
       `response_type=code&` +
       `response_mode=form_post&` +
       `scope=name%20email&` +
-      `state=${state}`;
+      `state=${appleState}`;
 
     // Store pending provider for the loading screen
     try {

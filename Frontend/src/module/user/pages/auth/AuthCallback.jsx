@@ -28,8 +28,13 @@ export default function AuthCallback() {
   const redirectToDashboard = (userData, urlState) => {
     // Priority: If the login started from restaurant page (state=restaurant), go there.
     // Otherwise fallback to user's saved role.
-    const effectiveRole = urlState || userData?.role || "user";
-    console.log(`[AuthCallback] Decision Logic: state=${urlState}, userRole=${userData?.role} => effectiveRole=${effectiveRole}`);
+    // Handle combined role:clientId state string
+    const cleanRole = urlState && typeof urlState === "string" && urlState.includes(":") 
+      ? urlState.split(":")[0] 
+      : urlState;
+      
+    const effectiveRole = cleanRole || userData?.role || "user";
+    console.log(`[AuthCallback] Decision Logic: state=${urlState}, cleanRole=${cleanRole}, userRole=${userData?.role} => effectiveRole=${effectiveRole}`);
     
     // Check if we are in a popup window
     const isPopup = window.opener !== null || window.name === "Apple Login";
@@ -129,9 +134,16 @@ export default function AuthCallback() {
         // Get OAuth parameters from URL
         const code = searchParams.get("code")
         const errorParam = searchParams.get("error")
-        const state = searchParams.get("state")
+        const state = searchParams.get("state");
+        // Extract real role if state contains a colon (format: role:clientId)
+        let actualState = state;
+        if (state && typeof state === "string" && state.includes(":")) {
+          actualState = state.split(":")[0];
+        }
+
         const validRoles = ["user", "restaurant", "delivery", "admin"];
-        const effectiveRole = validRoles.includes(state) ? state : "user";
+        const appleState = validRoles.includes(actualState) ? actualState : "user";
+        const effectiveRole = appleState;
 
         // Check for OAuth errors
         if (errorParam) {
@@ -145,7 +157,7 @@ export default function AuthCallback() {
           if (errorParam === "access_denied") {
             setError("You cancelled the sign-in. Redirecting you back...")
             setTimeout(() => {
-              const redirectPath = state === "restaurant" ? "/restaurant/login" : "/user/auth/sign-in";
+              const redirectPath = effectiveRole === "restaurant" ? "/restaurant/login" : "/user/auth/sign-in";
               navigate(redirectPath, { replace: true })
             }, 1200)
             return

@@ -1572,13 +1572,39 @@ export const appleCallback = asyncHandler(async (req, res) => {
     // Step 1: Exchange code for tokens (Sequential Fallback for multiple Client IDs)
     let tokens;
     let exchangeError;
+
+    // Choose IDs based on role and environment to speed up the process and avoid burning codes
+    const ua = req.headers["user-agent"] || "";
+    const isBrowser = (ua.includes("Mozilla") || ua.includes("Safari") || ua.includes("Chrome") || ua.includes("Mobile")) && !ua.includes("Dart") && !ua.includes("Flutter");
     
-    // Choose IDs based on role to speed up the process
+    // Support passed client ID in state (format: role:clientId)
+    let stateClientId = null;
+    let actualRole = effectiveRole || "user";
+    if (state && typeof state === "string" && state.includes(":")) {
+      const parts = state.split(":");
+      actualRole = parts[0] || actualRole;
+      stateClientId = parts[1];
+    }
+    
     let clientIdsToTry = ["com.tifunbox.web", "app.tifunbox.com", "app.tifunbox.com.restaurant", "com.tifunbox.restaurant", "com.tifunbox.delivery"];
-    if (effectiveRole === "restaurant") {
-      clientIdsToTry = ["app.tifunbox.com.restaurant", "com.tifunbox.restaurant", "com.tifunbox.web", "app.tifunbox.com"];
-    } else if (effectiveRole === "delivery") {
-      clientIdsToTry = ["com.tifunbox.delivery", "com.tifunbox.web"];
+    
+    // Prioritize based on role and environment
+    if (stateClientId) {
+       clientIdsToTry = [stateClientId, ...clientIdsToTry.filter(id => id !== stateClientId)];
+    } else if (actualRole === "restaurant") {
+      if (isBrowser) {
+        // For web browsers hitting the restaurant panel, com.tifunbox.web is the most likely client ID
+        clientIdsToTry = ["com.tifunbox.web", "app.tifunbox.com.restaurant", "com.tifunbox.restaurant", "app.tifunbox.com"];
+      } else {
+        // For native apps, keep the specialized IDs first
+        clientIdsToTry = ["app.tifunbox.com.restaurant", "com.tifunbox.restaurant", "com.tifunbox.web", "app.tifunbox.com"];
+      }
+    } else if (actualRole === "delivery") {
+      clientIdsToTry = isBrowser ? ["com.tifunbox.web", "com.tifunbox.delivery"] : ["com.tifunbox.delivery", "com.tifunbox.web"];
+    } else {
+      if (isBrowser) {
+        clientIdsToTry = ["com.tifunbox.web", "app.tifunbox.com", "com.tifunbox.delivery"];
+      }
     }
 
     for (const cid of clientIdsToTry) {
@@ -1587,8 +1613,9 @@ export const appleCallback = asyncHandler(async (req, res) => {
         if (tokens) break; // Success!
       } catch (err) {
         exchangeError = err;
-        // If it's a mismatch or invalid_client, try the next one
-        const isMismatch = err.message.includes("client_id mismatch") || err.message.includes("invalid_client");
+        const msg = err.message || "";
+        // If it's a mismatch, try the next one
+        const isMismatch = msg.includes("client_id mismatch") || msg.includes("invalid_client") || msg.includes("invalid_request");
         if (!isMismatch) break; // If it's another error (like network), stop immediately
       }
     }
