@@ -1489,8 +1489,16 @@ export const appleCallback = asyncHandler(async (req, res) => {
   const error = body.error || query.error;
   const passedClientId = body.clientId || query.clientId;
 
-  // Use role from query if provided, otherwise fallback to state
-  const effectiveRole = roleFromQuery || state || "user";
+  // 1.5 Parse combined state if present (format: role:clientId)
+  let stateClientId = null;
+  let cleanRole = roleFromQuery || state || "user";
+  if (state && typeof state === "string" && state.includes(":")) {
+    const parts = state.split(":");
+    cleanRole = parts[0] || cleanRole;
+    stateClientId = parts[1];
+  }
+
+  const effectiveRole = cleanRole;
 
   // 2. Logging for production debugging
   logger.info("Apple OAuth callback received", {
@@ -1577,21 +1585,12 @@ export const appleCallback = asyncHandler(async (req, res) => {
     const ua = req.headers["user-agent"] || "";
     const isBrowser = (ua.includes("Mozilla") || ua.includes("Safari") || ua.includes("Chrome") || ua.includes("Mobile")) && !ua.includes("Dart") && !ua.includes("Flutter");
     
-    // Support passed client ID in state (format: role:clientId)
-    let stateClientId = null;
-    let actualRole = effectiveRole || "user";
-    if (state && typeof state === "string" && state.includes(":")) {
-      const parts = state.split(":");
-      actualRole = parts[0] || actualRole;
-      stateClientId = parts[1];
-    }
-    
     let clientIdsToTry = ["com.tifunbox.web", "app.tifunbox.com", "app.tifunbox.com.restaurant", "com.tifunbox.restaurant", "com.tifunbox.delivery"];
     
     // Prioritize based on role and environment
     if (stateClientId) {
        clientIdsToTry = [stateClientId, ...clientIdsToTry.filter(id => id !== stateClientId)];
-    } else if (actualRole === "restaurant") {
+    } else if (effectiveRole === "restaurant") {
       if (isBrowser) {
         // For web browsers hitting the restaurant panel, com.tifunbox.web is the most likely client ID
         clientIdsToTry = ["com.tifunbox.web", "app.tifunbox.com.restaurant", "com.tifunbox.restaurant", "app.tifunbox.com"];
@@ -1599,7 +1598,7 @@ export const appleCallback = asyncHandler(async (req, res) => {
         // For native apps, keep the specialized IDs first
         clientIdsToTry = ["app.tifunbox.com.restaurant", "com.tifunbox.restaurant", "com.tifunbox.web", "app.tifunbox.com"];
       }
-    } else if (actualRole === "delivery") {
+    } else if (effectiveRole === "delivery") {
       clientIdsToTry = isBrowser ? ["com.tifunbox.web", "com.tifunbox.delivery"] : ["com.tifunbox.delivery", "com.tifunbox.web"];
     } else {
       if (isBrowser) {
