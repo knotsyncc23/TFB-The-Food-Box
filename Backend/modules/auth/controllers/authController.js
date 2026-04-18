@@ -1554,28 +1554,12 @@ export const appleCallback = asyncHandler(async (req, res) => {
       return errorResponse(res, 400, message || errCode);
     }
 
-    // Add CSP header to allow the inline script we're about to send
-    res.setHeader("Content-Security-Policy", "script-src 'self' 'unsafe-inline';");
-
-    // Try popup message first, then fallback to redirect
-    return res.status(200).send(`
-      <script>
-        (function() {
-          var errorData = { 
-            type: 'APPLE_LOGIN_ERROR', 
-            error: '${errCode}', 
-            message: '${(message || "").replace(/'/g, "\\'")}' 
-          };
-          console.log("Apple Login Error:", errorData);
-          if (window.opener) {
-            window.opener.postMessage(errorData, '*');
-            setTimeout(function() { window.close(); }, 500);
-          } else {
-            window.location.href = "${errorRedirectUrl}?error=${errCode}";
-          }
-        })();
-      </script>
-    `);
+    const params = new URLSearchParams({
+      error: errCode,
+      message: message || errCode,
+      provider: "apple",
+    });
+    return res.redirect(303, `${errorRedirectUrl}?${params.toString()}`);
   };
 
   if (error) {
@@ -1675,16 +1659,18 @@ export const appleCallback = asyncHandler(async (req, res) => {
       const emailUser = await AuthModel.findOne({ email });
 
       if (emailUser) {
-        if (!emailUser.appleId) {
+        if (!emailUser.appleId || emailUser.appleId !== appleId) {
           // ✅ SAFE TO LINK: Fresh account from OTP/Email
           emailUser.appleId = appleId;
           emailUser.signupMethod = "apple";
+          emailUser.authProvider = "apple";
           await emailUser.save();
           user = emailUser;
           logger.info(`[AppleAuth] Linked existing ${userRole} via email: ${email}`);
         } else {
           // ❌ CONFLICT: Email already linked to a DIFFERENT Apple ID
           logger.error(`[AppleAuth] Conflict: Email ${email} already linked to another Apple ID.`);
+          return sendErrorResponse("apple_login_conflict", "This email is already associated with a different Apple account.");
           return res.status(403).send(`
             <html>
               <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
@@ -1713,25 +1699,7 @@ export const appleCallback = asyncHandler(async (req, res) => {
       // Role mismatch check (Strict)
       if (user.role !== userRole) {
         logger.error(`[AppleAuth] Role mismatch: User is ${user.role}, but tried to login as ${userRole}`);
-        return res.status(403).send(`
-          <html>
-            <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
-              <div style="text-align: center; padding: 20px;">
-                <h2 style="color: #e23744;">Access Denied</h2>
-                <p>Mismatched account type. Please use the correct login portal.</p>
-              </div>
-              <script>
-                if (window.opener) {
-                  window.opener.postMessage({ 
-                    type: "APPLE_LOGIN_ERROR", 
-                    error: "Mismatched account type. Please use the correct login portal." 
-                  }, "*");
-                }
-                setTimeout(() => window.close(), 4000);
-              </script>
-            </body>
-          </html>
-        `);
+        return sendErrorResponse("wrong_role", "Mismatched account type. Please use the correct login portal.");
       }
 
       // Update existing account fields if necessary
@@ -1822,47 +1790,7 @@ export const appleCallback = asyncHandler(async (req, res) => {
       });
     }
 
-    // Add CSP header to allow the inline script we're about to send
-    res.setHeader("Content-Security-Policy", "script-src 'self' 'unsafe-inline';");
-
-    // Robust delivery mechanism for Web
-    return res.status(200).send(`
-      <script>
-        (function() {
-          window.name = "Apple Login";
-          var data = ${JSON.stringify(successData)};
-          window.appleData = data;
-          
-          // Log for Flutter console capture
-          console.log("Captured Login/Signup Response:", { 
-            url: window.location.href, 
-            body: data 
-          });
-
-          // Persistent communication fallback for iOS Safari/WebViews
-          try {
-            localStorage.setItem(data.role + "_authenticated", "true");
-            localStorage.setItem(data.role + "_token", data.token);
-            localStorage.setItem(data.role + "_user", JSON.stringify(data.user));
-          } catch (e) {}
-          
-          if (window.opener) {
-            // Popup flow
-            window.opener.postMessage(data, '*');
-            setTimeout(function() { window.close(); }, 500);
-          } else {
-            // Full-page or WebView flow - Try to deliver and then redirect
-            // If the app is listening for postMessage on window
-            window.postMessage(data, '*');
-            
-            // Short delay to allow listeners to catch the data
-            setTimeout(function() {
-              window.location.href = "${redirectUrl}";
-            }, 500);
-          }
-        })();
-      </script>
-    `);
+    return res.redirect(303, redirectUrl);
 
   } catch (err) {
     logger.error("Apple callback processing failed", {

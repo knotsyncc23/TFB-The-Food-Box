@@ -7,6 +7,12 @@ const PENDING_PROVIDER_KEY = "pendingSocialProvider"
 const APPLE_REDIRECT_IN_PROGRESS_KEY = "appleRedirectInProgress"
 const DEFAULT_RESTORE_TIMEOUT_MS = 4000
 const IOS_SAFARI_RESTORE_TIMEOUT_MS = 2500
+const USER_AUTH_PATHS = new Set([
+  "/auth/sign-in",
+  "/user/auth/sign-in",
+  "/auth/otp",
+  "/user/auth/otp",
+])
 
 const listeners = new Set()
 
@@ -114,6 +120,21 @@ const getProviderFromUser = (user) => {
   )
 }
 
+const isUserAuthPath = () => {
+  if (typeof window === "undefined") return false
+  return USER_AUTH_PATHS.has(window.location.pathname)
+}
+
+const redirectUserAuthPageHome = () => {
+  if (typeof window === "undefined") return
+  if (!isUserAuthPath() || !getModuleToken("user")) return
+
+  window.setTimeout(() => {
+    if (!isUserAuthPath() || !getModuleToken("user")) return
+    window.location.replace("/")
+  }, 0)
+}
+
 const shouldCompleteBackendLogin = (user) => {
   if (!user) return false
   if (getModuleToken("user")) return false
@@ -157,6 +178,7 @@ const completeBackendLoginFromFirebaseUser = async (user, source) => {
     clearPendingProvider()
     lastCompletedUid = user.uid
     window.dispatchEvent(new Event("userAuthChanged"))
+    redirectUserAuthPageHome()
 
     if (window.location.hash || window.location.search) {
       window.history.replaceState({}, document.title, window.location.pathname)
@@ -299,8 +321,10 @@ export async function startFirebaseUserSessionBootstrap() {
           await completeBackendLoginFromFirebaseUser(user, "auth-state-changed")
         } catch (error) {
           console.error("[FirebaseUserSession] Failed completing backend login from auth state", error)
+          clearPendingProvider()
           setState({
             lastError: error,
+            pendingProvider: null,
           })
         }
       })
@@ -336,6 +360,7 @@ export async function startFirebaseUserSessionBootstrap() {
       }
     } catch (error) {
       console.error("[FirebaseUserSession] getRedirectResult failed", error)
+      clearPendingProvider()
       setState({
         lastError: error,
       })
