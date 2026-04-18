@@ -66,7 +66,11 @@ export default function DeliveryLayout({
   // Pages where bottom navigation should be shown
   const showBottomNav = [
     '/delivery',
+    '/delivery/orders',
     '/delivery/requests',
+    '/delivery/gig',
+    '/delivery/offers',
+    '/delivery/updates',
     '/delivery/trip-history',
     '/delivery/profile'
   ].includes(location.pathname)
@@ -91,7 +95,7 @@ export default function DeliveryLayout({
           </button>
         </div>
       ) : null}
-      <main>
+      <main className={showBottomNav ? "pb-24" : undefined}>
         {children}
       </main>
       {showBottomNav && (

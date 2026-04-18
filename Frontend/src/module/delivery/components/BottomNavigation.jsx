@@ -22,16 +22,6 @@ export default function BottomNavigation() {
   const location = useLocation()
   const [profileImage, setProfileImage] = useState(null)
   const [imageError, setImageError] = useState(false)
-  const [shouldShowMobileNav, setShouldShowMobileNav] = useState(() => {
-    if (typeof window === "undefined") return true
-
-    const isFlutterWebView =
-      !!window.flutter_inappwebview &&
-      typeof window.flutter_inappwebview.callHandler === "function"
-
-    const isMobileWidth = window.innerWidth < 1024
-    return isFlutterWebView || isMobileWidth
-  })
 
   const isActive = (path) => {
     if (path === "/delivery") return location.pathname === "/delivery"
@@ -89,26 +79,6 @@ export default function BottomNavigation() {
     }
   }, [])
 
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined
-
-    const updateVisibility = () => {
-      const isFlutterWebView =
-        !!window.flutter_inappwebview &&
-        typeof window.flutter_inappwebview.callHandler === "function"
-
-      setShouldShowMobileNav(isFlutterWebView || window.innerWidth < 1024)
-    }
-
-    updateVisibility()
-    window.addEventListener("resize", updateVisibility)
-    return () => window.removeEventListener("resize", updateVisibility)
-  }, [])
-
-  if (!shouldShowMobileNav) {
-    return null
-  }
-
   return (
     <div
       className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-[140]"
@@ -143,7 +113,7 @@ export default function BottomNavigation() {
           className="flex flex-col items-center gap-1 p-2"
         >
           {TabIcon(isActive("/delivery/trip-history"), ClockOutline, ClockSolid)}
-          {TabLabel(isActive("/delivery/trip-history "), "Trip History")}
+          {TabLabel(isActive("/delivery/trip-history"), "Trip History")}
         </button>
 
         {/* Profile */}
