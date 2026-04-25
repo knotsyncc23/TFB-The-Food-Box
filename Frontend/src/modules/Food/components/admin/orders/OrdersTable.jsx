@@ -55,7 +55,7 @@ export default function OrdersTable({
   }, [orders, currentPage])
 
   const formatRestaurantName = (name) => {
-    if (name === "Cafe Monarch") return "Café Monarch"
+    if (name === "Cafe Monarch") return "CafÃ© Monarch"
     return name
   }
 
@@ -269,7 +269,7 @@ export default function OrdersTable({
                           const itemPrice = Number(item.price ?? 0)
                           return (
                             <div key={idx || item.itemId || `item-price-${idx}`} className="text-sm text-slate-500">
-                              {`₹${itemPrice.toLocaleString(undefined, {
+                              {`â‚¹${itemPrice.toLocaleString(undefined, {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2
                               })}`}
@@ -287,7 +287,7 @@ export default function OrdersTable({
                     <span className="text-sm font-medium text-slate-700">
                       {(() => {
                         const deliveryCharge = Number(order.deliveryCharge ?? 0)
-                        return `₹${deliveryCharge.toLocaleString(undefined, {
+                        return `â‚¹${deliveryCharge.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}`
@@ -307,7 +307,7 @@ export default function OrdersTable({
                         const amount = Number.isFinite(Number(rawAmount))
                           ? Number(rawAmount)
                           : 0;
-                        return `₹${amount.toLocaleString(undefined, {
+                        return `â‚¹${amount.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2
                         })}`;
@@ -512,7 +512,7 @@ export default function OrdersTable({
                                 ? "Process Wallet Refund (Add to user wallet)"
                                 : "Process Refund via Razorpay"}
                             >
-                              <span className="text-sm">₹</span>
+                              <span className="text-sm">â‚¹</span>
                               <span>Refund</span>
                             </button>
                           ) : null}

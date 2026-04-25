@@ -281,7 +281,7 @@ export default function DesktopNavbar({ showLogo = true }) {
                                                 onClick={() => setHeroSearch("")}
                                             >
                                                 <span className="sr-only">Clear</span>
-                                                <span aria-hidden="true">�</span>
+                                                <span aria-hidden="true">ï¿½</span>
                                             </Button>
                                         )}
                                     </div>
@@ -369,7 +369,7 @@ export default function DesktopNavbar({ showLogo = true }) {
                                     : "text-gray-600 dark:text-gray-400 hover:text-[#7e3866]"
                                     }`}
                             >
-                                <span className="text-sm font-bold tracking-wide uppercase">Under ₹{under250PriceLimit}</span>
+                                <span className="text-sm font-bold tracking-wide uppercase">Under â‚¹{under250PriceLimit}</span>
                                 {isUnder250 && (
                                     <motion.div
                                         layoutId="navIndicator"

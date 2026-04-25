@@ -1,4 +1,4 @@
-﻿import { useState } from "react"
+import { useState } from "react"
 import { IndianRupee, Loader2 } from "lucide-react"
 import { deliveryAPI } from "@food/api"
 import { initRazorpayPayment } from "@food/utils/razorpay"

@@ -2046,7 +2046,7 @@ export default function Inventory() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Price (₹) *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Price (â‚¹) *</label>
                       <input
                         type="number"
                         value={addonPrice}
@@ -2540,8 +2540,8 @@ export default function Inventory() {
                     <div className="">
                       <h3 className="text-base font-bold text-gray-900 mb-3">{categoryData.name}</h3>
                       <ul className="space-y-1 text-sm text-gray-600">
-                        <li>• {categoryData.name}</li>
-                        <li>• Includes {categoryData.itemCount} item{categoryData.itemCount !== 1 ? 's' : ''}</li>
+                        <li>â€¢ {categoryData.name}</li>
+                        <li>â€¢ Includes {categoryData.itemCount} item{categoryData.itemCount !== 1 ? 's' : ''}</li>
                       </ul>
                       <div className="border-t border-gray-200 mt-4"></div>
                     </div>

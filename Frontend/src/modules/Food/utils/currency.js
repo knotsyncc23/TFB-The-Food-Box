@@ -18,10 +18,10 @@ export const usdToInr = (usdAmount) => {
 /**
  * Format amount with currency symbol
  * @param {number} amount - Amount to format
- * @param {string} currency - Currency symbol (default: '₹')
+ * @param {string} currency - Currency symbol (default: 'â‚¹')
  * @returns {string} - Formatted amount string
  */
-export const formatCurrency = (amount, currency = '₹') => {
+export const formatCurrency = (amount, currency = 'â‚¹') => {
   return `${currency} ${parseFloat(amount).toFixed(2)}`
 }
 

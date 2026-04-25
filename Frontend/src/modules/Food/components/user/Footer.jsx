@@ -203,7 +203,7 @@ export default function Footer() {
         >
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-slate-400 text-sm text-center md:text-left">
-              � {currentYear} {companyName}. All rights reserved.
+              ï¿½ {currentYear} {companyName}. All rights reserved.
             </p>
             <div className="flex items-center gap-1 text-slate-400 text-sm">
               <span>Made with</span>

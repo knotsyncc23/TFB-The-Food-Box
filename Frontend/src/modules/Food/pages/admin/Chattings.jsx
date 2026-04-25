@@ -94,7 +94,7 @@ export default function Chattings() {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <span className="text-lg">👤</span>
+                              <span className="text-lg">ðŸ‘¤</span>
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -136,7 +136,7 @@ export default function Chattings() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <span className="text-lg">👤</span>
+                          <span className="text-lg">ðŸ‘¤</span>
                         )}
                       </div>
                       <div>

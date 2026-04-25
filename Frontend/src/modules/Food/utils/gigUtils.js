@@ -150,7 +150,7 @@ export const getLevelBadgeColor = (level) => {
  * Get level icon
  */
 export const getLevelIcon = (level) => {
-  return USER_LEVELS[level]?.icon || '💙'
+  return USER_LEVELS[level]?.icon || 'ðŸ’™'
 }
 
 /**
@@ -199,9 +199,9 @@ export const sortGigsByDate = (gigs) => {
  */
 export const categorizeSlotsByMeal = (slots) => {
   const categories = {
-    breakfast: { name: 'Breakfast Gigs', start: '06:00', end: '11:00', icon: '🌅', slots: [] },
-    lunch: { name: 'Lunch Gigs', start: '11:00', end: '15:00', icon: '☀️', slots: [] },
-    dinner: { name: 'Dinner Gigs', start: '15:00', end: '22:00', icon: '🌙', slots: [] }
+    breakfast: { name: 'Breakfast Gigs', start: '06:00', end: '11:00', icon: 'ðŸŒ…', slots: [] },
+    lunch: { name: 'Lunch Gigs', start: '11:00', end: '15:00', icon: 'â˜€ï¸', slots: [] },
+    dinner: { name: 'Dinner Gigs', start: '15:00', end: '22:00', icon: 'ðŸŒ™', slots: [] }
   }
 
   slots.forEach(slot => {
@@ -230,19 +230,19 @@ export const generatePayRate = (slot) => {
 
   // Adjust based on time of day
   if (startHour >= 6 && startHour < 11) {
-    // Breakfast: ₹70-₹100
+    // Breakfast: â‚¹70-â‚¹100
     baseMin = 70
     baseMax = 100
   } else if (startHour >= 11 && startHour < 15) {
-    // Lunch: ₹90-₹120
+    // Lunch: â‚¹90-â‚¹120
     baseMin = 90
     baseMax = 120
   } else if (startHour >= 15 && startHour < 19) {
-    // Afternoon: ₹100-₹130
+    // Afternoon: â‚¹100-â‚¹130
     baseMin = 100
     baseMax = 130
   } else {
-    // Evening: ₹110-₹140
+    // Evening: â‚¹110-â‚¹140
     baseMin = 110
     baseMax = 140
   }

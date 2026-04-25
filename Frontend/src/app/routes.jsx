@@ -13,10 +13,10 @@ import ProtectedRoute from '@food/components/ProtectedRoute'
 const PageLoader = () => <AppShellSkeleton />
 
 /**
- * FoodAppWrapper — Quick-spicy App. को /food prefix के साथ render करता है.
+ * FoodAppWrapper â€” Quick-spicy App. à¤•à¥‹ /food prefix à¤•à¥‡ à¤¸à¤¾à¤¥ render à¤•à¤°à¤¤à¤¾ à¤¹à¥ˆ.
  * 
- * Quick-spicy की App.jsx में routes /restaurant, /usermain, /admin, /delivery
- * जैसे hain (bina /food prefix ke). Yahan hum useLocation se /food ke baad wala
+ * Quick-spicy à¤•à¥€ App.jsx à¤®à¥‡à¤‚ routes /restaurant, /usermain, /admin, /delivery
+ * à¤œà¥ˆà¤¸à¥‡ hain (bina /food prefix ke). Yahan hum useLocation se /food ke baad wala
  * path nikalne ke baad FoodApp render karte hain. FoodApp internally BrowserRouter
  * nahi use karta (sirf Routes use karta hai), isliye ye directly kaam karta hai.
  */

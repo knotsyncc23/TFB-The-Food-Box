@@ -160,7 +160,7 @@ export default function AddEmployee() {
                         onChange={(e) => handleInputChange("phoneCode", e.target.value)}
                         className="px-4 py-2.5 pr-8 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm appearance-none cursor-pointer"
                       >
-                        <option value="+91">🇮🇳 +91</option>
+                        <option value="+91">ðŸ‡®ðŸ‡³ +91</option>
                       </select>
                       <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
                     </div>

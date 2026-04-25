@@ -143,7 +143,7 @@ export default function DownloadReport() {
               <CheckCircle className="w-6 h-6 text-green-600" />
               <div>
                 <p className="text-sm font-semibold text-gray-900">Report queued</p>
-                <p className="text-xs text-gray-600">We’ll email it to you shortly.</p>
+                <p className="text-xs text-gray-600">Weâ€™ll email it to you shortly.</p>
               </div>
             </div>
           </div>

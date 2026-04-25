@@ -292,7 +292,7 @@ function CompletedOrders({ onSelectOrder, refreshToken = 0 }) {
                           Amount
                         </span>
                         <span className="text-xs font-medium text-black">
-                          ₹{order.amount.toFixed(2)}
+                          â‚¹{order.amount.toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -524,7 +524,7 @@ function CancelledOrders({ onSelectOrder, refreshToken = 0 }) {
                           Amount
                         </span>
                         <span className="text-xs font-medium text-black">
-                          ₹{order.amount.toFixed(2)}
+                          â‚¹{order.amount.toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -1977,8 +1977,8 @@ export default function OrdersMain() {
         const tableData = orderToPrint.items.map((item) => [
           item.name || "Item",
           item.quantity || 1,
-          `₹${(item.price || 0).toFixed(2)}`,
-          `₹${((item.price || 0) * (item.quantity || 1)).toFixed(2)}`,
+          `â‚¹${(item.price || 0).toFixed(2)}`,
+          `â‚¹${((item.price || 0) * (item.quantity || 1)).toFixed(2)}`,
         ]);
 
         autoTable(doc, {
@@ -2006,7 +2006,7 @@ export default function OrdersMain() {
       // Total
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
-      doc.text(`Total: ₹${(orderToPrint.total || 0).toFixed(2)}`, 20, yPos);
+      doc.text(`Total: â‚¹${(orderToPrint.total || 0).toFixed(2)}`, 20, yPos);
 
       // Payment status
       yPos += 10;
@@ -2652,7 +2652,7 @@ export default function OrdersMain() {
                                         {item.quantity} x {item.name}
                                       </p>
                                       <p className="text-xs text-gray-600 ml-2">
-                                        ₹{item.price * item.quantity}
+                                        â‚¹{item.price * item.quantity}
                                       </p>
                                     </div>
                                   </div>
@@ -2719,7 +2719,7 @@ export default function OrdersMain() {
                       </span>
                     </div>
                     <span className="text-base font-bold text-gray-900">
-                      ₹{getPopupOrderTotal(popupOrder || newOrder)}
+                      â‚¹{getPopupOrderTotal(popupOrder || newOrder)}
                     </span>
                   </div>
 
@@ -2841,7 +2841,7 @@ export default function OrdersMain() {
                             onTouchCancel={handleAcceptSwipeEnd}
                             onClick={triggerSwipeAccept}
                             disabled={isAcceptingOrder}>
-                            <span className="text-lg font-bold">›</span>
+                            <span className="text-lg font-bold">â€º</span>
                           </motion.button>
                         </div>
 
@@ -3087,7 +3087,7 @@ export default function OrdersMain() {
                   <p className="text-[11px] text-gray-500 mt-1">
                     {selectedOrder.type}
                     {selectedOrder.tableOrToken
-                      ? ` • ${selectedOrder.tableOrToken}`
+                      ? ` â€¢ ${selectedOrder.tableOrToken}`
                       : ""}
                   </p>
                 </div>

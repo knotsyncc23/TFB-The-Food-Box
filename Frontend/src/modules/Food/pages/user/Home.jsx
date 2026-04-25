@@ -529,7 +529,7 @@ export default function Home() {
           const parsed = new URL(normalizedInput, window.location.origin);
 
           // In mobile production, localhost/127.0.0.1 inside image URLs is unreachable.
-          // Use BACKEND_ORIGIN (API server) for image host, not frontend host�uploads are served by the backend.
+          // Use BACKEND_ORIGIN (API server) for image host, not frontend hostï¿½uploads are served by the backend.
           if (
             appHost &&
             appHost !== "localhost" &&
@@ -1109,7 +1109,7 @@ export default function Home() {
   const [activeFilterTab, setActiveFilterTab] = useState("sort");
   const categoryScrollRef = useRef(null);
   const gsapAnimationsRef = useRef([]);
-  // Show skeletons immediately while loading — delayed toggles caused visible layout swap (CLS).
+  // Show skeletons immediately while loading â€” delayed toggles caused visible layout swap (CLS).
   const showBannerSkeleton = loadingBanners;
   const showCategorySkeleton = loadingRealCategories || loadingMenuCategories;
   const showExploreSkeleton = loadingLandingConfig;
@@ -2424,7 +2424,7 @@ export default function Home() {
           >
             <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#7e3866] rounded-b-full rounded-t-sm shadow-md border-t-4 border-orange-200 flex flex-col items-center justify-center p-1">
               <span className="text-[10px] sm:text-xs font-bold text-white text-center leading-tight">UNDER</span>
-              <span className="text-sm sm:text-base font-extrabold text-white">₹200</span>
+              <span className="text-sm sm:text-base font-extrabold text-white">â‚¹200</span>
               <div className="w-10 h-3.5 bg-white rounded-full mt-1 flex items-center justify-center">
                 <span className="text-[8px] font-bold text-[#7e3866]">Explore</span>
               </div>
@@ -2677,7 +2677,7 @@ export default function Home() {
                     >
                       <div className="flex flex-col">
                         <span className="text-[10px] font-black text-amber-500 tracking-widest uppercase mb-0.5">Budget</span>
-                        <span className="text-sm font-black text-amber-600 dark:text-amber-400">Under ₹{under250PriceLimit}</span>
+                        <span className="text-sm font-black text-amber-600 dark:text-amber-400">Under â‚¹{under250PriceLimit}</span>
                       </div>
                       <div className="w-10 h-10 p-1.5 rounded-xl bg-white dark:bg-[#1a1a1a] shadow-sm group-hover:scale-110 transition-transform">
                         <IndianRupee className="w-full h-full text-amber-500" />
@@ -3174,7 +3174,7 @@ export default function Home() {
                             {/* Featured Dish Badge - Top Left */}
                             <div className="absolute top-4 left-4 flex items-center z-10 transform transition-transform duration-300 group-hover:scale-105">
                               <div className="bg-black/70 backdrop-blur-lg text-white px-4 py-1.5 rounded-full text-[11px] font-medium tracking-tight flex items-center shadow-2xl border border-white/20">
-                                {restaurant.featuredDish} • ₹
+                                {restaurant.featuredDish} â€¢ â‚¹
                                 {restaurant.featuredPrice}
                               </div>
                             </div>
@@ -3579,7 +3579,7 @@ export default function Home() {
                           }`}>
                         <span
                           className={`text-sm font-medium ${activeFilters.has("price-under-200") ? "text-[#7e3866]" : "text-gray-700 dark:text-gray-300"}`}>
-                          Under ₹200
+                          Under â‚¹200
                         </span>
                       </button>
                       <button
@@ -3590,7 +3590,7 @@ export default function Home() {
                           }`}>
                         <span
                           className={`text-sm font-medium ${activeFilters.has("price-under-500") ? "text-[#7e3866]" : "text-gray-700 dark:text-gray-300"}`}>
-                          Under ₹500
+                          Under â‚¹500
                         </span>
                       </button>
                     </div>

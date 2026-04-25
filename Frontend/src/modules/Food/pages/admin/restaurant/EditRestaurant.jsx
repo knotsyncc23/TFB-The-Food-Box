@@ -227,7 +227,7 @@ export default function EditRestaurant() {
         locationSearchInputRef.current,
         {
           fields: ["formatted_address", "address_components", "geometry"],
-          // Omit `types: ["geocode"]` — that biases Autocomplete toward Geocoding API (geocode/json) traffic.
+          // Omit `types: ["geocode"]` â€” that biases Autocomplete toward Geocoding API (geocode/json) traffic.
           componentRestrictions: { country: "in" },
         },
       )

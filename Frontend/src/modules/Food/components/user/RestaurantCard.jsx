@@ -223,7 +223,7 @@ const RestaurantCard = ({
           </div>
           <div className="flex items-center gap-1 text-gray-600 bg-gray-50 px-2 py-1 rounded-md">
             <IndianRupee className="w-3 h-3 text-[#7e3866]" />
-            <span className="text-[10px] sm:text-xs font-semibold">{restaurant.avgPrice || "₹200 for one"}</span>
+            <span className="text-[10px] sm:text-xs font-semibold">{restaurant.avgPrice || "â‚¹200 for one"}</span>
           </div>
         </div>
       </div>

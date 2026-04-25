@@ -817,7 +817,7 @@ export default function DiningReservations() {
                                         disabled={!!pendingRequest}
                                         className="w-10 h-10 flex items-center justify-center rounded-xl bg-white shadow-sm text-slate-600 hover:text-slate-900 active:scale-90 transition-all font-black text-xl disabled:opacity-50"
                                     >
-                                        −
+                                        âˆ’
                                     </button>
                                     <span className="w-8 text-center text-lg font-black text-slate-800">{maxGuestsLimit}</span>
                                     <button 

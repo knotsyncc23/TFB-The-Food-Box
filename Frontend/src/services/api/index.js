@@ -164,14 +164,14 @@ export const adminAPI = {
   getSidebarBadges: () =>
     apiClient.get("/food/admin/sidebar-badges", { contextModule: "admin" }),
   login: (email, password) => authService.adminLogin(email, password),
-  /** POST /auth/admin/forgot-password/request-otp – only accepts registered admin email */
+  /** POST /auth/admin/forgot-password/request-otp â€“ only accepts registered admin email */
   requestForgotPasswordOtp: (email) =>
     apiClient.post("/auth/admin/forgot-password/request-otp", {
       email: String(email || "")
         .trim()
         .toLowerCase(),
     }),
-  /** POST /auth/admin/forgot-password/reset – verify OTP and set new password in one call */
+  /** POST /auth/admin/forgot-password/reset â€“ verify OTP and set new password in one call */
   resetPasswordWithOtp: (email, otp, newPassword) =>
     apiClient.post("/auth/admin/forgot-password/reset", {
       email: String(email || "")
@@ -545,7 +545,7 @@ export const adminAPI = {
       { isActive: isActive !== false },
       { contextModule: "admin" },
     ),
-  /** Orders (admin) – list, get by id, assign delivery partner */
+  /** Orders (admin) â€“ list, get by id, assign delivery partner */
   getOrders: (params = {}) =>
     apiClient.get("/food/admin/orders", {
       params: { limit: 50, page: 1, ...params },
@@ -559,7 +559,7 @@ export const adminAPI = {
     apiClient.delete(`/food/admin/orders/${String(orderId)}`, {
       contextModule: "admin",
     }),
-  /** Dispatch settings – auto vs manual assign (global) */
+  /** Dispatch settings â€“ auto vs manual assign (global) */
   /** Create restaurant (admin). Single API: POST /food/admin/restaurants. Body: JSON with image URLs. */
   createRestaurant: (body) =>
     apiClient.post("/food/admin/restaurants", body ?? {}, {
@@ -2229,7 +2229,7 @@ export const uploadAPI = {
     });
   },
 };
-/** Order API (user app – Bearer USER token). Minimal calls: single create/verify, list/details cached by caller. */
+/** Order API (user app â€“ Bearer USER token). Minimal calls: single create/verify, list/details cached by caller. */
 export const orderAPI = {
   calculateOrder: (payload) =>
     apiClient.post("/food/orders/calculate", payload ?? {}, {

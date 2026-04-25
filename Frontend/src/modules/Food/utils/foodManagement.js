@@ -14,7 +14,7 @@ const DEFAULT_FOODS = [
   {
     id: 1,
     name: "Medu Vada",
-    nameArabic: "ميدو فادا",
+    nameArabic: "Ù…ÙŠØ¯Ùˆ ÙØ§Ø¯Ø§",
     image: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=200&h=200&fit=crop",
     category: "Varieties",
     rating: 0.0,

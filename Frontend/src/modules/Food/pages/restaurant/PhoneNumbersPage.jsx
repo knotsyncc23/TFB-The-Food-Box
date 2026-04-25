@@ -24,14 +24,14 @@ export default function PhoneNumbersPage() {
 
   // Country codes
   const countryCodes = [
-    { code: "+91", country: "India", flag: "🇮🇳" },
-    { code: "+1", country: "USA", flag: "🇺🇸" },
-    { code: "+44", country: "UK", flag: "🇬🇧" },
-    { code: "+971", country: "UAE", flag: "🇦🇪" },
-    { code: "+65", country: "Singapore", flag: "🇸🇬" },
-    { code: "+86", country: "China", flag: "🇨🇳" },
-    { code: "+81", country: "Japan", flag: "🇯🇵" },
-    { code: "+61", country: "Australia", flag: "🇦🇺" },
+    { code: "+91", country: "India", flag: "ðŸ‡®ðŸ‡³" },
+    { code: "+1", country: "USA", flag: "ðŸ‡ºðŸ‡¸" },
+    { code: "+44", country: "UK", flag: "ðŸ‡¬ðŸ‡§" },
+    { code: "+971", country: "UAE", flag: "ðŸ‡¦ðŸ‡ª" },
+    { code: "+65", country: "Singapore", flag: "ðŸ‡¸ðŸ‡¬" },
+    { code: "+86", country: "China", flag: "ðŸ‡¨ðŸ‡³" },
+    { code: "+81", country: "Japan", flag: "ðŸ‡¯ðŸ‡µ" },
+    { code: "+61", country: "Australia", flag: "ðŸ‡¦ðŸ‡º" },
   ]
 
   const handleEditClick = (type) => {
@@ -262,7 +262,7 @@ export default function PhoneNumbersPage() {
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-lg">
-                          {countryCodes.find(c => c.code === countryCode)?.flag || "🇮🇳"}
+                          {countryCodes.find(c => c.code === countryCode)?.flag || "ðŸ‡®ðŸ‡³"}
                         </span>
                         <span className="text-sm text-gray-900">{countryCode}</span>
                       </div>

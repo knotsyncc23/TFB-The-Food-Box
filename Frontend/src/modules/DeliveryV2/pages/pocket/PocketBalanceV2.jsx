@@ -162,7 +162,7 @@ export const PocketBalanceV2 = () => {
                   <div>
                      <p className="text-xs font-bold">Withdraw currently disabled</p>
                      <p className="text-[10px] font-medium opacity-80 leading-tight mt-1">
-                        {walletState.withdrawableAmount <= 0 ? 'Withdrawable amount is ₹0' : `Minimum withdrawal requirement is ₹${walletState.withdrawalLimit}`}
+                        {walletState.withdrawableAmount <= 0 ? 'Withdrawable amount is â‚¹0' : `Minimum withdrawal requirement is â‚¹${walletState.withdrawalLimit}`}
                      </p>
                   </div>
                </div>
@@ -171,7 +171,7 @@ export const PocketBalanceV2 = () => {
              {/* Top Withdraw Section */}
              <div className="bg-white p-8 mb-4 text-center border-b border-gray-100 shadow-sm">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Withdrawable Amount</p>
-                <h2 className="text-5xl font-black text-black mb-6 tracking-tighter">₹{walletState.withdrawableAmount.toFixed(0)}</h2>
+                <h2 className="text-5xl font-black text-black mb-6 tracking-tighter">â‚¹{walletState.withdrawableAmount.toFixed(0)}</h2>
                 
                 <button 
                   onClick={handleWithdraw}

@@ -149,7 +149,7 @@ export default function CollectionDetail() {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                       <Clock className="h-4 w-4" />
                       <span>{restaurant.deliveryTime || "25-30 mins"}</span>
-                      <span>�</span>
+                      <span>ï¿½</span>
                       <MapPin className="h-4 w-4" />
                       <span>{restaurant.distance || "2.5 km"}</span>
                     </div>

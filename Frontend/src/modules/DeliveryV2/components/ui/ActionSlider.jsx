@@ -10,7 +10,7 @@ export const ActionSlider = ({
   onConfirm, 
   disabled = false,
   color = "bg-green-600",
-  successLabel = "Confirmed ✓"
+  successLabel = "Confirmed âœ“"
 }) => {
   const [progress, setProgress] = useState(0);
   const [isSuccess, setIsSuccess] = useState(false);

@@ -507,7 +507,7 @@ export default function DeliveryOTP() {
             )}
           </div>
 
-          {/* Pending approval message – already registered, waiting for admin */}
+          {/* Pending approval message â€“ already registered, waiting for admin */}
           {pendingMessage && (
             <div className={`rounded-xl border p-5 text-center space-y-4 shadow-sm ${isRejected ? "bg-red-50 border-red-100" : "bg-amber-50 border-amber-100"}`}>
               <div className="space-y-2">

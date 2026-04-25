@@ -115,7 +115,7 @@ export default function WithdrawalHistoryPage() {
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <p className="text-lg font-bold text-gray-900 mb-2">
-                              ₹{request.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              â‚¹{request.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                             <p className="text-xs text-gray-600">
                               Requested: {request.requestedAt ? new Date(request.requestedAt).toLocaleString('en-IN', {
@@ -155,7 +155,7 @@ export default function WithdrawalHistoryPage() {
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <p className="text-lg font-bold text-gray-900 mb-2">
-                              ₹{request.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              â‚¹{request.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                             <p className="text-xs text-gray-600">
                               Processed: {request.processedAt ? new Date(request.processedAt).toLocaleString('en-IN', {

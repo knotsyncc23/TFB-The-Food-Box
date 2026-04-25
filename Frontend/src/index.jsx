@@ -7,12 +7,12 @@ import './shared/styles/global.css'
 
 const NATIVE_LAST_ROUTE_KEY = 'native_last_route'
 
-// ─── Quick-spicy Food Module Initialization ───────────────────────────────────
+// â”€â”€â”€ Quick-spicy Food Module Initialization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// Load food module business settings (favicon, title) — non-critical
+// Load food module business settings (favicon, title) â€” non-critical
 import('./modules/Food/utils/businessSettings.js')
   .then(({ loadBusinessSettings }) => loadBusinessSettings())
-  .catch(() => { /* Silently fail — settings load when admin authenticates */ })
+  .catch(() => { /* Silently fail â€” settings load when admin authenticates */ })
 
 // Apply saved theme
 const savedTheme = localStorage.getItem('appTheme') || 'light'
@@ -74,7 +74,7 @@ function bootstrapNativeHashRoute() {
 
 bootstrapNativeHashRoute()
 
-// ─── Suppress known non-critical errors ──────────────────────────────────────
+// â”€â”€â”€ Suppress known non-critical errors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const originalError = console.error
 console.error = (...args) => {
@@ -103,7 +103,7 @@ console.error = (...args) => {
   if (hasNetworkError) return
 
   if (
-    errorStr.includes('🌐 Network Error') ||
+    errorStr.includes('ðŸŒ Network Error') ||
     errorStr.includes('Network Error - Backend server may not be running') ||
     (errorStr.includes('ERR_NETWORK') && errorStr.includes('AxiosError'))
   ) return
@@ -132,7 +132,7 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 import { AppProviders } from './app/providers.jsx'
 

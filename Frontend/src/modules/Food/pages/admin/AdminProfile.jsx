@@ -86,7 +86,7 @@ export default function AdminProfile() {
             phone: fallback.phone || "",
             profileImage: fallback.profileImage || "",
           });
-          toast.info("Showing saved profile. Backend disconnected — updates may not persist.");
+          toast.info("Showing saved profile. Backend disconnected â€” updates may not persist.");
           return;
         }
       } catch (_) {}

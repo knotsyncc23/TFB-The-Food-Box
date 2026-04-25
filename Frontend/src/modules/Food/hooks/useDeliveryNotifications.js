@@ -118,7 +118,7 @@ const buildDeliveryOrderNotification = (orderData = {}) => {
   return {
     title: `New order #${orderId}`,
     body: itemCount > 0
-      ? `${itemCount} item${itemCount === 1 ? '' : 's'} - ₹${total.toFixed(2)}`
+      ? `${itemCount} item${itemCount === 1 ? '' : 's'} - â‚¹${total.toFixed(2)}`
       : 'A new order is available to accept',
     tag: `delivery-order-${orderId}`,
     data: {

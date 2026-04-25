@@ -28,7 +28,7 @@ const filterOptions = [
   { id: 'under-30-mins', label: 'Under 30 mins' },
   { id: 'price-match', label: 'Price Match', hasIcon: true },
   { id: 'flat-50-off', label: 'Flat 50% OFF', hasIcon: true },
-  { id: 'under-250', label: 'Under ₹250' },
+  { id: 'under-250', label: 'Under â‚¹250' },
   { id: 'rating-4-plus', label: 'Rating 4.0+' },
 ]
 
@@ -817,9 +817,9 @@ export default function CategoryPage() {
             if (!value) return false
 
             const defaultOffers = [
-              "Flat ₹50 OFF above ₹199",
+              "Flat â‚¹50 OFF above â‚¹199",
               "Flat 50% OFF",
-              "Flat ₹40 OFF above ₹149"
+              "Flat â‚¹40 OFF above â‚¹149"
             ]
             const defaultDeliveryTimes = ["25-30 mins", "20-25 mins", "30-35 mins"]
             const defaultDistances = ["1.2 km", "1 km", "0.8 km"]
@@ -1417,7 +1417,7 @@ export default function CategoryPage() {
                 { id: 'distance-under-1km', label: 'Under 1km', icon: MapPin },
                 { id: 'distance-under-2km', label: 'Under 2km', icon: MapPin },
                 { id: 'flat-50-off', label: 'Flat 50% OFF' },
-                { id: 'under-250', label: 'Under ₹250' },
+                { id: 'under-250', label: 'Under â‚¹250' },
               ].map((filter) => {
                 const Icon = filter.icon
                 const isActive = activeFilters.has(filter.id)
@@ -1614,8 +1614,8 @@ export default function CategoryPage() {
                           <div className="absolute top-3 left-3">
                             <div className="bg-gray-800/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm md:text-base font-medium">
                               {isCategoryView
-                                ? `₹${restaurant.categoryDishPrice || restaurant.featuredPrice || 0}`
-                                : `${restaurant.categoryDishName || restaurant.featuredDish} • ₹${restaurant.categoryDishPrice || restaurant.featuredPrice}`}
+                                ? `â‚¹${restaurant.categoryDishPrice || restaurant.featuredPrice || 0}`
+                                : `${restaurant.categoryDishName || restaurant.featuredDish} â€¢ â‚¹${restaurant.categoryDishPrice || restaurant.featuredPrice}`}
                             </div>
                           </div>
                         )}
@@ -1941,7 +1941,7 @@ export default function CategoryPage() {
                               : 'border-gray-200 dark:border-gray-700 hover:border-green-600'
                               }`}
                           >
-                            <span className={`text-sm md:text-base font-medium ${activeFilters.has('price-under-200') ? 'text-[#7e3866]' : 'text-gray-700 dark:text-gray-300'}`}>Under ₹200</span>
+                            <span className={`text-sm md:text-base font-medium ${activeFilters.has('price-under-200') ? 'text-[#7e3866]' : 'text-gray-700 dark:text-gray-300'}`}>Under â‚¹200</span>
                           </button>
                           <button
                             onClick={() => toggleFilter('under-250')}
@@ -1950,7 +1950,7 @@ export default function CategoryPage() {
                               : 'border-gray-200 dark:border-gray-700 hover:border-green-600'
                               }`}
                           >
-                            <span className={`text-sm md:text-base font-medium ${activeFilters.has('under-250') ? 'text-[#7e3866]' : 'text-gray-700 dark:text-gray-300'}`}>Under ₹250</span>
+                            <span className={`text-sm md:text-base font-medium ${activeFilters.has('under-250') ? 'text-[#7e3866]' : 'text-gray-700 dark:text-gray-300'}`}>Under â‚¹250</span>
                           </button>
                           <button
                             onClick={() => toggleFilter('price-under-500')}
@@ -1959,7 +1959,7 @@ export default function CategoryPage() {
                               : 'border-gray-200 dark:border-gray-700 hover:border-green-600'
                               }`}
                           >
-                            <span className={`text-sm md:text-base font-medium ${activeFilters.has('price-under-500') ? 'text-[#7e3866]' : 'text-gray-700 dark:text-gray-300'}`}>Under ₹500</span>
+                            <span className={`text-sm md:text-base font-medium ${activeFilters.has('price-under-500') ? 'text-[#7e3866]' : 'text-gray-700 dark:text-gray-300'}`}>Under â‚¹500</span>
                           </button>
                         </div>
                       </div>

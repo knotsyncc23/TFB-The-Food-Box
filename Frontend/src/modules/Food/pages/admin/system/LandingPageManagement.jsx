@@ -1730,7 +1730,7 @@ export default function LandingPageManagement() {
                   </div>
 
                   <div>
-                    <Label htmlFor="under-250-price">Under Price Limit (₹)</Label>
+                    <Label htmlFor="under-250-price">Under Price Limit (â‚¹)</Label>
                     <Input
                       id="under-250-price"
                       type="number"
@@ -1741,7 +1741,7 @@ export default function LandingPageManagement() {
                       className="mt-2"
                       placeholder="250"
                     />
-                    <p className="text-xs text-slate-500 mt-1">Button will show "Under ₹{settings.under250PriceLimit || 250}" on user home page</p>
+                    <p className="text-xs text-slate-500 mt-1">Button will show "Under â‚¹{settings.under250PriceLimit || 250}" on user home page</p>
                   </div>
 
                   <div>

@@ -166,12 +166,12 @@ export default function AdminSettings() {
             <div className="flex items-center gap-2 text-sm">
               <User className="w-4 h-4 text-neutral-500" />
               <span className="text-neutral-600">Name:</span>
-              <span className="font-medium text-neutral-900">{adminInfo.name || "—"}</span>
+              <span className="font-medium text-neutral-900">{adminInfo.name || "â€”"}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Mail className="w-4 h-4 text-neutral-500" />
               <span className="text-neutral-600">Email:</span>
-              <span className="font-medium text-neutral-900">{adminInfo.email || "—"}</span>
+              <span className="font-medium text-neutral-900">{adminInfo.email || "â€”"}</span>
             </div>
             {adminInfo.role && (
               <div className="flex items-center gap-2 text-sm">

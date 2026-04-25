@@ -380,7 +380,7 @@ export default function FoodApproval() {
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Price</label>
-                        <p className="text-sm font-bold text-green-600">{selectedRequest.price !== null && selectedRequest.price !== undefined ? `₹${selectedRequest.price}` : '-'}</p>
+                        <p className="text-sm font-bold text-green-600">{selectedRequest.price !== null && selectedRequest.price !== undefined ? `â‚¹${selectedRequest.price}` : '-'}</p>
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Status</label>

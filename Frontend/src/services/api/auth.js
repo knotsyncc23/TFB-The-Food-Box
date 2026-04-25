@@ -1,5 +1,5 @@
 /**
- * Auth API – new backend (USER, ADMIN, RESTAURANT, DELIVERY).
+ * Auth API â€“ new backend (USER, ADMIN, RESTAURANT, DELIVERY).
  * Food-prefixed: POST /food/auth/...
  */
 
@@ -21,7 +21,7 @@ const AUTH = {
 };
 
 /**
- * Normalize phone to digits only (for backend 8–15 digits).
+ * Normalize phone to digits only (for backend 8â€“15 digits).
  * @param {string} phone - e.g. "+91 9876543210" or "9876543210"
  */
 function normalizePhone(phone) {

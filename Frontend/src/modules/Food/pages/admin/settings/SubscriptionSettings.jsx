@@ -18,7 +18,7 @@ export default function SubscriptionSettings() {
       <div className="mb-4">
         <h1 className="text-xl lg:text-2xl font-bold text-slate-900 flex items-center gap-2">
           <span role="img" aria-label="subscription settings">
-            ⚙️
+            âš™ï¸
           </span>
           <span>Subscription Settings</span>
         </h1>
@@ -74,7 +74,7 @@ export default function SubscriptionSettings() {
                   <option>Month</option>
                 </select>
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none">
-                  ▾
+                  â–¾
                 </span>
               </div>
             </div>

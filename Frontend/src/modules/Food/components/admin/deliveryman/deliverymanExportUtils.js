@@ -318,8 +318,8 @@ const formatBonusForExport = (transaction) => {
   if (transaction.bonus) {
     // Remove all superscript/special characters and unwanted text
     let cleaned = transaction.bonus.toString()
-      .replace(/ï¿½/g, '') // Remove superscript 1
-      .replace(/[ï¿½ï¿½ï¿½45678?ï¿½]/g, '') // Remove all superscript numbers
+      .replace(/Ã¯Â¿Â½/g, '') // Remove superscript 1
+      .replace(/[Ã¯Â¿Â½Ã¯Â¿Â½Ã¯Â¿Â½45678?Ã¯Â¿Â½]/g, '') // Remove all superscript numbers
       .replace(/[\u2070-\u207F\u2080-\u208F]/g, '') // Remove all superscript Unicode ranges
       .replace(/[^\d.-]/g, '') // Keep only digits, dots, and minus signs
       .trim()

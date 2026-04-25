@@ -59,7 +59,7 @@ export default function NewOrderNotification({ order, onClose, onViewOrder }) {
                   <span className="text-gray-600 font-medium">Total Amount</span>
                 </div>
                 <span className="text-2xl font-bold text-green-600">
-                  ₹{order.total?.toFixed(2) || '0.00'}
+                  â‚¹{order.total?.toFixed(2) || '0.00'}
                 </span>
               </div>
 
@@ -70,10 +70,10 @@ export default function NewOrderNotification({ order, onClose, onViewOrder }) {
                   {order.items?.slice(0, 3).map((item, index) => (
                     <div key={index} className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">
-                        {item.name} × {item.quantity}
+                        {item.name} Ã— {item.quantity}
                       </span>
                       <span className="text-gray-800 font-medium">
-                        ₹{(item.price * item.quantity).toFixed(2)}
+                        â‚¹{(item.price * item.quantity).toFixed(2)}
                       </span>
                     </div>
                   ))}

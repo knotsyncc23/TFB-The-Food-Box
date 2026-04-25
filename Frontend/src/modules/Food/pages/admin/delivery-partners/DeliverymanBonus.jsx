@@ -21,7 +21,7 @@ const formatBonusAmount = (transaction) => {
   
   // Clean the bonus string - remove superscript characters
   let cleaned = transaction.bonus.toString()
-    .replace(/น/g, '') // Remove superscript 1
+    .replace(/ยน/g, '') // Remove superscript 1
     .replace(/[\u2070-\u207F\u2080-\u208F]/g, '') // Remove all superscript characters
     .trim()
   

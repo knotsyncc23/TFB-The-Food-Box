@@ -135,7 +135,7 @@ export default function Offers() {
                           {dish.restaurantName}
                         </h3>
                         <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 mb-1">
-                          {dish.dishName} - ₹{dish.discountedPrice}
+                          {dish.dishName} - â‚¹{dish.discountedPrice}
                         </p>
                         <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-xs">
                           <Clock className="h-3 w-3" />

@@ -42,8 +42,8 @@ const firstText = (...values) => {
   return ""
 }
 
-const formatMoney = (value) => `₹${Number(value || 0).toFixed(2)}`
-const formatDiscount = (value) => `-₹${Math.abs(Number(value || 0)).toFixed(2)}`
+const formatMoney = (value) => `â‚¹${Number(value || 0).toFixed(2)}`
+const formatDiscount = (value) => `-â‚¹${Math.abs(Number(value || 0)).toFixed(2)}`
 
 
 export default function OrderDetails() {

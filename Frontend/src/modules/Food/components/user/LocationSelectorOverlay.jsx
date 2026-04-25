@@ -1560,12 +1560,12 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
       const lastLat = parseFloat(last.lat.toFixed(6))
       const lastLng = parseFloat(last.lng.toFixed(6))
       if (lastLat === roundedLat && lastLng === roundedLng) {
-        debugLog("?? Skipping map move handler — same coordinates as last call")
+        debugLog("?? Skipping map move handler â€” same coordinates as last call")
         return
       }
       const movedM = calculateDistance(last.lat, last.lng, roundedLat, roundedLng)
       if (movedM < MAP_MOVE_MIN_PAN_METERS) {
-        debugLog("?? Skipping map move handler — pan below threshold (m):", movedM)
+        debugLog("?? Skipping map move handler â€” pan below threshold (m):", movedM)
         return
       }
     }
@@ -1577,7 +1577,7 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
     reverseGeocodeTimeoutRef.current = setTimeout(async () => {
       lastReverseGeocodeCoordsRef.current = { lat: roundedLat, lng: roundedLng }
 
-      // Default: no reverse geocode — coordinates only (no network on every pan)
+      // Default: no reverse geocode â€” coordinates only (no network on every pan)
       if (!ENABLE_LOCATION_REVERSE_GEOCODE) {
         setCurrentAddress(coordLabel)
         setAddressFormData((prev) => ({
@@ -2259,7 +2259,7 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
                   <div className="absolute z-50 left-0 right-0 mt-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] shadow-xl overflow-hidden">
                     {isKeywordSearching && (
                       <div className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400">
-                        Searching…
+                        Searchingâ€¦
                       </div>
                     )}
 

@@ -204,11 +204,11 @@ export const HistoryV2 = () => {
           <div className="bg-[#E9F9F4] rounded-2xl p-6 border border-[#D1F2E8] flex justify-between items-center">
              <div>
                 <p className="text-[11px] font-bold text-[#10B981] mb-1">COD Collected</p>
-                <h3 className="text-xl font-bold text-gray-950">₹{metrics.cod.toFixed(2)}</h3>
+                <h3 className="text-xl font-bold text-gray-950">â‚¹{metrics.cod.toFixed(2)}</h3>
              </div>
              <div className="text-right">
                 <p className="text-[11px] font-bold text-[#10B981] mb-1">Earnings</p>
-                <h3 className="text-xl font-bold text-gray-950">₹{metrics.earnings.toFixed(2)}</h3>
+                <h3 className="text-xl font-bold text-gray-950">â‚¹{metrics.earnings.toFixed(2)}</h3>
              </div>
           </div>
 
@@ -255,11 +255,11 @@ export const HistoryV2 = () => {
                              </div>
                              <div className="text-center">
                                 <p className="text-[11px] font-medium text-gray-400 mb-1">COD</p>
-                                <p className="text-sm font-bold text-gray-950">₹{collection.toFixed(2)}</p>
+                                <p className="text-sm font-bold text-gray-950">â‚¹{collection.toFixed(2)}</p>
                              </div>
                              <div className="text-right">
                                 <p className="text-[11px] font-medium text-gray-400 mb-1">Earning</p>
-                                <p className="text-sm font-bold text-gray-950">₹{payout.toFixed(2)}</p>
+                                <p className="text-sm font-bold text-gray-950">â‚¹{payout.toFixed(2)}</p>
                              </div>
                          </div>
                       </div>
@@ -300,7 +300,7 @@ export const HistoryV2 = () => {
                       ) : bonusTransactions.length > 0 ? bonusTransactions.map((tx, i) => (
                          <div key={i} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex justify-between items-center">
                             <div>
-                               <p className="text-lg font-bold text-gray-950 mb-0.5">₹{Number(tx.amount || 0).toFixed(2)}</p>
+                               <p className="text-lg font-bold text-gray-950 mb-0.5">â‚¹{Number(tx.amount || 0).toFixed(2)}</p>
                                <p className="text-sm font-medium text-gray-600 line-clamp-1">{tx.description || 'Bonus Payout'}</p>
                                <p className="text-[10px] text-gray-400 font-medium mt-1">{new Date(tx.createdAt || tx.date).toLocaleDateString()}</p>
                             </div>

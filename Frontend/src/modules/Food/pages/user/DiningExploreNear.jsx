@@ -21,7 +21,7 @@ const popularRestaurants = [
     location: "Press Complex, Indore",
     distance: "2.9 km",
     cuisine: "Continental",
-    price: "₹1500 for two",
+    price: "â‚¹1500 for two",
     image: "",
     offer: "Flat 30% OFF + 3 more",
     deliveryTime: "30-35 mins",
@@ -35,7 +35,7 @@ const popularRestaurants = [
     location: "MG Road, Indore",
     distance: "3.2 km",
     cuisine: "Multi-cuisine",
-    price: "₹2000 for two",
+    price: "â‚¹2000 for two",
     image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop",
     offer: "Flat 25% OFF + 2 more",
     deliveryTime: "35-40 mins",
@@ -49,7 +49,7 @@ const popularRestaurants = [
     location: "Vijay Nagar, Indore",
     distance: "1.8 km",
     cuisine: "Continental",
-    price: "₹1800 for two",
+    price: "â‚¹1800 for two",
     image: "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=800&h=600&fit=crop",
     offer: "Flat 35% OFF + 4 more",
     deliveryTime: "25-30 mins",
@@ -63,7 +63,7 @@ const popularRestaurants = [
     location: "Palasia, Indore",
     distance: "2.1 km",
     cuisine: "Seafood",
-    price: "₹1600 for two",
+    price: "â‚¹1600 for two",
     image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&h=600&fit=crop",
     offer: "Flat 20% OFF + 2 more",
     deliveryTime: "28-33 mins",
@@ -77,7 +77,7 @@ const popularRestaurants = [
     location: "Scheme 54, Indore",
     distance: "4.5 km",
     cuisine: "North Indian",
-    price: "₹1200 for two",
+    price: "â‚¹1200 for two",
     image: "https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=800&h=600&fit=crop",
     offer: "Flat 30% OFF + 3 more",
     deliveryTime: "40-45 mins",
@@ -91,7 +91,7 @@ const popularRestaurants = [
     location: "Bhawarkua, Indore",
     distance: "3.8 km",
     cuisine: "Continental",
-    price: "₹2200 for two",
+    price: "â‚¹2200 for two",
     image: "",
     offer: "Flat 25% OFF + 2 more",
     deliveryTime: "35-40 mins",
@@ -371,7 +371,7 @@ export default function DiningExploreNear() {
                         {/* Featured Dish Badge - Top Left */}
                         <div className="absolute top-3 left-3">
                           <div className="bg-gray-800/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium">
-                            {restaurant.featuredDish} • ₹{restaurant.featuredPrice}
+                            {restaurant.featuredDish} â€¢ â‚¹{restaurant.featuredPrice}
                           </div>
                         </div>
 
@@ -636,7 +636,7 @@ export default function DiningExploreNear() {
                             : 'border-gray-200 hover:border-green-500'
                           }`}
                       >
-                        <span className={`text-sm font-medium ${activeFilters.has('price-under-200') ? 'text-green-600' : 'text-gray-700'}`}>Under ₹200</span>
+                        <span className={`text-sm font-medium ${activeFilters.has('price-under-200') ? 'text-green-600' : 'text-gray-700'}`}>Under â‚¹200</span>
                       </button>
                       <button
                         onClick={() => toggleFilter('price-under-500')}
@@ -645,7 +645,7 @@ export default function DiningExploreNear() {
                             : 'border-gray-200 hover:border-green-500'
                           }`}
                       >
-                        <span className={`text-sm font-medium ${activeFilters.has('price-under-500') ? 'text-green-600' : 'text-gray-700'}`}>Under ₹500</span>
+                        <span className={`text-sm font-medium ${activeFilters.has('price-under-500') ? 'text-green-600' : 'text-gray-700'}`}>Under â‚¹500</span>
                       </button>
                     </div>
                   </div>

@@ -269,14 +269,14 @@ export default function OrderInvoice() {
                                   <span className="text-xs text-gray-500">{item.variantName}</span>
                                 ) : null}
                                 <span className="text-muted-foreground sm:hidden text-xs">
-                                  Qty: {item.quantity} � ${item.price.toFixed(2)}
+                                  Qty: {item.quantity} ï¿½ ${item.price.toFixed(2)}
                                 </span>
                               </div>
                             </div>
                           </td>
                           <td className="px-2 sm:px-3 py-2 sm:py-3 text-center hidden sm:table-cell">{item.quantity}</td>
-                          <td className="px-2 sm:px-3 py-2 sm:py-3 text-right hidden md:table-cell">₹{item.price.toFixed(2)}</td>
-                          <td className="px-2 sm:px-3 py-2 sm:py-3 text-right font-medium">₹{(item.price * item.quantity).toFixed(2)}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-3 text-right hidden md:table-cell">â‚¹{item.price.toFixed(2)}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-3 text-right font-medium">â‚¹{(item.price * item.quantity).toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -288,37 +288,37 @@ export default function OrderInvoice() {
               <div className="total-section mt-4 sm:mt-6">
                 <div className="total-row flex justify-between text-xs sm:text-sm sm:text-base py-1 sm:py-2">
                   <span>Subtotal:</span>
-                  <span>₹{order.subtotal.toFixed(2)}</span>
+                  <span>â‚¹{order.subtotal.toFixed(2)}</span>
                 </div>
                 {order.packagingFee > 0 && (
                   <div className="total-row flex justify-between text-xs sm:text-sm sm:text-base py-1 sm:py-2">
                     <span>Packaging Fee:</span>
-                    <span>₹{order.packagingFee.toFixed(2)}</span>
+                    <span>â‚¹{order.packagingFee.toFixed(2)}</span>
                   </div>
                 )}
                 {order.platformFee > 0 && (
                   <div className="total-row flex justify-between text-xs sm:text-sm sm:text-base py-1 sm:py-2">
                     <span>Platform Fee:</span>
-                    <span>₹{order.platformFee.toFixed(2)}</span>
+                    <span>â‚¹{order.platformFee.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="total-row flex justify-between text-xs sm:text-sm sm:text-base py-1 sm:py-2">
                   <span>Delivery Fee:</span>
-                  <span>₹{order.deliveryFee.toFixed(2)}</span>
+                  <span>â‚¹{order.deliveryFee.toFixed(2)}</span>
                 </div>
                 <div className="total-row flex justify-between text-xs sm:text-sm sm:text-base py-1 sm:py-2">
                   <span>GST:</span>
-                  <span>₹{order.tax.toFixed(2)}</span>
+                  <span>â‚¹{order.tax.toFixed(2)}</span>
                 </div>
                 {order.discount > 0 && (
                   <div className="total-row flex justify-between text-xs sm:text-sm sm:text-base py-1 sm:py-2 text-green-600">
                     <span>Discount:</span>
-                    <span>-₹{order.discount.toFixed(2)}</span>
+                    <span>-â‚¹{order.discount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="grand-total flex justify-between text-base sm:text-lg md:text-xl md:text-2xl pt-2 sm:pt-3 mt-2 sm:mt-3 border-t-2 border-[#7e3866]">
                   <span>Total:</span>
-                  <span>₹{order.total.toFixed(2)}</span>
+                  <span>â‚¹{order.total.toFixed(2)}</span>
                 </div>
               </div>
 

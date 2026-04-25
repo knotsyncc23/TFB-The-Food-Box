@@ -59,7 +59,7 @@ export const ProfileV2 = () => {
 
   const handleShareReferral = async () => {
     if (!referralLink) return
-    const rewardText = referralReward > 0 ? `₹${referralReward}` : "rewards"
+    const rewardText = referralReward > 0 ? `â‚¹${referralReward}` : "rewards"
     const shareText = `Join as a delivery partner and earn ${rewardText}.`
     try {
       if (navigator.share) {
@@ -146,7 +146,7 @@ export const ProfileV2 = () => {
           <div className="bg-white rounded-xl p-4 flex items-center justify-between gap-4">
             <div className="min-w-0">
               <h3 className="text-base font-bold text-gray-900 mb-1">
-                Share & Earn{referralReward > 0 ? ` ₹${referralReward}` : ""}
+                Share & Earn{referralReward > 0 ? ` â‚¹${referralReward}` : ""}
               </h3>
               <p className="text-gray-500 text-xs font-medium">Invite friends to join the delivery partner fleet.</p>
             </div>

@@ -2874,7 +2874,7 @@ export default function Cart() {
                   style={{ animation: 'bounce 0.8s ease-in-out infinite' }}
                 >
                   <div className="w-24 h-24 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center shadow-2xl shadow-yellow-300/60 dark:shadow-yellow-900/40">
-                    <span className="text-5xl">🎉</span>
+                    <span className="text-5xl">ðŸŽ‰</span>
                   </div>
                 </div>
 

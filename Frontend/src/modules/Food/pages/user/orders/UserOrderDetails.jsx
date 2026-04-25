@@ -474,7 +474,7 @@ export default function UserOrderDetails() {
                 </span>
               </div>
               <span className="text-sm text-gray-800 font-medium">
-                ₹{(item.price || 0).toFixed(2)}
+                â‚¹{(item.price || 0).toFixed(2)}
               </span>
             </div>
           ))}
@@ -502,18 +502,18 @@ export default function UserOrderDetails() {
               <div>
                 {pricing.originalItemTotal && (
                   <span className="text-gray-400 line-through mr-1">
-                    ₹{Number(pricing.originalItemTotal).toFixed(2)}
+                    â‚¹{Number(pricing.originalItemTotal).toFixed(2)}
                   </span>
                 )}
                 <span className="text-gray-800">
-                  ₹{Number(pricing.subtotal || pricing.total || 0).toFixed(2)}
+                  â‚¹{Number(pricing.subtotal || pricing.total || 0).toFixed(2)}
                 </span>
               </div>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">GST (govt. taxes)</span>
               <span className="text-gray-800">
-                ₹{Number(pricing.tax || 0).toFixed(2)}
+                â‚¹{Number(pricing.tax || 0).toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between">
@@ -524,26 +524,26 @@ export default function UserOrderDetails() {
                 </span>
               )}
               <span className="text-[#7e3866] font-medium uppercase">
-                {pricing.deliveryFee ? `₹${Number(pricing.deliveryFee).toFixed(2)}` : "Free"}
+                {pricing.deliveryFee ? `â‚¹${Number(pricing.deliveryFee).toFixed(2)}` : "Free"}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Platform fee</span>
               <span className="text-gray-800">
-                ₹{Number(pricing.platformFee || 0).toFixed(2)}
+                â‚¹{Number(pricing.platformFee || 0).toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Subscription / other fees</span>
               <span className="text-gray-800">
-                ₹{Number(pricing.subscriptionFee || 0).toFixed(2)}
+                â‚¹{Number(pricing.subscriptionFee || 0).toFixed(2)}
               </span>
             </div>
 
             <div className="border-t border-gray-100 my-2 pt-2 flex justify-between items-center">
               <span className="font-bold text-gray-800">Paid</span>
               <span className="font-bold text-gray-800">
-                ₹{Number(pricing.total || 0).toFixed(2)}
+                â‚¹{Number(pricing.total || 0).toFixed(2)}
               </span>
             </div>
           </div>
@@ -569,7 +569,7 @@ export default function UserOrderDetails() {
               <div className="flex items-center justify-center gap-2 pt-1 text-[#7e3866] font-bold text-sm">
                 <span></span>
                 <span>
-                  You saved ₹{Number(savings).toFixed(2)} on this order!
+                  You saved â‚¹{Number(savings).toFixed(2)} on this order!
                 </span>
               </div>
             </div>

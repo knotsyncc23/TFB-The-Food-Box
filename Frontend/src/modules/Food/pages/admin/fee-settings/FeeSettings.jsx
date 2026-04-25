@@ -281,7 +281,7 @@ export default function FeeSettings() {
                         <tr>
                           <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">Min (km)</th>
                           <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">Max (km)</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">Delivery Fee (₹)</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 border-b border-slate-200">Delivery Fee (â‚¹)</th>
                           <th className="px-4 py-3 text-center text-sm font-semibold text-slate-700 border-b border-slate-200">Actions</th>
                         </tr>
                       </thead>
@@ -320,7 +320,7 @@ export default function FeeSettings() {
                                 <td className="px-4 py-3 text-sm font-medium text-green-600 border-b border-slate-100">
                                   {isEditing ? (
                                     <div className="flex items-center gap-1">
-                                      <span className="text-slate-400">₹</span>
+                                      <span className="text-slate-400">â‚¹</span>
                                       <input
                                         type="number"
                                         value={newRange.fee}
@@ -329,7 +329,7 @@ export default function FeeSettings() {
                                       />
                                     </div>
                                   ) : (
-                                    <>₹{range.fee}</>
+                                    <>â‚¹{range.fee}</>
                                   )}
                                 </td>
                                 <td className="px-4 py-3 text-center border-b border-slate-100">
@@ -412,7 +412,7 @@ export default function FeeSettings() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Delivery Fee (₹)</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Delivery Fee (â‚¹)</label>
                         <input
                           type="number"
                           value={newRange.fee}
@@ -434,7 +434,7 @@ export default function FeeSettings() {
                       </div>
                     </div>
                     <p className="text-xs text-slate-500 mt-2 italic">
-                      Example: Orders between 0 km and 5 km will have ₹50 delivery fee.
+                      Example: Orders between 0 km and 5 km will have â‚¹50 delivery fee.
                     </p>
                   </div>
                 )}
@@ -445,7 +445,7 @@ export default function FeeSettings() {
                 {/* Free Delivery Up To */}
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700">
-                    Free Delivery Up To (₹)
+                    Free Delivery Up To (â‚¹)
                   </label>
                   <input
                     type="number"
@@ -464,7 +464,7 @@ export default function FeeSettings() {
                 {/* Default Delivery Fee (Fallback) */}
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700">
-                    Default Delivery Fee (₹) <span className="text-slate-400 font-normal">(Optional)</span>
+                    Default Delivery Fee (â‚¹) <span className="text-slate-400 font-normal">(Optional)</span>
                   </label>
                   <input
                     type="number"
@@ -483,7 +483,7 @@ export default function FeeSettings() {
                 {/* Platform Fee */}
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700">
-                    Platform Fee (₹)
+                    Platform Fee (â‚¹)
                   </label>
                   <input
                     type="number"
@@ -501,7 +501,7 @@ export default function FeeSettings() {
                 {/* Packaging Fee */}
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-slate-700">
-                    Packaging Charges Fee (₹)
+                    Packaging Charges Fee (â‚¹)
                   </label>
                   <input
                     type="number"

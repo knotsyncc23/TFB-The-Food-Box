@@ -21,7 +21,7 @@ const filterOptions = [
   { id: 'under-30-mins', label: 'Under 30 mins' },
   { id: 'price-match', label: 'Price Match', hasIcon: true },
   { id: 'flat-50-off', label: 'Flat 50% OFF', hasIcon: true },
-  { id: 'under-250', label: 'Under ₹250' },
+  { id: 'under-250', label: 'Under â‚¹250' },
   { id: 'rating-4-plus', label: 'Rating 4.0+' },
 ]
 const SEARCH_HISTORY_KEY = "user_recent_searches_v1"
@@ -216,9 +216,9 @@ export default function SearchResults() {
 
             // Common default values from backend model
             const defaultOffers = [
-              "Flat ₹50 OFF above ₹199",
+              "Flat â‚¹50 OFF above â‚¹199",
               "Flat 50% OFF",
-              "Flat ₹40 OFF above ₹149"
+              "Flat â‚¹40 OFF above â‚¹149"
             ]
             const defaultDeliveryTimes = ["25-30 mins", "20-25 mins", "30-35 mins"]
             const defaultDistances = ["1.2 km", "1 km", "0.8 km"]
@@ -999,13 +999,13 @@ export default function SearchResults() {
                         if (selectedCategory && selectedCategory !== 'all' && restaurant.menu) {
                           const categoryDish = getCategoryDishFromMenu(restaurant.menu, selectedCategory)
                           if (categoryDish && restaurant.featuredPrice) {
-                            displayText = `${categoryDish} • ₹${restaurant.featuredPrice}`
+                            displayText = `${categoryDish} â€¢ â‚¹${restaurant.featuredPrice}`
                           }
                         }
 
                         // Fallback to featured dish
                         if (!displayText && restaurant.featuredDish && restaurant.featuredPrice) {
-                          displayText = `${restaurant.featuredDish} • ₹${restaurant.featuredPrice}`
+                          displayText = `${restaurant.featuredDish} â€¢ â‚¹${restaurant.featuredPrice}`
                         }
 
                         return displayText ? (

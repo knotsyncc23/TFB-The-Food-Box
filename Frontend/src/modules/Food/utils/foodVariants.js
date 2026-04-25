@@ -36,7 +36,7 @@ export const getFoodDisplayPrice = (item = {}) => {
 
 export const getFoodPriceLabel = (item = {}) => {
   const price = getFoodDisplayPrice(item)
-  return hasFoodVariants(item) ? `Starting from ₹${Math.round(price)}` : `₹${Math.round(price)}`
+  return hasFoodVariants(item) ? `Starting from â‚¹${Math.round(price)}` : `â‚¹${Math.round(price)}`
 }
 
 export const buildCartLineId = (itemId, variantId = "") =>

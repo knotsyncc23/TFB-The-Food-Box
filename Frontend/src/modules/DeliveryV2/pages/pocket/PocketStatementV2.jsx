@@ -147,19 +147,19 @@ export const PocketStatementV2 = () => {
                 <div className="text-left">
                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Orders</p>
                    <p className="text-base font-bold text-black leading-none">
-                      ₹{summary.totalEarning.toFixed(0)}
+                      â‚¹{summary.totalEarning.toFixed(0)}
                    </p>
                 </div>
                 <div>
                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Bonus</p>
                    <p className="text-base font-bold text-black leading-none">
-                      ₹{summary.totalBonus.toFixed(0)}
+                      â‚¹{summary.totalBonus.toFixed(0)}
                    </p>
                 </div>
                 <div className="text-right">
                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Total</p>
                    <p className="text-base font-bold text-[#ff8100] leading-none">
-                      ₹{summary.grandTotal.toFixed(0)}
+                      â‚¹{summary.grandTotal.toFixed(0)}
                    </p>
                 </div>
              </div>
@@ -220,21 +220,21 @@ export const PocketStatementV2 = () => {
                                <div className="mb-2">
                                   <p className="text-[10px] text-gray-400 font-bold uppercase">Earning</p>
                                   <p className="text-sm font-bold text-black">
-                                     ₹{amounts.earning}
+                                     â‚¹{amounts.earning}
                                   </p>
                                </div>
                                {amounts.bonus > 0 && (
                                   <div className="mb-2">
                                      <p className="text-[10px] text-emerald-500 font-bold uppercase">Bonus</p>
                                      <p className="text-sm font-bold text-emerald-600">
-                                        + ₹{amounts.bonus}
+                                        + â‚¹{amounts.bonus}
                                      </p>
                                   </div>
                                )}
                                <div className="pt-2 border-t border-gray-50">
                                   <p className="text-[10px] text-gray-800 font-bold uppercase">Total</p>
                                   <p className="text-base font-bold text-[#ff8100]">
-                                     ₹{amounts.total}
+                                     â‚¹{amounts.total}
                                   </p>
                                </div>
                             </div>

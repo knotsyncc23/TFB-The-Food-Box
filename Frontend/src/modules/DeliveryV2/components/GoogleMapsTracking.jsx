@@ -102,7 +102,7 @@ export default function GoogleMapsTracking({
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: apiKey || '',
-    // Do not load `places` — it pulls Geocoding-related code paths; Directions is in core Maps JS.
+    // Do not load `places` â€” it pulls Geocoding-related code paths; Directions is in core Maps JS.
     libraries: MAP_LIBRARIES,
   })
 

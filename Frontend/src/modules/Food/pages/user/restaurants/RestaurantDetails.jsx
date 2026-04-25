@@ -516,9 +516,9 @@ function RestaurantDetailsContent() {
             restaurantOffers: {
               goldOffer: {
                 title: normalizedRestaurantOffers?.goldOffer?.title || "Gold exclusive offer",
-                description: apiRestaurant?.restaurantOffers?.goldOffer?.description || "Free delivery above ₹99",
+                description: apiRestaurant?.restaurantOffers?.goldOffer?.description || "Free delivery above â‚¹99",
                 unlockText: normalizedRestaurantOffers?.goldOffer?.unlockText || "join Gold to unlock",
-                buttonText: apiRestaurant?.restaurantOffers?.goldOffer?.buttonText || "Add Gold - ₹1",
+                buttonText: apiRestaurant?.restaurantOffers?.goldOffer?.buttonText || "Add Gold - â‚¹1",
               },
               coupons: Array.isArray(normalizedRestaurantOffers?.coupons)
                 ? normalizedRestaurantOffers.coupons
@@ -3313,7 +3313,7 @@ function RestaurantDetailsContent() {
                           )}
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          {getDishFavorites().length} dishes � {getFavorites().length} restaurant
+                          {getDishFavorites().length} dishes ï¿½ {getFavorites().length} restaurant
                         </p>
                       </div>
                     </button>
@@ -3480,7 +3480,7 @@ function RestaurantDetailsContent() {
                                   : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-[#2a2a2a] dark:text-gray-300"
                               }`}
                             >
-                              {variant.name} · {RUPEE_SYMBOL}{Math.round(variant.price)}
+                              {variant.name} Â· {RUPEE_SYMBOL}{Math.round(variant.price)}
                             </button>
                           ))}
                         </div>
@@ -3570,7 +3570,7 @@ function RestaurantDetailsContent() {
                           )}
                           <span className="text-base font-bold">
                             {hasFoodVariants(selectedItem)
-                              ? `${getVariantForDish(selectedItem, selectedVariantId)?.name || "Default"} · ${RUPEE_SYMBOL}${Math.round(getVariantForDish(selectedItem, selectedVariantId)?.price || selectedItem.price)}`
+                              ? `${getVariantForDish(selectedItem, selectedVariantId)?.name || "Default"} Â· ${RUPEE_SYMBOL}${Math.round(getVariantForDish(selectedItem, selectedVariantId)?.price || selectedItem.price)}`
                               : `${RUPEE_SYMBOL}${Math.round(selectedItem.price)}`}
                           </span>
                         </div>
@@ -3749,7 +3749,7 @@ function RestaurantDetailsContent() {
                             <Lock className="h-5 w-5 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
                             <div className="flex-1">
                               <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                                {restaurant.restaurantOffers.goldOffer?.description || "Free delivery above ₹99"}
+                                {restaurant.restaurantOffers.goldOffer?.description || "Free delivery above â‚¹99"}
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">
                                 {restaurant.restaurantOffers.goldOffer?.unlockText || "join Gold to unlock"}
@@ -3762,7 +3762,7 @@ function RestaurantDetailsContent() {
                               // Handle add gold
                             }}
                           >
-                            {restaurant.restaurantOffers.goldOffer?.buttonText || "Add Gold - ₹1"}
+                            {restaurant.restaurantOffers.goldOffer?.buttonText || "Add Gold - â‚¹1"}
                           </Button>
                         </div>
                       </div>

@@ -493,7 +493,7 @@ export default function JoiningRequest() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-slate-700">{request.zone || "—"}</span>
+                        <span className="text-sm text-slate-700">{request.zone || "â€”"}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -857,7 +857,7 @@ export default function JoiningRequest() {
                         {r?.pureVegRestaurant != null && (
                           <div className="flex items-center gap-3">
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${r.pureVegRestaurant ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
-                              {r.pureVegRestaurant ? "🟢 Pure Veg" : "🟠 Mixed Menu"}
+                              {r.pureVegRestaurant ? "ðŸŸ¢ Pure Veg" : "ðŸŸ  Mixed Menu"}
                             </span>
                           </div>
                         )}
@@ -884,7 +884,7 @@ export default function JoiningRequest() {
                             <div>
                               <p className="text-xs text-slate-500">Opening / Closing</p>
                               <p className="text-sm font-medium text-slate-900">
-                                {formatTime12Hour(openingTime)} – {formatTime12Hour(closingTime)}
+                                {formatTime12Hour(openingTime)} â€“ {formatTime12Hour(closingTime)}
                               </p>
                             </div>
                           </div>
@@ -918,7 +918,7 @@ export default function JoiningRequest() {
                       </div>
                     </div>
 
-                  {/* Registration Documents – flat schema (PAN, GST, FSSAI, Bank) */}
+                  {/* Registration Documents â€“ flat schema (PAN, GST, FSSAI, Bank) */}
                   {restaurantPhotoList.length > 0 && (
                     <div className="pt-6 border-t border-slate-200">
                       <h4 className="text-lg font-semibold text-slate-900 mb-4">Restaurant Photos</h4>
@@ -952,7 +952,7 @@ export default function JoiningRequest() {
                     <div className="pt-6 border-t border-slate-200">
                       <h4 className="text-lg font-semibold text-slate-900 mb-4">Registration Documents</h4>
                       <div className="space-y-6">
-                        {/* PAN – flat: panNumber, nameOnPan, panImage */}
+                        {/* PAN â€“ flat: panNumber, nameOnPan, panImage */}
                         {(r.panNumber || r.panImage || r?.onboarding?.step3?.pan) && (
                           <div className="bg-slate-50 rounded-lg p-4">
                             <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
@@ -991,7 +991,7 @@ export default function JoiningRequest() {
                           </div>
                         )}
 
-                        {/* GST – flat: gstRegistered, gstNumber, gstLegalName, gstAddress, gstImage */}
+                        {/* GST â€“ flat: gstRegistered, gstNumber, gstLegalName, gstAddress, gstImage */}
                         {(r.gstRegistered != null || r.gstNumber || r?.onboarding?.step3?.gst) && (
                           <div className="bg-slate-50 rounded-lg p-4">
                             <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
@@ -1042,7 +1042,7 @@ export default function JoiningRequest() {
                           </div>
                         )}
 
-                        {/* FSSAI – flat: fssaiNumber, fssaiExpiry, fssaiImage */}
+                        {/* FSSAI â€“ flat: fssaiNumber, fssaiExpiry, fssaiImage */}
                         {(r.fssaiNumber || r.fssaiExpiry || r?.onboarding?.step3?.fssai) && (
                           <div className="bg-slate-50 rounded-lg p-4">
                             <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
@@ -1087,7 +1087,7 @@ export default function JoiningRequest() {
                           </div>
                         )}
 
-                        {/* Bank – flat: accountNumber, ifscCode, accountHolderName, accountType */}
+                        {/* Bank â€“ flat: accountNumber, ifscCode, accountHolderName, accountType */}
                         {(r.accountNumber || r.ifscCode || r?.onboarding?.step3?.bank) && (
                           <div className="bg-slate-50 rounded-lg p-4">
                             <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">

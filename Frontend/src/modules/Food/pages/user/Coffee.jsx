@@ -19,7 +19,7 @@ const starbucksStores = [
     rating: 4.4,
     location: "YN Road, Indore",
     distance: "1.3 km",
-    price: "₹900 for two",
+    price: "â‚¹900 for two",
     offer: "Flat 25% OFF",
     logo: starbucksLogo
   },
@@ -29,7 +29,7 @@ const starbucksStores = [
     rating: 2.8,
     location: "YN Road, Indore",
     distance: "1.3 km",
-    price: "₹600 for two",
+    price: "â‚¹600 for two",
     offer: null,
     logo: starbucksLogo
   },
@@ -39,7 +39,7 @@ const starbucksStores = [
     rating: 4.5,
     location: "MG Road, Indore",
     distance: "2.1 km",
-    price: "₹850 for two",
+    price: "â‚¹850 for two",
     offer: "Flat 20% OFF",
     logo: starbucksLogo
   },
@@ -49,7 +49,7 @@ const starbucksStores = [
     rating: 4.2,
     location: "Vijay Nagar, Indore",
     distance: "0.9 km",
-    price: "₹950 for two",
+    price: "â‚¹950 for two",
     offer: "Flat 30% OFF",
     logo: starbucksLogo
   },
@@ -62,7 +62,7 @@ const cafeCoffeeDayStores = [
     rating: 4.3,
     location: "Palasia, Indore",
     distance: "1.5 km",
-    price: "₹500 for two",
+    price: "â‚¹500 for two",
     offer: "Flat 15% OFF",
     logo: null
   },
@@ -72,7 +72,7 @@ const cafeCoffeeDayStores = [
     rating: 4.1,
     location: "Scheme 54, Indore",
     distance: "2.3 km",
-    price: "₹450 for two",
+    price: "â‚¹450 for two",
     offer: null,
     logo: null
   },
@@ -85,7 +85,7 @@ const blueTokaiStores = [
     rating: 4.6,
     location: "Bhawarkua, Indore",
     distance: "1.8 km",
-    price: "₹700 for two",
+    price: "â‚¹700 for two",
     offer: "Buy 1 Get 1 Free",
     logo: null
   },
@@ -95,7 +95,7 @@ const blueTokaiStores = [
     rating: 4.4,
     location: "Press Complex, Indore",
     distance: "2.5 km",
-    price: "₹650 for two",
+    price: "â‚¹650 for two",
     offer: "Flat 20% OFF",
     logo: null
   },

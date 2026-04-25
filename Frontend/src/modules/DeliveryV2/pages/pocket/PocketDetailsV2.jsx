@@ -19,7 +19,7 @@ import useDeliveryBackNavigation from "../../hooks/useDeliveryBackNavigation";
 export const PocketDetailsV2 = () => {
   const goBack = useDeliveryBackNavigation();
 
-  // Current week range (Sunday–Saturday)
+  // Current week range (Sundayâ€“Saturday)
   const getInitialWeekRange = () => {
     const now = new Date();
     const start = new Date(now);
@@ -99,7 +99,7 @@ export const PocketDetailsV2 = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12 font-poppins">
-      {/* ─── HEADER ─── */}
+      {/* â”€â”€â”€ HEADER â”€â”€â”€ */}
       <div className="bg-white border-b border-gray-100 px-6 py-5 flex items-center justify-between sticky top-0 z-[100]">
         <div className="flex items-center gap-4">
           <button onClick={goBack} className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-900 border border-gray-100 active:scale-90 transition-all">
@@ -116,7 +116,7 @@ export const PocketDetailsV2 = () => {
       </div>
 
       <div className="px-5 py-6 space-y-6">
-        {/* ─── WEEK SELECTOR (Matching V2 Aesthetics) ─── */}
+        {/* â”€â”€â”€ WEEK SELECTOR (Matching V2 Aesthetics) â”€â”€â”€ */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
            <WeekSelector 
              onChange={setWeekRange}
@@ -124,7 +124,7 @@ export const PocketDetailsV2 = () => {
            />
         </div>
 
-        {/* ─── SUMMARY CARD ─── */}
+        {/* â”€â”€â”€ SUMMARY CARD â”€â”€â”€ */}
         <div className="bg-black rounded-3xl p-6 shadow-2xl relative overflow-hidden group">
            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/10 transition-colors" />
            <div className="relative z-10">
@@ -150,7 +150,7 @@ export const PocketDetailsV2 = () => {
            </div>
         </div>
 
-        {/* ─── ORDERS LIST ─── */}
+        {/* â”€â”€â”€ ORDERS LIST â”€â”€â”€ */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
              <h3 className="text-xs font-black text-gray-950 uppercase tracking-widest">Trips History</h3>
@@ -183,7 +183,7 @@ export const PocketDetailsV2 = () => {
                        <div>
                           <div className="flex items-center gap-2 mb-0.5">
                              <h4 className="text-sm font-black text-gray-950 uppercase tracking-tight">#{oid.toString().slice(-6)}</h4>
-                             <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">• {new Date(order.deliveredAt || order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>
+                             <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">â€¢ {new Date(order.deliveredAt || order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>
                           </div>
                           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight truncate max-w-[140px]">
                             {order.restaurantName || order.restaurantId?.name || "Premium Restaurant"}

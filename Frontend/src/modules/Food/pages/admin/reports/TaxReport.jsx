@@ -19,8 +19,8 @@ export default function TaxReport() {
   })
   const [reports, setReports] = useState([])
   const [stats, setStats] = useState({
-    totalIncome: "₹0.00",
-    totalTax: "₹0.00"
+    totalIncome: "â‚¹0.00",
+    totalTax: "â‚¹0.00"
   })
   const [loading, setLoading] = useState(true)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -63,8 +63,8 @@ export default function TaxReport() {
       if (response?.data?.success && response.data.data) {
         setReports(response.data.data.reports || [])
         setStats(response.data.data.stats || {
-          totalIncome: "₹0.00",
-          totalTax: "₹0.00"
+          totalIncome: "â‚¹0.00",
+          totalTax: "â‚¹0.00"
         })
       } else {
         setReports([])

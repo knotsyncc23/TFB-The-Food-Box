@@ -510,7 +510,7 @@ export default function OrdersPage() {
                         Order #{order.id}
                       </p>
                       <p className="text-gray-500 text-xs md:text-sm mb-1.5">
-                        {order.items} Item{order.items !== 1 ? 's' : ''} � {order.customerName}
+                        {order.items} Item{order.items !== 1 ? 's' : ''} ï¿½ {order.customerName}
                       </p>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`inline-flex items-center gap-1 ${getStatusBadgeColor(order.status)} text-[10px] md:text-xs font-medium px-2 py-0.5 rounded-full`}>
@@ -532,7 +532,7 @@ export default function OrdersPage() {
                     <div className="text-right">
                       <p className="text-gray-500 text-[10px] md:text-xs mb-0.5">Amount</p>
                       <p className="text-gray-900 font-bold text-sm md:text-base">
-                        ₹{order.amount?.toFixed(2) || '0.00'}
+                        â‚¹{order.amount?.toFixed(2) || '0.00'}
                       </p>
                     </div>
                   </div>

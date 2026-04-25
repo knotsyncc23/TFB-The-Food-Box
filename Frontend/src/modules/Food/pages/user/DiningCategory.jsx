@@ -86,7 +86,7 @@ export default function DiningCategory() {
               address: formatAddress(restaurant),
               cuisine:
                 Array.isArray(restaurant.cuisines) && restaurant.cuisines.length > 0
-                  ? restaurant.cuisines.join(" • ")
+                  ? restaurant.cuisines.join(" â€¢ ")
                   : "Multi-cuisine",
               price: restaurant.costForTwo ? `Rs ${restaurant.costForTwo} for two` : "Price on request",
               rating: Number(restaurant.rating || restaurant.avgRating || 0).toFixed(1),
@@ -217,7 +217,7 @@ export default function DiningCategory() {
                       <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-3">
                         <div className="rounded-full bg-black/60 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
                           {restaurant.featuredDish}
-                          {restaurant.featuredPrice ? ` • ${"\u20B9"}${restaurant.featuredPrice}` : ""}
+                          {restaurant.featuredPrice ? ` â€¢ ${"\u20B9"}${restaurant.featuredPrice}` : ""}
                         </div>
                         <Button
                           variant="ghost"

@@ -17,7 +17,7 @@ import loginBg from "@food/assets/loginbanner.png"
 import { useCompanyName } from "@food/hooks/useCompanyName"
 
 const countryCodes = [
-  { code: "+91", country: "IN", flag: "🇮🇳" },
+  { code: "+91", country: "IN", flag: "ðŸ‡®ðŸ‡³" },
 ]
 
 export default function RestaurantSignup() {

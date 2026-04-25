@@ -434,11 +434,11 @@ export default function SignIn() {
                 <Link to="/profile/terms" className="underline underline-offset-2 hover:text-black transition-colors">
                   Terms of Service
                 </Link>
-                <span>•</span>
+                <span>â€¢</span>
                 <Link to="/profile/privacy" className="underline underline-offset-2 hover:text-black transition-colors">
                   Privacy Policy
                 </Link>
-                <span>•</span>
+                <span>â€¢</span>
                 <Link to="/profile/refund" className="underline underline-offset-2 hover:text-black transition-colors">
                   Content Policy
                 </Link>

@@ -272,7 +272,7 @@ export default function ReportSafetyEmergency() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-sm md:text-base font-medium text-gray-900 dark:text-white truncate">
-                              {item?.message || "—"}
+                              {item?.message || "â€”"}
                             </p>
                             <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
                               {formatDateTime(item?.createdAt)}
@@ -316,7 +316,7 @@ export default function ReportSafetyEmergency() {
 
                     <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0f0f0f] p-4">
                       <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
-                        {selectedHistoryItem?.message || "—"}
+                        {selectedHistoryItem?.message || "â€”"}
                       </p>
                     </div>
 

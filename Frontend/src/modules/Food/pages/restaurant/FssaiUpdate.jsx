@@ -86,13 +86,13 @@ export default function FssaiUpdate() {
           >
             {uploadedFile ? (
               <div className="space-y-2">
-                <div className="text-2xl">✅</div>
+                <div className="text-2xl">âœ…</div>
                 <p className="text-sm font-medium text-gray-900">{uploadedFile.name}</p>
                 <p className="text-xs text-gray-500">Click to change</p>
               </div>
             ) : (
               <>
-                <div className="mb-2 text-2xl">⬆️</div>
+                <div className="mb-2 text-2xl">â¬†ï¸</div>
                 <p className="text-sm font-medium text-gray-900 mb-1">
                   Upload your FSSAI license
                 </p>

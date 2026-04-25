@@ -390,7 +390,7 @@ export default function UnifiedOTPFastLogin() {
                           }
                         }}
                         className="w-full h-16 text-center text-3xl font-bold bg-gray-50 dark:bg-gray-900 border-2 border-transparent focus:border-[#7e3866]/50 rounded-2xl outline-none transition-all text-gray-900 dark:text-white shadow-sm"
-                        placeholder="•"
+                        placeholder="â€¢"
                       />
                     ))}
                   </div>

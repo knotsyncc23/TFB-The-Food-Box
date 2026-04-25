@@ -20,7 +20,7 @@ const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
 
-const formatMoney = (value) => `₹${Number(value || 0).toFixed(2)}`
+const formatMoney = (value) => `â‚¹${Number(value || 0).toFixed(2)}`
 
 // Initialize with current week if needed
 const getCurrentWeek = () => {
@@ -85,11 +85,11 @@ const filterOptions = {
     { id: "cancelled", label: "Cancelled", key: "orderStatus" }
   ],
   "Ratings": [
-    { id: "5-star", label: "5★ or less", key: "ratings", value: 5 },
-    { id: "4-star", label: "4★ or less", key: "ratings", value: 4 },
-    { id: "3-star", label: "3★ or less", key: "ratings", value: 3 },
-    { id: "2-star", label: "2★ or less", key: "ratings", value: 2 },
-    { id: "1-star", label: "1★", key: "ratings", value: 1 }
+    { id: "5-star", label: "5â˜… or less", key: "ratings", value: 5 },
+    { id: "4-star", label: "4â˜… or less", key: "ratings", value: 4 },
+    { id: "3-star", label: "3â˜… or less", key: "ratings", value: 3 },
+    { id: "2-star", label: "2â˜… or less", key: "ratings", value: 2 },
+    { id: "1-star", label: "1â˜…", key: "ratings", value: 1 }
   ],
   "KPT delay": [
     { id: "0-10", label: "0-10 mins", key: "kptDelay" },

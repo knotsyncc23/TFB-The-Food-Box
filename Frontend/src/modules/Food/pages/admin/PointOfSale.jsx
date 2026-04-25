@@ -624,7 +624,7 @@ export default function PointOfSale() {
             <div className="bg-white rounded-lg shadow-sm border border-[#e3e6ef] p-6">
               <h3 className="text-lg font-semibold text-[#334257] mb-4">Restaurant Payments (Completed Orders)</h3>
               <p className="text-xs text-[#8a94aa] mb-4">
-                Breakdown based on transaction ledger. “Subtotal” reflects total dish value (food price).
+                Breakdown based on transaction ledger. â€œSubtotalâ€ reflects total dish value (food price).
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-3">

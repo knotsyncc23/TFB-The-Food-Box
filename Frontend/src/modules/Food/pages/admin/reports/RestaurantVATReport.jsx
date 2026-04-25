@@ -105,7 +105,7 @@ export default function RestaurantVATReport() {
                   className="w-full px-4 py-2.5 pr-8 text-sm rounded-lg border border-slate-300 bg-white text-slate-700 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="All Restaurants">All Restaurants</option>
-                  <option value="Café Monarch">Café Monarch</option>
+                  <option value="CafÃ© Monarch">CafÃ© Monarch</option>
                   <option value="Hungry Puppets">Hungry Puppets</option>
                   <option value="Cheesy Restaurant">Cheesy Restaurant</option>
                   <option value="Cheese Burger">Cheese Burger</option>

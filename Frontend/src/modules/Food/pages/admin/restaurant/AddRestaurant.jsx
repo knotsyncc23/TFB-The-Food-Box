@@ -223,7 +223,7 @@ export default function AddRestaurant() {
     { key: "en", label: "English(EN)" },
     { key: "bn", label: "Bengali - ?????(BN)" },
     { key: "ar", label: "Arabic - ??????? (AR)" },
-    { key: "es", label: "Spanish - espa�ol(ES)" },
+    { key: "es", label: "Spanish - espaï¿½ol(ES)" },
   ]
 
   const mainContentRef = useRef(null)

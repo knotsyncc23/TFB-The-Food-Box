@@ -101,12 +101,12 @@ export const PocketV2 = () => {
   const handleDeposit = async () => {
     const amt = parseFloat(depositAmount);
     if (!depositAmount || isNaN(amt) || amt < 1) {
-      toast.error("Enter a valid amount (minimum ₹1)");
+      toast.error("Enter a valid amount (minimum â‚¹1)");
       return;
     }
     
     if (amt > walletState.cashInHand) {
-       toast.error(`Deposit amount cannot exceed cash in hand (₹${walletState.cashInHand})`);
+       toast.error(`Deposit amount cannot exceed cash in hand (â‚¹${walletState.cashInHand})`);
        return;
     }
 
@@ -132,7 +132,7 @@ export const PocketV2 = () => {
         currency: rp.currency || "INR",
         order_id: rp.orderId,
         name: companyName,
-        description: `Cash limit deposit - ₹${amt}`,
+        description: `Cash limit deposit - â‚¹${amt}`,
         prefill: { 
            name: profile.name, 
            email: profile.email, 
@@ -227,7 +227,7 @@ export const PocketV2 = () => {
           >
              <p className="text-gray-500 text-[11px] font-bold uppercase tracking-widest mb-2">Earnings: {getCurrentWeekRange()}</p>
              <h2 className="text-4xl font-black text-black tracking-tighter">
-                ₹{walletState.weeklyEarnings.toFixed(0)}
+                â‚¹{walletState.weeklyEarnings.toFixed(0)}
              </h2>
           </div>
 
@@ -248,7 +248,7 @@ export const PocketV2 = () => {
                   </div>
                 </div>
                 <div className="bg-white/10 px-4 py-2 rounded-xl text-center border border-white/5">
-                   <p className="text-lg font-black text-white leading-none mb-0.5">₹{activeOffer.targetAmount}</p>
+                   <p className="text-lg font-black text-white leading-none mb-0.5">â‚¹{activeOffer.targetAmount}</p>
                    <p className="text-[9px] font-bold text-gray-400 uppercase">{activeOffer.targetOrders} orders</p>
                 </div>
              </div>
@@ -283,7 +283,7 @@ export const PocketV2 = () => {
                          />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-2">
-                         <span className="text-base font-black text-black leading-none truncate">₹{activeOffer.currentEarnings}</span>
+                         <span className="text-base font-black text-black leading-none truncate">â‚¹{activeOffer.currentEarnings}</span>
                         <HelpCircle className="w-2.5 h-2.5 text-gray-300 mt-1 cursor-help" />
                       </div>
                    </div>
@@ -309,7 +309,7 @@ export const PocketV2 = () => {
                    </div>
                 </div>
                 <div className="flex items-center gap-2">
-                   <span className="text-base font-black text-black">₹{walletState.totalBalance.toFixed(2)}</span>
+                   <span className="text-base font-black text-black">â‚¹{walletState.totalBalance.toFixed(2)}</span>
                    <ChevronRight className="w-4 h-4 text-gray-300" />
                 </div>
              </button>
@@ -328,7 +328,7 @@ export const PocketV2 = () => {
                    </div>
                 </div>
                 <div className="flex items-center gap-2">
-                   <span className="text-base font-black text-black">₹{walletState.availableCashLimit.toFixed(2)}</span>
+                   <span className="text-base font-black text-black">â‚¹{walletState.availableCashLimit.toFixed(2)}</span>
                    <ChevronRight className="w-4 h-4 text-gray-300" />
                 </div>
              </button>
@@ -351,7 +351,7 @@ export const PocketV2 = () => {
                       <IndianRupee className="w-5 h-5" />
                    </div>
                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Last Payout</p>
-                   <p className="text-xl font-black text-black leading-none mb-1">₹{walletState.payoutAmount}</p>
+                   <p className="text-xl font-black text-black leading-none mb-1">â‚¹{walletState.payoutAmount}</p>
                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tight">Prev Week Info</p>
                 </div>
 
@@ -400,7 +400,7 @@ export const PocketV2 = () => {
                    <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-100">
                       <div className="flex justify-between items-center mb-4">
                          <span className="text-xs font-bold text-gray-400 uppercase">Cash in your hand</span>
-                         <span className="text-base font-black text-black">₹{walletState.cashInHand}</span>
+                         <span className="text-base font-black text-black">â‚¹{walletState.cashInHand}</span>
                       </div>
                       <div className="relative">
                          <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -410,7 +410,7 @@ export const PocketV2 = () => {
                             className="w-full bg-white border border-gray-200 rounded-xl py-4 pl-12 pr-4 text-xl font-bold focus:border-[#ff8100] focus:ring-4 focus:ring-orange-500/10 outline-none transition-all"
                          />
                       </div>
-                      <p className="text-[10px] font-bold text-gray-400 mt-3 text-center uppercase tracking-tight">Minimum deposit ₹1 • Instant limit update</p>
+                      <p className="text-[10px] font-bold text-gray-400 mt-3 text-center uppercase tracking-tight">Minimum deposit â‚¹1 â€¢ Instant limit update</p>
                    </div>
                    
                    <div className="space-y-3">

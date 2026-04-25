@@ -286,9 +286,9 @@ export default function ProfessionalSearch() {
                                 <Star className="w-3 h-3 text-[#7e3866] fill-[#7e3866]" />
                                 <span className="font-semibold text-slate-700 dark:text-white">{r.rating || "New"}</span>
                              </div>
-                             <span>•</span>
+                             <span>â€¢</span>
                              <span>{r.estimatedDeliveryTime || "30-40 mins"}</span>
-                             <span>•</span>
+                             <span>â€¢</span>
                              <span className="line-clamp-1">{r.cuisines?.slice(0, 2).join(", ")}</span>
                           </div>
                        </div>
@@ -338,7 +338,7 @@ export default function ProfessionalSearch() {
                                <Clock className="w-3 h-3" />
                                {r.estimatedDeliveryTime || "30 mins"}
                             </div>
-                            <span>•</span>
+                            <span>â€¢</span>
                             <span>{r.location?.area || "Nearby"}</span>
                          </div>
                          <div className="text-[10px] font-bold text-rose-500 bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 rounded-full uppercase tracking-wider">

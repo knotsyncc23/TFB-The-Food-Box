@@ -132,7 +132,7 @@ export const LimitSettlementV2 = () => {
                                   </span>
                                </div>
                                <p className="text-gray-900 text-xl font-bold mb-1 font-poppins">
-                                  ₹{tx.amount}
+                                  â‚¹{tx.amount}
                                </p>
                                <p className="text-gray-600 text-sm mb-1 font-medium">
                                   {tx.description}

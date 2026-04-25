@@ -1773,7 +1773,7 @@ export default function RestaurantsList() {
                             <div>
                               <p className="text-xs text-slate-500">Opening / Closing</p>
                               <p className="text-sm font-medium text-slate-900">
-                                {formatTime12Hour(openingTimeVal)} – {formatTime12Hour(closingTimeVal)}
+                                {formatTime12Hour(openingTimeVal)} â€“ {formatTime12Hour(closingTimeVal)}
                               </p>
                             </div>
                           </div>
@@ -1970,7 +1970,7 @@ export default function RestaurantsList() {
                     <div className="pt-6 border-t border-slate-200">
                       <h4 className="text-lg font-semibold text-slate-900 mb-4">Registration Documents</h4>
                       <div className="space-y-6">
-                        {/* PAN – flat or onboarding.step3 */}
+                        {/* PAN â€“ flat or onboarding.step3 */}
                         {hasPanSection && (
                           <div className="bg-slate-50 rounded-lg p-4">
                             <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
@@ -2004,7 +2004,7 @@ export default function RestaurantsList() {
                           </div>
                         )}
 
-                        {/* GST – flat or onboarding.step3 */}
+                        {/* GST â€“ flat or onboarding.step3 */}
                         {hasGstSection && (
                           <div className="bg-slate-50 rounded-lg p-4">
                             <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
@@ -2052,7 +2052,7 @@ export default function RestaurantsList() {
                           </div>
                         )}
 
-                        {/* FSSAI – flat or onboarding.step3 */}
+                        {/* FSSAI â€“ flat or onboarding.step3 */}
                         {hasFssaiSection && (
                           <div className="bg-slate-50 rounded-lg p-4">
                             <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
@@ -2088,7 +2088,7 @@ export default function RestaurantsList() {
                           </div>
                         )}
 
-                        {/* Bank – flat or onboarding.step3 */}
+                        {/* Bank â€“ flat or onboarding.step3 */}
                         {hasBankSection && (
                           <div className="bg-slate-50 rounded-lg p-4">
                             <h5 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">

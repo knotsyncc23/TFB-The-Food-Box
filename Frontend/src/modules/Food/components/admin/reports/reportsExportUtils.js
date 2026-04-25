@@ -208,12 +208,12 @@ export const exportTransactionReportToPDF = (transactions, filename = "transacti
               <td>${transaction.orderId}</td>
               <td>${transaction.restaurant}</td>
               <td>${transaction.customerName}</td>
-              <td>₹${transaction.totalItemAmount.toFixed(2)}</td>
-              <td>₹${transaction.couponDiscount.toFixed(2)}</td>
-              <td>₹${transaction.vatTax.toFixed(2)}</td>
-              <td>₹${transaction.deliveryCharge.toFixed(2)}</td>
-              <td>₹${Number(transaction.platformFee || 0).toFixed(2)}</td>
-              <td>₹${transaction.orderAmount.toFixed(2)}</td>
+              <td>â‚¹${transaction.totalItemAmount.toFixed(2)}</td>
+              <td>â‚¹${transaction.couponDiscount.toFixed(2)}</td>
+              <td>â‚¹${transaction.vatTax.toFixed(2)}</td>
+              <td>â‚¹${transaction.deliveryCharge.toFixed(2)}</td>
+              <td>â‚¹${Number(transaction.platformFee || 0).toFixed(2)}</td>
+              <td>â‚¹${transaction.orderAmount.toFixed(2)}</td>
             </tr>
           `).join("")}
         </tbody>

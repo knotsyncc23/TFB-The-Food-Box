@@ -36,17 +36,17 @@ export default function RefundModal({ isOpen, onOpenChange, order, onConfirm, is
     const maxAmount = order?.totalAmount || 0
 
     if (!refundAmount || refundAmount.trim() === "") {
-      setError("Refund राशि डालना अनिवार्य है")
+      setError("Refund à¤°à¤¾à¤¶à¤¿ à¤¡à¤¾à¤²à¤¨à¤¾ à¤…à¤¨à¤¿à¤µà¤¾à¤°à¥à¤¯ à¤¹à¥ˆ")
       return
     }
 
     if (isNaN(amount) || amount <= 0) {
-      setError("कृपया सही राशि डालें")
+      setError("à¤•à¥ƒà¤ªà¤¯à¤¾ à¤¸à¤¹à¥€ à¤°à¤¾à¤¶à¤¿ à¤¡à¤¾à¤²à¥‡à¤‚")
       return
     }
 
     if (amount > maxAmount) {
-      setError(`Refund राशि कुल राशि (₹${maxAmount.toFixed(2)}) से अधिक नहीं हो सकती`)
+      setError(`Refund à¤°à¤¾à¤¶à¤¿ à¤•à¥à¤² à¤°à¤¾à¤¶à¤¿ (â‚¹${maxAmount.toFixed(2)}) à¤¸à¥‡ à¤…à¤§à¤¿à¤• à¤¨à¤¹à¥€à¤‚ à¤¹à¥‹ à¤¸à¤•à¤¤à¥€`)
       return
     }
 
@@ -104,13 +104,13 @@ export default function RefundModal({ isOpen, onOpenChange, order, onConfirm, is
               <p className="text-sm text-red-600 mt-1">{error}</p>
             )}
             <p className="text-xs text-slate-500">
-              Maximum refundable amount: ₹{maxAmount.toFixed(2)}
+              Maximum refundable amount: â‚¹{maxAmount.toFixed(2)}
             </p>
           </div>
 
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
             <p className="text-sm text-purple-800">
-              <span className="font-semibold">Note:</span> यह पैसा ग्राहक के वॉलेट में क्रेडिट हो जाएगा और ऑर्डर का स्टेटस "Refunded" हो जाएगा।
+              <span className="font-semibold">Note:</span> à¤¯à¤¹ à¤ªà¥ˆà¤¸à¤¾ à¤—à¥à¤°à¤¾à¤¹à¤• à¤•à¥‡ à¤µà¥‰à¤²à¥‡à¤Ÿ à¤®à¥‡à¤‚ à¤•à¥à¤°à¥‡à¤¡à¤¿à¤Ÿ à¤¹à¥‹ à¤œà¤¾à¤à¤—à¤¾ à¤”à¤° à¤‘à¤°à¥à¤¡à¤° à¤•à¤¾ à¤¸à¥à¤Ÿà¥‡à¤Ÿà¤¸ "Refunded" à¤¹à¥‹ à¤œà¤¾à¤à¤—à¤¾à¥¤
             </p>
           </div>
         </div>

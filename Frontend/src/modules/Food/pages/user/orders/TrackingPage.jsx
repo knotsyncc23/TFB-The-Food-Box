@@ -74,7 +74,7 @@ const TrackingPage = () => {
           {/* Delivery Details Banner */}
           <div className="bg-yellow-900/30 rounded-xl p-4 border border-yellow-800/50">
             <p className="text-yellow-300 font-medium text-center">
-              All your delivery details in one place 👋
+              All your delivery details in one place ðŸ‘‹
             </p>
           </div>
 

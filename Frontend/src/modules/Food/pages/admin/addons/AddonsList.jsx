@@ -292,7 +292,7 @@ export default function AddonsList() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-medium text-slate-900">
-                        ₹{Number(addon?.draft?.price ?? addon?.price ?? 0).toFixed(2)}
+                        â‚¹{Number(addon?.draft?.price ?? addon?.price ?? 0).toFixed(2)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -359,7 +359,7 @@ export default function AddonsList() {
                 </p>
                 <p>
                   <span className="font-semibold text-slate-700">Price:</span>{" "}
-                  <span className="text-slate-900">₹{Number(selectedAddon?.draft?.price ?? 0).toFixed(2)}</span>
+                  <span className="text-slate-900">â‚¹{Number(selectedAddon?.draft?.price ?? 0).toFixed(2)}</span>
                 </p>
                 <p>
                   <span className="font-semibold text-slate-700">Available:</span>{" "}
@@ -480,7 +480,7 @@ export default function AddonsList() {
               className="p-1.5 rounded-full hover:bg-slate-100 transition-colors"
               aria-label="Close"
             >
-              ✕
+              âœ•
             </button>
           </div>
           <div className="px-5 pt-4 pb-2">

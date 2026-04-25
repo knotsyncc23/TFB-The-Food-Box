@@ -152,7 +152,7 @@ export default function CampaignOrderReport() {
                 >
                   <option value="All restaurants">All restaurants</option>
                   <option value="Hungry Puppets">Hungry Puppets</option>
-                  <option value="Café Monarch">Café Monarch</option>
+                  <option value="CafÃ© Monarch">CafÃ© Monarch</option>
                 </select>
                 <ChevronDown className="absolute right-2 bottom-2.5 w-4 h-4 text-slate-500 pointer-events-none" />
               </div>

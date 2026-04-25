@@ -18,7 +18,7 @@ const taxiSlice = createSlice({
   name: 'taxi',
   initialState,
   reducers: {
-    // —— Current ride ——
+    // â€”â€” Current ride â€”â€”
     setCurrentRide(state, action) {
       state.currentRide = { ...initialState.currentRide, ...action.payload }
     },
@@ -29,7 +29,7 @@ const taxiSlice = createSlice({
       state.currentRide.status = action.payload ?? state.currentRide.status
     },
 
-    // —— Saved locations ——
+    // â€”â€” Saved locations â€”â€”
     setSavedLocations(state, action) {
       state.savedLocations = Array.isArray(action.payload) ? action.payload : []
     },

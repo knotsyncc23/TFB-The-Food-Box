@@ -269,7 +269,7 @@ export default function DisbursementPage({
                     <div className="text-right">
                       <p className="text-sm text-slate-500 mb-1">Total amount</p>
                       <p className="text-lg font-bold text-slate-900">
-                        ₹ {disbursement.totalAmount.toLocaleString("en-IN", {
+                        â‚¹ {disbursement.totalAmount.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}

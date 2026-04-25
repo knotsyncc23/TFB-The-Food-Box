@@ -13,7 +13,7 @@ const SERVICES = [
     icon: UtensilsCrossed,
     color: "from-[#FF4D4D] to-[#CB202D]",
     badge: "Fast",
-    badgeIcon: "⚡"
+    badgeIcon: "âš¡"
   },
   {
     id: "grocery",
@@ -24,7 +24,7 @@ const SERVICES = [
     icon: ShoppingBasket,
     color: "from-[#4CAF50] to-[#2DAB52]",
     badge: "Instant",
-    badgeIcon: "⏱️"
+    badgeIcon: "â±ï¸"
   },
   {
     id: "taxi",
@@ -35,7 +35,7 @@ const SERVICES = [
     icon: Car,
     color: "from-[#333333] to-[#000000]",
     badge: "Safe",
-    badgeIcon: "🛡️"
+    badgeIcon: "ðŸ›¡ï¸"
   },
   {
     id: "hotel",
@@ -46,7 +46,7 @@ const SERVICES = [
     icon: Bed,
     color: "from-[#64B5F6] to-[#4A90E2]",
     badge: "Premium",
-    badgeIcon: "💎"
+    badgeIcon: "ðŸ’Ž"
   }
 ]
 

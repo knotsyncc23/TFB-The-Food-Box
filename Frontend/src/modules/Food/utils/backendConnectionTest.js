@@ -11,7 +11,7 @@ export async function testRestaurantAPI() {
 }
 
 export async function runConnectionTests() {
-  console.log('✅ [Static Mode] Skipping backend connection tests.');
+  console.log('âœ… [Static Mode] Skipping backend connection tests.');
   return {
     health: { success: true },
     restaurantAPI: { success: true }

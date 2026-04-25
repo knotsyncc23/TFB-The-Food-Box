@@ -28,7 +28,7 @@ export default function PromoRow({ handleVegModeChange, navigate, isVegMode, tog
     {
       id: 'under-250',
       title: "UNDER",
-      value: "₹250",
+      value: "â‚¹250",
       icon: pricePromoIcon,
       bgColor: "bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/20",
       borderColor: "border-amber-200/60 dark:border-amber-800/40",

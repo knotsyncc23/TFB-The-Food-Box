@@ -41,7 +41,7 @@ const DeliveryInstructionsPanel = ({ note }) => {
       </div>
       <div className="bg-orange-50 px-5 py-4">
         <p className="text-sm font-bold text-gray-950 leading-relaxed wrap-break-word">
-          “{text}”
+          â€œ{text}â€
         </p>
       </div>
     </div>
@@ -146,7 +146,7 @@ const OtpModal = ({ order, onVerified, onClose }) => {
 
         <ActionSlider 
           key="action-otp"
-          label={isVerifyingOtp ? "Verifying..." : isAlreadyVerified ? "Code already verified ✓" : "Slide to Verify OTP"} 
+          label={isVerifyingOtp ? "Verifying..." : isAlreadyVerified ? "Code already verified âœ“" : "Slide to Verify OTP"} 
           successLabel="Verified!"
           disabled={otp.some(d => !d) || isVerifyingOtp || isOtpVerified || isAlreadyVerified}
           onConfirm={verifyOtp}
@@ -263,9 +263,9 @@ const PaymentModal = ({ order, otpString, onComplete, onClose }) => {
                  <p className="text-amber-700 text-[10px] font-bold uppercase tracking-widest mb-1">
                     {isPaid ? "Amount Paid Online" : "Cash to Collect"}
                  </p>
-                 <p className="text-amber-950 text-3xl sm:text-4xl font-bold">₹{amountToCollect.toFixed(2)}</p>
+                 <p className="text-amber-950 text-3xl sm:text-4xl font-bold">â‚¹{amountToCollect.toFixed(2)}</p>
                </div>
-               {isPaid && <div className="bg-green-500 text-white px-4 py-2 rounded-full text-[10px] font-bold">PAID ✓</div>}
+               {isPaid && <div className="bg-green-500 text-white px-4 py-2 rounded-full text-[10px] font-bold">PAID âœ“</div>}
              </div>
 
               {!isPaid && (
@@ -302,7 +302,7 @@ const PaymentModal = ({ order, otpString, onComplete, onClose }) => {
             <ActionSlider 
             key="action-payment"
             label={isCashPayment ? "Slide to Confirm Cash" : "Slide to Complete Order"} 
-            successLabel="Delivered! ✓"
+            successLabel="Delivered! âœ“"
             disabled={!isPaid && !isCashPayment}
             onConfirm={async () => {
                 try {
@@ -331,7 +331,7 @@ const PaymentModal = ({ order, otpString, onComplete, onClose }) => {
               onClick={e => e.stopPropagation()}
             >
               <h3 className="text-gray-950 font-bold text-xl mb-2">Scan to Pay</h3>
-              <p className="text-gray-500 text-sm mb-8 font-medium">Order Total: ₹{amountToCollect.toFixed(2)}</p>
+              <p className="text-gray-500 text-sm mb-8 font-medium">Order Total: â‚¹{amountToCollect.toFixed(2)}</p>
               
               <div className="flex flex-col items-center gap-6 bg-gray-50 rounded-3xl border-2 border-gray-100 p-6 mb-8 w-full">
                  <img 
@@ -385,7 +385,7 @@ export const DeliveryVerificationModal = ({ order, onComplete, onClose }) => {
 
   const handleOtpVerified = (otpValue) => {
     setVerifiedOtp(otpValue);
-    // After OTP is verified: COD → show payment panel, Online → show complete button
+    // After OTP is verified: COD â†’ show payment panel, Online â†’ show complete button
     setStep(isCod ? 'payment' : 'complete');
   };
 
@@ -438,7 +438,7 @@ export const DeliveryVerificationModal = ({ order, onComplete, onClose }) => {
             <ActionSlider 
               key="action-complete"
               label="Slide to Complete Delivery" 
-              successLabel="Delivered! ✓"
+              successLabel="Delivered! âœ“"
               onConfirm={async () => {
                 await onComplete(verifiedOtp);
               }}

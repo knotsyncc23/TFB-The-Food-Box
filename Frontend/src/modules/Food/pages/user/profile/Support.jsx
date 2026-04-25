@@ -116,13 +116,13 @@ export default function Support() {
     const dateValue = order?.createdAt || order?.date
     const dateLabel = dateValue ? new Date(dateValue).toLocaleDateString() : "No date"
     const amount = order?.pricing?.total ?? order?.total ?? 0
-    return `${restaurantName} � ${dateLabel} � ?${amount}`
+    return `${restaurantName} ï¿½ ${dateLabel} ï¿½ ?${amount}`
   }
 
   const getRestaurantLabel = (restaurant) => {
     const name = restaurant?.restaurantName || restaurant?.name || "Restaurant"
     const location = restaurant?.city || restaurant?.area || ""
-    return `${name}${location ? ` � ${location}` : ""}`
+    return `${name}${location ? ` ï¿½ ${location}` : ""}`
   }
 
   const filteredOrders = orders.filter((order) => {
@@ -185,7 +185,7 @@ export default function Support() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                      #{String(t._id || t.id).slice(-6)} � {t.type} � {t.issueType}
+                      #{String(t._id || t.id).slice(-6)} ï¿½ {t.type} ï¿½ {t.issueType}
                     </p>
                     <p className="text-xs text-slate-500 mt-1">{new Date(t.createdAt).toLocaleDateString()}</p>
                   </div>

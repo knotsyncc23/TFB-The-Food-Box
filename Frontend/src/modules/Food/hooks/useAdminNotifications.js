@@ -54,7 +54,7 @@ const uniqueById = (items = []) => {
   return [...map.values()];
 };
 
-const joinMeta = (...parts) => parts.filter(Boolean).join(" • ");
+const joinMeta = (...parts) => parts.filter(Boolean).join(" â€¢ ");
 
 const mapPendingRestaurants = (rows = []) =>
   (Array.isArray(rows) ? rows : []).map((item) => ({

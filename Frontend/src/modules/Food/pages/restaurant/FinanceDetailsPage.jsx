@@ -137,7 +137,7 @@ export default function FinanceDetailsPage() {
               {restaurantData?.name || "Your Restaurant"}
             </h1>
             <p className="text-xs text-gray-600 mt-0.5">
-              ID: {restaurantData?.restaurantId || "N/A"} • {restaurantData?.address || "Location"}
+              ID: {restaurantData?.restaurantId || "N/A"} â€¢ {restaurantData?.address || "Location"}
             </p>
           </div>
         </div>
@@ -221,7 +221,7 @@ export default function FinanceDetailsPage() {
                     <div>
                       <p className="text-xs text-gray-600 mb-1">Active Earnings</p>
                       <p className="text-2xl font-bold text-gray-900 mb-1">
-                        ₹{estimatedPayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        â‚¹{estimatedPayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </p>
                       <p className="text-xs text-gray-600">from {settlementData.start} - {settlementData.end} {settlementData.month}'{settlementData.year}</p>
                       <p className="text-xs text-gray-600 mt-1">Payout date: -</p>
@@ -272,7 +272,7 @@ export default function FinanceDetailsPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-semibold text-gray-900">
-                            ₹{(settlementData.netOrderValue?.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            â‚¹{(settlementData.netOrderValue?.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </span>
                           {expandedSections.netOrderValue ? (
                             <ChevronUp className="w-4 h-4 text-gray-500" />
@@ -297,7 +297,7 @@ export default function FinanceDetailsPage() {
                                   <Info className="w-3.5 h-3.5 text-gray-400" />
                                 </div>
                                 <span className="text-sm font-medium text-gray-900">
-                                  ₹{settlementData.netOrderValue.itemSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  â‚¹{settlementData.netOrderValue.itemSubtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
                               <div className="flex items-center justify-between py-2 border-t border-dashed border-gray-200">
@@ -306,7 +306,7 @@ export default function FinanceDetailsPage() {
                                   <Info className="w-3.5 h-3.5 text-gray-400" />
                                 </div>
                                 <span className="text-sm font-medium text-gray-900">
-                                  ₹{(settlementData.netOrderValue?.totalGSTCollected || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  â‚¹{(settlementData.netOrderValue?.totalGSTCollected || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
                               <div className="flex items-center justify-between py-2 border-t border-dashed border-gray-200">
@@ -315,7 +315,7 @@ export default function FinanceDetailsPage() {
                                   <Info className="w-3.5 h-3.5 text-gray-400" />
                                 </div>
                                 <span className="text-sm font-medium text-gray-900">
-                                  ₹{settlementData.netOrderValue.restaurantDiscountPromos.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  â‚¹{settlementData.netOrderValue.restaurantDiscountPromos.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
                               <div className="flex items-center justify-between py-2 border-t border-dashed border-gray-200">
@@ -324,7 +324,7 @@ export default function FinanceDetailsPage() {
                                   <Info className="w-3.5 h-3.5 text-gray-400" />
                                 </div>
                                 <span className="text-sm font-medium text-gray-900">
-                                  ₹{(settlementData.netOrderValue?.restaurantDiscountOthers || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  â‚¹{(settlementData.netOrderValue?.restaurantDiscountOthers || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
                             </div>
@@ -344,7 +344,7 @@ export default function FinanceDetailsPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-semibold text-gray-900">
-                            ₹{settlementData.additions.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            â‚¹{settlementData.additions.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </span>
                           {expandedSections.additions ? (
                             <ChevronUp className="w-4 h-4 text-gray-500" />
@@ -369,7 +369,7 @@ export default function FinanceDetailsPage() {
                                   <Info className="w-3.5 h-3.5 text-gray-400" />
                                 </div>
                                 <span className="text-sm font-medium text-gray-900">
-                                  ₹{(settlementData.additions?.tds194H || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  â‚¹{(settlementData.additions?.tds194H || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
                               <div className="flex items-center justify-between py-2 border-t border-dashed border-gray-200">
@@ -378,7 +378,7 @@ export default function FinanceDetailsPage() {
                                   <Info className="w-3.5 h-3.5 text-gray-400" />
                                 </div>
                                 <span className="text-sm font-medium text-gray-900">
-                                  ₹{settlementData.additions.tds194C.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  â‚¹{settlementData.additions.tds194C.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
                             </div>
@@ -398,7 +398,7 @@ export default function FinanceDetailsPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-semibold text-gray-900">
-                            ₹{(settlementData.orderLevelDeductions?.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            â‚¹{(settlementData.orderLevelDeductions?.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </span>
                           {expandedSections.orderLevelDeductions ? (
                             <ChevronUp className="w-4 h-4 text-gray-500" />
@@ -420,7 +420,7 @@ export default function FinanceDetailsPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-semibold text-gray-900">
-                            ₹{settlementData.taxDeductions.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            â‚¹{settlementData.taxDeductions.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </span>
                           {expandedSections.taxDeductions ? (
                             <ChevronUp className="w-4 h-4 text-gray-500" />
@@ -445,7 +445,7 @@ export default function FinanceDetailsPage() {
                                   <Info className="w-3.5 h-3.5 text-gray-400" />
                                 </div>
                                 <span className="text-sm font-medium text-gray-900">
-                                  ₹{(settlementData.taxDeductions?.gstOnServiceFees || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  â‚¹{(settlementData.taxDeductions?.gstOnServiceFees || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
                               <div className="flex items-center justify-between py-2 border-t border-dashed border-gray-200">
@@ -454,7 +454,7 @@ export default function FinanceDetailsPage() {
                                   <Info className="w-3.5 h-3.5 text-gray-400" />
                                 </div>
                                 <span className="text-sm font-medium text-gray-900">
-                                  ₹{settlementData.taxDeductions.tds194O.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  â‚¹{settlementData.taxDeductions.tds194O.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
                               <div className="flex items-center justify-between py-2 border-t border-dashed border-gray-200">
@@ -463,7 +463,7 @@ export default function FinanceDetailsPage() {
                                   <Info className="w-3.5 h-3.5 text-gray-400" />
                                 </div>
                                 <span className="text-sm font-medium text-gray-900">
-                                  ₹{(settlementData.taxDeductions?.gstPaidByZomato || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  â‚¹{(settlementData.taxDeductions?.gstPaidByZomato || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
                             </div>
@@ -483,7 +483,7 @@ export default function FinanceDetailsPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-semibold text-gray-900">
-                            ₹{settlementData.investmentsInGrowth.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            â‚¹{settlementData.investmentsInGrowth.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </span>
                           {expandedSections.investmentsInGrowth ? (
                             <ChevronUp className="w-4 h-4 text-gray-500" />
@@ -508,7 +508,7 @@ export default function FinanceDetailsPage() {
                                   <Info className="w-3.5 h-3.5 text-gray-400" />
                                 </div>
                                 <span className="text-sm font-medium text-gray-900">
-                                  ₹{(settlementData.investmentsInGrowth?.onlineOrderingAds || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  â‚¹{(settlementData.investmentsInGrowth?.onlineOrderingAds || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
                             </div>
@@ -522,7 +522,7 @@ export default function FinanceDetailsPage() {
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-bold text-gray-900">Est. payout (A + B - C - D - E)</span>
                         <span className="text-sm font-bold text-gray-900">
-                          ₹{estimatedPayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          â‚¹{estimatedPayout.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                     </div>

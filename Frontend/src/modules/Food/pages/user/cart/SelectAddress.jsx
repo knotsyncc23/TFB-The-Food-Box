@@ -216,7 +216,7 @@ export default function SelectAddress() {
                       setQuery(e.target.value)
                       setSelectedSuggestionId("")
                     }}
-                    placeholder="Start typing to search saved addresses…"
+                    placeholder="Start typing to search saved addressesâ€¦"
                     className="pr-10"
                   />
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />

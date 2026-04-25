@@ -130,7 +130,7 @@ export const NewOrderModal = ({ order, onAccept, onReject, onMinimize }) => {
         >
           <div>
             <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mb-1">Incoming Request</p>
-            <h2 className="text-2xl sm:text-4xl font-bold tracking-tighter">₹{Number(earnings || 0).toFixed(2)}</h2>
+            <h2 className="text-2xl sm:text-4xl font-bold tracking-tighter">â‚¹{Number(earnings || 0).toFixed(2)}</h2>
           </div>
           <div className="bg-white/20 border border-white/30 rounded-2xl sm:rounded-3xl px-3 sm:px-6 py-2 sm:py-3 text-white font-bold text-lg sm:text-2xl shadow-inner tabular-nums">
             {timeLeft}s
@@ -198,7 +198,7 @@ export const NewOrderModal = ({ order, onAccept, onReject, onMinimize }) => {
               label="Slide to Accept" 
               onConfirm={() => onAccept(order)} 
               color="bg-black"
-              successLabel="Order Accepted ✓"
+              successLabel="Order Accepted âœ“"
             />
 
             <button 

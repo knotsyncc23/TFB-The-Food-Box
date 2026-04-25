@@ -228,7 +228,7 @@ export function CartProvider({ children }) {
         // If names match, allow it even if IDs differ (same restaurant, different ID format)
         if (firstRestaurantNameNormalized && newRestaurantNameNormalized) {
           if (firstRestaurantNameNormalized !== newRestaurantNameNormalized) {
-            debugError('❌ Cannot add item: Restaurant name mismatch!', {
+            debugError('âŒ Cannot add item: Restaurant name mismatch!', {
               cartRestaurantId: firstItemRestaurantId,
               cartRestaurantName: firstItemRestaurantName,
               newItemRestaurantId: newItemRestaurantId,
@@ -240,7 +240,7 @@ export function CartProvider({ children }) {
         } else if (firstItemRestaurantId && newItemRestaurantId) {
           // If names are not available, fallback to ID comparison
           if (firstItemRestaurantId !== newItemRestaurantId) {
-            debugError('❌ Cannot add item: Cart contains items from different restaurant!', {
+            debugError('âŒ Cannot add item: Cart contains items from different restaurant!', {
               cartRestaurantId: firstItemRestaurantId,
               cartRestaurantName: firstItemRestaurantName,
               newItemRestaurantId: newItemRestaurantId,
@@ -273,7 +273,7 @@ export function CartProvider({ children }) {
       
       // Validate item has required restaurant info
       if (!item.restaurantId && !item.restaurant) {
-        debugError('❌ Cannot add item: Missing restaurant information!', item);
+        debugError('âŒ Cannot add item: Missing restaurant information!', item);
         return safePrev;
       }
       
@@ -426,7 +426,7 @@ export function CartProvider({ children }) {
       });
       
       if (cleanedCart.length !== safePrev.length) {
-        debugWarn('🧹 Cleaned cart: Removed items from different restaurants', {
+        debugWarn('ðŸ§¹ Cleaned cart: Removed items from different restaurants', {
           before: safePrev.length,
           after: cleanedCart.length,
           removed: safePrev.length - cleanedCart.length
@@ -460,7 +460,7 @@ export function CartProvider({ children }) {
     
     // Check if cart has items from multiple restaurants
     if (uniqueRestaurantIds.length > 1 || uniqueRestaurantNamesSet.size > 1) {
-      debugWarn('⚠️ Cart contains items from multiple restaurants. Cleaning cart...', {
+      debugWarn('âš ï¸ Cart contains items from multiple restaurants. Cleaning cart...', {
         restaurantIds: uniqueRestaurantIds,
         restaurantNames: uniqueRestaurantNames
       });
@@ -551,8 +551,8 @@ export function useCart() {
   if (!context || context._isProvider !== true) {
     // In development, log a warning but don't throw to prevent crashes
     if (process.env.NODE_ENV === 'development') {
-      debugWarn('⚠️ useCart called outside CartProvider. Using default values.');
-      debugWarn('💡 Make sure the component is rendered inside UserLayout which provides CartProvider.');
+      debugWarn('âš ï¸ useCart called outside CartProvider. Using default values.');
+      debugWarn('ðŸ’¡ Make sure the component is rendered inside UserLayout which provides CartProvider.');
     }
     // Return default context instead of throwing
     return defaultCartContext

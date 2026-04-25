@@ -33,7 +33,7 @@ const productsData = {
   10: { id: 10, name: "French Fries", restaurant: "Burger Paradise", restaurantSlug: "burger-paradise", price: 4.99, image: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=600&h=400&fit=crop&q=80", rating: 4.7, description: "Golden crispy fries made from premium potatoes. Served hot with ketchup.", category: "Sides", ingredients: ["Potatoes", "Salt", "Oil"], preparationTime: "8-10 min", calories: 320 },
   11: { id: 11, name: "Onion Rings", restaurant: "Burger Paradise", restaurantSlug: "burger-paradise", price: 5.99, image: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=600&h=400&fit=crop&q=80", rating: 4.6, description: "Crispy battered onion rings, perfectly golden and crunchy. Served with dipping sauce.", category: "Sides", ingredients: ["Onions", "Batter", "Oil"], preparationTime: "10-12 min", calories: 280 },
   12: { id: 12, name: "Mozzarella Sticks", restaurant: "Pizza Corner", restaurantSlug: "pizza-corner", price: 6.99, image: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=600&h=400&fit=crop&q=80", rating: 4.9, description: "Golden fried mozzarella sticks with a crispy exterior and gooey center. Served with marinara sauce.", category: "Appetizers", ingredients: ["Mozzarella cheese", "Breadcrumbs", "Marinara sauce"], preparationTime: "8-10 min", calories: 350 },
-  13: { id: 13, name: "Nachos", restaurant: "Taco Fiesta", restaurantSlug: "taco-fiesta", price: 7.99, image: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=600&h=400&fit=crop&q=80", rating: 4.8, description: "Crispy tortilla chips loaded with melted cheese, jalape�os, and your choice of toppings.", category: "Appetizers", ingredients: ["Tortilla chips", "Cheese", "Jalape�os", "Sour cream", "Salsa"], preparationTime: "10-12 min", calories: 420 },
+  13: { id: 13, name: "Nachos", restaurant: "Taco Fiesta", restaurantSlug: "taco-fiesta", price: 7.99, image: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=600&h=400&fit=crop&q=80", rating: 4.8, description: "Crispy tortilla chips loaded with melted cheese, jalapeï¿½os, and your choice of toppings.", category: "Appetizers", ingredients: ["Tortilla chips", "Cheese", "Jalapeï¿½os", "Sour cream", "Salsa"], preparationTime: "10-12 min", calories: 420 },
   14: { id: 14, name: "Garlic Bread", restaurant: "Pizza Corner", restaurantSlug: "pizza-corner", price: 4.49, image: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=600&h=400&fit=crop&q=80", rating: 4.7, description: "Fresh baked bread brushed with garlic butter and herbs. Perfect as a side or appetizer.", category: "Sides", ingredients: ["Bread", "Garlic", "Butter", "Herbs"], preparationTime: "5-8 min", calories: 220 },
   // Trending Now
   15: { id: 15, name: "Spicy Ramen", restaurant: "Noodle House", restaurantSlug: "noodle-house", price: 11.99, image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600&h=400&fit=crop&q=80", rating: 4.9, description: "Rich and spicy ramen broth with tender noodles, soft-boiled egg, and fresh vegetables.", category: "Noodles", ingredients: ["Ramen noodles", "Broth", "Egg", "Vegetables", "Spices"], preparationTime: "20-25 min", calories: 480 },
@@ -329,7 +329,7 @@ export default function ProductDetail() {
               </div>
               <div className="flex-shrink-0 text-right">
                 <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-[#7e3866]">
-                  ₹{(product.price * 83).toFixed(0)}
+                  â‚¹{(product.price * 83).toFixed(0)}
                 </div>
                 <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">per serving</p>
               </div>
@@ -384,7 +384,7 @@ export default function ProductDetail() {
                   <div className="flex-1">
                     <p className="text-sm text-muted-foreground">In cart</p>
                     <p className="text-lg font-bold text-[#7e3866]">
-                      ₹{(product.price * 83 * (cartItem?.quantity || 0)).toFixed(0)}
+                      â‚¹{(product.price * 83 * (cartItem?.quantity || 0)).toFixed(0)}
                     </p>
                   </div>
                 </div>
@@ -419,7 +419,7 @@ export default function ProductDetail() {
                       className="bg-[#7e3866] hover:opacity-90 text-white"
                     >
                       <ShoppingBag className="h-5 w-5 mr-2" />
-                      Add to Cart - ₹{(product.price * 83 * quantity).toFixed(0)}
+                      Add to Cart - â‚¹{(product.price * 83 * quantity).toFixed(0)}
                     </Button>
                   </div>
                 </div>
@@ -507,7 +507,7 @@ export default function ProductDetail() {
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                           <Calendar className="h-3 w-3" />
                           <span>{new Date(order.createdAt).toLocaleDateString()}</span>
-                          <span>�</span>
+                          <span>ï¿½</span>
                           <span>{order.status}</span>
                         </div>
                       </div>
@@ -525,7 +525,7 @@ export default function ProductDetail() {
                 <div>
                   <h2 className="text-xl font-bold">Reviews</h2>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'} � Average rating: {averageRating}
+                    {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'} ï¿½ Average rating: {averageRating}
                   </p>
                 </div>
                 {!showReviewForm && (
@@ -625,12 +625,12 @@ export default function ProductDetail() {
                                     {renderStars(review.rating, "h-3 w-3")}
                                     <span className="ml-1 font-medium">{review.rating}</span>
                                   </div>
-                                  <span>�</span>
+                                  <span>ï¿½</span>
                                   <div className="flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
                                     {review.date}
                                   </div>
-                                  <span>�</span>
+                                  <span>ï¿½</span>
                                   <span>{review.orderType}</span>
                                 </div>
                               </div>
@@ -722,7 +722,7 @@ export default function ProductDetail() {
                                             Verified
                                           </Badge>
                                         )}
-                                        <span className="text-xs text-muted-foreground">�</span>
+                                        <span className="text-xs text-muted-foreground">ï¿½</span>
                                         <span className="text-xs text-muted-foreground">{reply.date}</span>
                                       </div>
                                       <p className="text-sm text-muted-foreground leading-relaxed">{reply.comment}</p>

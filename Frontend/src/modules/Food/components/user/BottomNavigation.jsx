@@ -97,7 +97,7 @@ export default function BottomNavigation() {
         >
           <Tag className={`h-5 w-5 ${isUnder250 ? "text-[#c89b3c] fill-[#c89b3c]/10" : "text-gray-600 dark:text-gray-400"}`} strokeWidth={2} />
           <span className={`text-xs sm:text-sm font-medium ${isUnder250 ? "text-[#c89b3c] font-bold" : "text-gray-600 dark:text-gray-400"}`}>
-            Under ₹{under250PriceLimit}
+            Under â‚¹{under250PriceLimit}
           </span>
           {isUnder250 && (
             <div className="absolute top-0 left-0 right-0 h-0.5 rounded-b-full" style={{ backgroundColor: activeGold }} />

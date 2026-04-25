@@ -302,7 +302,7 @@ export default function ViewOrderDialog({ isOpen, onOpenChange, order }) {
                       )}
                     </div>
                     <p className="text-sm font-semibold text-slate-900">
-                      ₹{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                      â‚¹{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
                     </p>
                   </div>
                 ))}
@@ -416,26 +416,26 @@ export default function ViewOrderDialog({ isOpen, onOpenChange, order }) {
               {order.totalItemAmount !== undefined && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Subtotal</span>
-                  <span className="font-medium text-slate-900">₹{order.totalItemAmount.toFixed(2)}</span>
+                  <span className="font-medium text-slate-900">â‚¹{order.totalItemAmount.toFixed(2)}</span>
                 </div>
               )}
               {order.itemDiscount !== undefined && order.itemDiscount > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Discount</span>
-                  <span className="font-medium text-emerald-600">-₹{order.itemDiscount.toFixed(2)}</span>
+                  <span className="font-medium text-emerald-600">-â‚¹{order.itemDiscount.toFixed(2)}</span>
                 </div>
               )}
               {order.couponDiscount !== undefined && order.couponDiscount > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Coupon Discount</span>
-                  <span className="font-medium text-emerald-600">-₹{order.couponDiscount.toFixed(2)}</span>
+                  <span className="font-medium text-emerald-600">-â‚¹{order.couponDiscount.toFixed(2)}</span>
                 </div>
               )}
               {order.deliveryCharge !== undefined && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Delivery Charge</span>
                   <span className="font-medium text-slate-900">
-                    {order.deliveryCharge > 0 ? `₹${order.deliveryCharge.toFixed(2)}` : <span className="text-emerald-600">Free delivery</span>}
+                    {order.deliveryCharge > 0 ? `â‚¹${order.deliveryCharge.toFixed(2)}` : <span className="text-emerald-600">Free delivery</span>}
                   </span>
                 </div>
               )}
@@ -443,21 +443,21 @@ export default function ViewOrderDialog({ isOpen, onOpenChange, order }) {
                 <span className="text-slate-600">Platform Fee</span>
                 <span className="font-medium text-slate-900">
                   {order.platformFee !== undefined && order.platformFee > 0 
-                    ? `₹${order.platformFee.toFixed(2)}` 
-                    : <span className="text-slate-400">₹0.00</span>}
+                    ? `â‚¹${order.platformFee.toFixed(2)}` 
+                    : <span className="text-slate-400">â‚¹0.00</span>}
                 </span>
               </div>
               {order.vatTax !== undefined && order.vatTax > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Tax (GST)</span>
-                  <span className="font-medium text-slate-900">₹{order.vatTax.toFixed(2)}</span>
+                  <span className="font-medium text-slate-900">â‚¹{order.vatTax.toFixed(2)}</span>
                 </div>
               )}
               <div className="pt-2 border-t border-slate-200">
                 <div className="flex justify-between items-center">
                   <span className="text-base font-semibold text-slate-700">Total Amount</span>
                   <span className="text-xl font-bold text-emerald-600">
-                    ₹{(order.totalAmount || order.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    â‚¹{(order.totalAmount || order.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>

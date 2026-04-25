@@ -420,7 +420,7 @@ export const ProfileDetailsV2 = () => {
         <div>
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-0.5">{label}</p>
           <div className="flex items-center gap-2">
-            <h4 className="text-sm font-bold text-gray-900">{value || "—"}</h4>
+            <h4 className="text-sm font-bold text-gray-900">{value || "â€”"}</h4>
             {badge}
           </div>
         </div>
@@ -435,7 +435,7 @@ export const ProfileDetailsV2 = () => {
 
   return (
     <div className="min-h-screen bg-[#FDFEFE] font-poppins pb-24">
-      {/* ─── HEADER ─── */}
+      {/* â”€â”€â”€ HEADER â”€â”€â”€ */}
       <div className="fixed top-0 inset-x-0 h-16 bg-white/80 backdrop-blur-xl border-b border-gray-100 z-50 px-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={goBack} className="p-2 hover:bg-gray-100 rounded-xl transition-all active:scale-90">
@@ -449,7 +449,7 @@ export const ProfileDetailsV2 = () => {
       </div>
 
       <div className="pt-20 px-4 space-y-6 max-w-lg mx-auto">
-        {/* ─── PROFILE AVATAR BLOCK ─── */}
+        {/* â”€â”€â”€ PROFILE AVATAR BLOCK â”€â”€â”€ */}
         <div className="relative group">
            <div className="w-32 h-32 rounded-[2.5rem] bg-gray-100 border-2 border-white shadow-2xl mx-auto overflow-hidden relative">
               {profileImageUrl ? (
@@ -495,7 +495,7 @@ export const ProfileDetailsV2 = () => {
 
         <div className="text-center pt-6">
            <h2 className="text-2xl font-black text-gray-900 leading-none">{profile?.name}</h2>
-           <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-2 mb-4">Delivery Partner • {profile?.location?.city}</p>
+           <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-2 mb-4">Delivery Partner â€¢ {profile?.location?.city}</p>
            
            <div className="flex items-center justify-center gap-2">
               <div className={`${isAdminApproved ? 'bg-blue-600 text-white' : 'bg-orange-500/10 text-orange-500'} px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-widest border ${isAdminApproved ? 'border-blue-700 shadow-lg' : 'border-orange-500/20'} flex items-center gap-2`}>
@@ -507,7 +507,7 @@ export const ProfileDetailsV2 = () => {
            </div>
         </div>
 
-        {/* ─── RIDER STATS ─── */}
+        {/* â”€â”€â”€ RIDER STATS â”€â”€â”€ */}
         <div className="grid grid-cols-2 gap-3">
            <div className="bg-white border border-gray-100 p-4 rounded-3xl shadow-sm text-center">
               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Rider Level</p>
@@ -519,7 +519,7 @@ export const ProfileDetailsV2 = () => {
            </div>
         </div>
 
-        {/* ─── VEHICLE SECTION ─── */}
+        {/* â”€â”€â”€ VEHICLE SECTION â”€â”€â”€ */}
         <section>
           <div className="flex items-center justify-between mb-3 px-1">
              <h3 className="text-xs font-black text-gray-950 uppercase tracking-widest flex items-center gap-2">
@@ -541,7 +541,7 @@ export const ProfileDetailsV2 = () => {
               return Truck;
             })()} 
             label="Vehicle Details" 
-            value={[profile?.vehicle?.type, profile?.vehicle?.brand, vehicleNumber].filter(Boolean).map(v => String(v).toUpperCase()).join(" • ") || "N/A"} 
+            value={[profile?.vehicle?.type, profile?.vehicle?.brand, vehicleNumber].filter(Boolean).map(v => String(v).toUpperCase()).join(" â€¢ ") || "N/A"} 
             color="blue"
             badge={!vehicleNumber && <span className="text-[9px] bg-red-50 text-red-500 px-1.5 rounded uppercase font-bold">Missing</span>}
             onEdit={() => { 
@@ -551,7 +551,7 @@ export const ProfileDetailsV2 = () => {
           />
         </section>
 
-        {/* ─── BANK & PAYMENTS SECTION (ENHANCED) ─── */}
+        {/* â”€â”€â”€ BANK & PAYMENTS SECTION (ENHANCED) â”€â”€â”€ */}
         <section>
            <div className="flex items-center justify-between mb-4 px-1">
               <h3 className="text-xs font-black text-gray-950 uppercase tracking-widest flex items-center gap-2">
@@ -593,13 +593,13 @@ export const ProfileDetailsV2 = () => {
                     <div className="flex justify-between items-end">
                        <div>
                           <p className="text-xs font-mono font-medium text-white/60 tracking-[0.2em]">
-                             {bankDetails.accountNumber ? `•••• •••• •••• ${bankDetails.accountNumber.slice(-4)}` : "XXXX XXXX XXXX XXXX"}
+                             {bankDetails.accountNumber ? `â€¢â€¢â€¢â€¢ â€¢â€¢â€¢â€¢ â€¢â€¢â€¢â€¢ ${bankDetails.accountNumber.slice(-4)}` : "XXXX XXXX XXXX XXXX"}
                           </p>
                           <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-2">{bankDetails.accountHolderName || "Account Holder"}</p>
                        </div>
                        <div className="text-right">
                           <p className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">IFSC Code</p>
-                          <p className="text-sm font-black tracking-widest">{bankDetails.ifscCode || "—"}</p>
+                          <p className="text-sm font-black tracking-widest">{bankDetails.ifscCode || "â€”"}</p>
                        </div>
                     </div>
                  </div>
@@ -628,7 +628,7 @@ export const ProfileDetailsV2 = () => {
            </div>
         </section>
 
-        {/* ─── DOCUMENTS SECTION ─── */}
+        {/* â”€â”€â”€ DOCUMENTS SECTION â”€â”€â”€ */}
         <section>
           <div className="flex items-center justify-between mb-4 px-1">
              <h3 className="text-xs font-black text-gray-950 uppercase tracking-widest flex items-center gap-2">
@@ -685,7 +685,7 @@ export const ProfileDetailsV2 = () => {
         style={{ display: "none" }}
       />
 
-      {/* ─── MODALS ─── */}
+      {/* â”€â”€â”€ MODALS â”€â”€â”€ */}
       
       {/* Delete Confirmation Popup */}
       <BottomPopup 

@@ -138,7 +138,7 @@ export default function ReferralSettings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="border border-slate-200 rounded-xl p-4">
                 <h3 className="font-semibold text-slate-900 mb-3">User Referral</h3>
-                <label className="block text-sm text-slate-600 mb-1">Reward amount (₹)</label>
+                <label className="block text-sm text-slate-600 mb-1">Reward amount (â‚¹)</label>
                 <input
                   value={settings.referralRewardUser}
                   onChange={onChange("referralRewardUser")}
@@ -158,7 +158,7 @@ export default function ReferralSettings() {
 
               <div className="border border-slate-200 rounded-xl p-4">
                 <h3 className="font-semibold text-slate-900 mb-3">Delivery Partner Referral</h3>
-                <label className="block text-sm text-slate-600 mb-1">Reward amount (₹)</label>
+                <label className="block text-sm text-slate-600 mb-1">Reward amount (â‚¹)</label>
                 <input
                   value={settings.referralRewardDelivery}
                   onChange={onChange("referralRewardDelivery")}

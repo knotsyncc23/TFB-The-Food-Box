@@ -323,7 +323,7 @@ export default function DiningRestaurantDetails() {
                 <p className="mt-2 max-w-[94%] text-[14px] leading-5 text-white/92">{address}</p>
                 <p className="mt-2 text-[14px] text-white/90">
                   {costForTwo}
-                  <span className="mx-1.5 text-white/65">•</span>
+                  <span className="mx-1.5 text-white/65">â€¢</span>
                   {cuisines}
                 </p>
                 <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-black/28 px-2.5 py-1 text-[13px] font-medium backdrop-blur-sm">
@@ -337,7 +337,7 @@ export default function DiningRestaurantDetails() {
               <div className="mb-1 shrink-0 rounded-[18px] bg-white dark:bg-slate-800 px-3 py-2 text-center text-[#1f2328] dark:text-slate-100 shadow-xl border border-white/20">
                 <div className="flex items-center justify-center gap-1 text-[31px] font-black leading-none">
                   <span>{rating}</span>
-                  <span className="text-[18px] text-[#18b54f]">★</span>
+                  <span className="text-[18px] text-[#18b54f]">â˜…</span>
                 </div>
                 <p className="mt-1 text-[13px] leading-4 text-[#6e7481] dark:text-slate-400">{reviewCount} Reviews</p>
               </div>

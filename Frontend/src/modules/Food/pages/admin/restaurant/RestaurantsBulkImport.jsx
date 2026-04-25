@@ -52,9 +52,9 @@ export default function RestaurantsBulkImport() {
               <h2 className="text-xl font-bold text-slate-900">Download The Excel File</h2>
             </div>
             <div className="space-y-2 text-sm text-slate-600 ml-14">
-              <p>• Download the format file and fill it with proper data.</p>
-              <p>• You can download the example file to understand how the data must be filled.</p>
-              <p>• Have to upload excel file.</p>
+              <p>â€¢ Download the format file and fill it with proper data.</p>
+              <p>â€¢ You can download the example file to understand how the data must be filled.</p>
+              <p>â€¢ Have to upload excel file.</p>
             </div>
           </div>
           <div className="p-6 bg-emerald-50 rounded-lg">
@@ -74,11 +74,11 @@ export default function RestaurantsBulkImport() {
               <h2 className="text-xl font-bold text-slate-900">Match Spread Sheet Data According To Instruction</h2>
             </div>
             <div className="space-y-2 text-sm text-slate-600 ml-14 mb-6">
-              <p>• Fill up the data according to the format</p>
-              <p>• By default status will be 1 please input the right ids</p>
-              <p>• Make sure to provide valid zone, cuisine, and business model IDs</p>
-              <p>• Restaurant owner information must be complete and accurate</p>
-              <p>• Address and contact details are mandatory fields</p>
+              <p>â€¢ Fill up the data according to the format</p>
+              <p>â€¢ By default status will be 1 please input the right ids</p>
+              <p>â€¢ Make sure to provide valid zone, cuisine, and business model IDs</p>
+              <p>â€¢ Restaurant owner information must be complete and accurate</p>
+              <p>â€¢ Address and contact details are mandatory fields</p>
             </div>
             <div className="ml-14">
               <h3 className="text-sm font-semibold text-slate-700 mb-3">Download Spreadsheet Template</h3>
@@ -115,10 +115,10 @@ export default function RestaurantsBulkImport() {
               <h2 className="text-xl font-bold text-slate-900">Validate Data And Complete Import</h2>
             </div>
             <div className="space-y-2 text-sm text-slate-600 ml-14">
-              <p>• In the Excel file upload section first select the upload option.</p>
-              <p>• Upload your file in .xls .xlsx format.</p>
-              <p>• Finally click the upload button.</p>
-              <p>• You can upload your restaurant images in restaurant folder from gallery and copy image's path.</p>
+              <p>â€¢ In the Excel file upload section first select the upload option.</p>
+              <p>â€¢ Upload your file in .xls .xlsx format.</p>
+              <p>â€¢ Finally click the upload button.</p>
+              <p>â€¢ You can upload your restaurant images in restaurant folder from gallery and copy image's path.</p>
             </div>
           </div>
           <div className="p-6 bg-orange-50 rounded-lg">

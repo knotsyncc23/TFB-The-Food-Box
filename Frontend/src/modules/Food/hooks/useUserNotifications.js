@@ -7,7 +7,7 @@ import { dispatchNotificationInboxRefresh } from '@food/hooks/useNotificationInb
 
 const debugLog = (...args) => {
   if (import.meta.env.DEV) {
-    console.log('📬 [UserSocket]', ...args);
+    console.log('ðŸ“¬ [UserSocket]', ...args);
   }
 };
 
@@ -70,7 +70,7 @@ export const useUserNotifications = () => {
     const token = localStorage.getItem('user_accessToken') || localStorage.getItem('accessToken');
     if (!token) return;
 
-    debugLog('🔌 Connecting to User Socket.IO:', socketUrl);
+    debugLog('ðŸ”Œ Connecting to User Socket.IO:', socketUrl);
 
     socketRef.current = io(socketUrl, {
       path: '/socket.io/',
@@ -80,14 +80,14 @@ export const useUserNotifications = () => {
     });
 
     socketRef.current.on('connect', () => {
-      debugLog('✅ User Socket connected, userId:', userId);
+      debugLog('âœ… User Socket connected, userId:', userId);
       setIsConnected(true);
       if (typeof window !== 'undefined') window.orderSocketConnected = true;
       // Backend auto-joins 'user:userId' room based on role/token in config/socket.js
     });
 
     socketRef.current.on('order_status_update', (data) => {
-      debugLog('🔔 Order status update received:', data);
+      debugLog('ðŸ”” Order status update received:', data);
       
       const title = data.title || `Order #${data.orderId || 'Update'}`;
       const message = data.message || `Your order status is now ${String(data.orderStatus || '').replace(/_/g, ' ')}`;
@@ -134,7 +134,7 @@ export const useUserNotifications = () => {
 
     /** Customer receives handover OTP when partner confirms "reached drop" (never shown to partner). */
     socketRef.current.on('delivery_drop_otp', (payload) => {
-      debugLog('🔐 Delivery handover OTP:', payload?.orderId);
+      debugLog('ðŸ” Delivery handover OTP:', payload?.orderId);
       const otp = payload?.otp != null ? String(payload.otp) : '';
       const orderId = payload?.orderId != null ? String(payload.orderId) : '';
       const message = payload?.message != null ? String(payload.message) : '';
@@ -169,7 +169,7 @@ export const useUserNotifications = () => {
       toast.dismiss(DROP_OTP_TOAST_ID);
       toast.message(title, {
         id: DROP_OTP_TOAST_ID,
-        description: parts.join(' — ') || 'Handover OTP from your delivery partner.',
+        description: parts.join(' â€” ') || 'Handover OTP from your delivery partner.',
         duration: 12_000
       });
     });
@@ -184,14 +184,14 @@ export const useUserNotifications = () => {
 
     socketRef.current.on('connect_error', (error) => {
       if (import.meta.env.DEV) {
-        // debugLog('❌ Socket connection error:', error.message);
+        // debugLog('âŒ Socket connection error:', error.message);
       }
       setIsConnected(false);
       if (typeof window !== 'undefined') window.orderSocketConnected = false;
     });
 
     socketRef.current.on('disconnect', (reason) => {
-      debugLog('🔌 Socket disconnected:', reason);
+      debugLog('ðŸ”Œ Socket disconnected:', reason);
       setIsConnected(false);
       if (typeof window !== 'undefined') window.orderSocketConnected = false;
     });

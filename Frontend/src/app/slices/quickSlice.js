@@ -22,7 +22,7 @@ const quickSlice = createSlice({
   name: 'quick',
   initialState,
   reducers: {
-    // —— Basket ——
+    // â€”â€” Basket â€”â€”
     addToBasket(state, action) {
       const { id, vendorId, quantity = 1, ...rest } = action.payload || {}
       if (!id) return
@@ -51,7 +51,7 @@ const quickSlice = createSlice({
       state.basket.items = Array.isArray(action.payload) ? action.payload : []
     },
 
-    // —— Vendors ——
+    // â€”â€” Vendors â€”â€”
     setVendorsList(state, action) {
       state.vendors.list = Array.isArray(action.payload) ? action.payload : []
     },

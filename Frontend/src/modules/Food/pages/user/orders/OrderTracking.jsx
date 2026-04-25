@@ -425,7 +425,7 @@ const transformOrderForTracking = (apiOrder, previousOrder = null, explicitResta
 
 /**
  * Backend uses `orderStatus` (created, confirmed, preparing, ready_for_pickup, picked_up, delivered, cancelled_*).
- * This page used to read legacy `status` only — so UI never updated. Map canonical + legacy values to tracking steps.
+ * This page used to read legacy `status` only â€” so UI never updated. Map canonical + legacy values to tracking steps.
  */
 function mapBackendOrderStatusToUi(raw) {
   const s = String(raw || "").toLowerCase()
@@ -628,7 +628,7 @@ export default function OrderTracking() {
   // DATA FETCHING & POLLING STABILITY (FIXED FOR HAMMERING)
   // --------------------------------------------------------------------------
 
-  // Socket notifications include order ids — keep a set so events match this page.
+  // Socket notifications include order ids â€” keep a set so events match this page.
   useEffect(() => {
     const s = trackingOrderIdsRef.current
     s.add(String(orderId))
@@ -1025,7 +1025,7 @@ export default function OrderTracking() {
     terminalPollStopRef.current = ui === 'delivered' || ui === 'cancelled'
   }, [order])
 
-  // Post-checkout splash only — real status comes from API / poll / socket.
+  // Post-checkout splash only â€” real status comes from API / poll / socket.
   useEffect(() => {
     if (!confirmed) return
     const timer1 = setTimeout(() => setShowConfirmation(false), 3000)
@@ -2048,7 +2048,7 @@ export default function OrderTracking() {
                         <p className="text-sm text-gray-500 mt-0.5">Quantity: {item.quantity}</p>
                       </div>
                     </div>
-                    <p className="font-semibold text-gray-900">₹{((item?.price || 0) * (item?.quantity || 0)).toFixed(2)}</p>
+                    <p className="font-semibold text-gray-900">â‚¹{((item?.price || 0) * (item?.quantity || 0)).toFixed(2)}</p>
                   </div>
                 ))}
               </div>
@@ -2060,43 +2060,43 @@ export default function OrderTracking() {
               
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-600">Item Total</span>
-                <span className="text-gray-900 font-medium">₹{Number(order?.subtotal || 0).toFixed(2)}</span>
+                <span className="text-gray-900 font-medium">â‚¹{Number(order?.subtotal || 0).toFixed(2)}</span>
               </div>
 
               {Number(order?.packagingFee) > 0 && (
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-600">Packaging Charges</span>
-                  <span className="text-gray-900 font-medium">₹{Number(order.packagingFee).toFixed(2)}</span>
+                  <span className="text-gray-900 font-medium">â‚¹{Number(order.packagingFee).toFixed(2)}</span>
                 </div>
               )}
 
               {Number(order?.platformFee) > 0 && (
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-600">Platform Fee</span>
-                  <span className="text-gray-900 font-medium">₹{Number(order.platformFee).toFixed(2)}</span>
+                  <span className="text-gray-900 font-medium">â‚¹{Number(order.platformFee).toFixed(2)}</span>
                 </div>
               )}
 
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-600">Delivery Fee</span>
-                <span className="text-gray-900 font-medium">₹{Number(order?.deliveryFee || 0).toFixed(2)}</span>
+                <span className="text-gray-900 font-medium">â‚¹{Number(order?.deliveryFee || 0).toFixed(2)}</span>
               </div>
 
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-600">GST</span>
-                <span className="text-gray-900 font-medium">₹{Number(order?.gst || 0).toFixed(2)}</span>
+                <span className="text-gray-900 font-medium">â‚¹{Number(order?.gst || 0).toFixed(2)}</span>
               </div>
 
               {Number(order?.discount) > 0 && (
                 <div className="flex justify-between items-center text-sm text-green-600 font-medium">
                   <span>Discount Applied</span>
-                  <span>-₹{Number(order.discount).toFixed(2)}</span>
+                  <span>-â‚¹{Number(order.discount).toFixed(2)}</span>
                 </div>
               )}
 
               <div className="pt-2 border-t border-gray-200 dark:border-gray-800 flex justify-between items-center">
                 <span className="text-base font-bold text-gray-900 dark:text-white">Total Amount</span>
-                <span className="text-lg font-bold text-gray-900 dark:text-white">₹{Number(order?.totalAmount || 0).toFixed(2)}</span>
+                <span className="text-lg font-bold text-gray-900 dark:text-white">â‚¹{Number(order?.totalAmount || 0).toFixed(2)}</span>
               </div>
             </div>
 
