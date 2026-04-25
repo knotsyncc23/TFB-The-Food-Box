@@ -1,10 +1,35 @@
+# dependencies
 node_modules/
+
+# environment variables
 .env
+.env.*
+!.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
+
+# IDE - IntelliJ
+.idea/
+
+# OS files
 .DS_Store
-config/serviceAccountKey.json
-dist/
-build/
-coverage/
-npm-debug.log
-yarn-debug.log
-yarn-error.log
+Thumbs.db

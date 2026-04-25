@@ -1,83 +1,45 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-// ❌ legacy plugin removed
-import tailwindcss from "@tailwindcss/vite";
-import path from "path";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-const apiBaseUrl = process.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-function firebaseConfigPlugin() {
-  return {
-    name: "firebase-config",
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
-        if (req.url === "/firebase-config.json" || req.url === "/firebase-config.json/") {
-          try {
-            const base = apiBaseUrl.replace(/\/api\/?$/, "");
-            const r = await fetch(`${base}/api/env/public`);
-            const json = await r.json();
-            const data = json?.data || {};
-            const config = {
-              apiKey: data.FIREBASE_API_KEY || "",
-              authDomain: data.FIREBASE_AUTH_DOMAIN || "",
-              projectId: data.FIREBASE_PROJECT_ID || "",
-              storageBucket: data.FIREBASE_STORAGE_BUCKET || "",
-              messagingSenderId: data.FIREBASE_MESSAGING_SENDER_ID || "",
-              appId: data.FIREBASE_APP_ID || "",
-            };
-            res.setHeader("Content-Type", "application/json");
-            res.end(JSON.stringify(config));
-          } catch (e) {
-            res.statusCode = 500;
-            res.end(JSON.stringify({}));
-          }
-          return;
-        }
-        next();
-      });
-    },
-  };
-}
+const foodSrc = path.resolve(__dirname, './src/modules/Food')
+const servicesApi = path.resolve(__dirname, './src/services/api')
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    firebaseConfigPlugin(),
-  ],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      // More specific first so @food/api/* resolves to services (no backend)
+      '@food/api/axios': path.resolve(servicesApi, 'axios.js'),
+      '@food/api/config': path.resolve(servicesApi, 'config.js'),
+      '@food/api': servicesApi,
+      '@food': foodSrc,
+      '@delivery': path.resolve(__dirname, './src/modules/DeliveryV2'),
+      '@': path.resolve(__dirname, './src'),
     },
-    dedupe: ["react", "react-dom"],
+    dedupe: ['react', 'react-dom', 'react-router-dom'],
   },
   optimizeDeps: {
     include: [
-      "@emotion/react",
-      "@emotion/styled",
-      "@mui/x-date-pickers",
+      '@emotion/react',
+      '@emotion/styled',
+      '@mui/material',
+      '@mui/x-date-pickers',
     ],
-    // ✅ important fix
-    esbuildOptions: {
-      target: "esnext",
-    },
   },
   server: {
-    host: "0.0.0.0",
+    host: '0.0.0.0',
     port: 5173,
-  },
-  build: {
-    target: "esnext",
-    outDir: "dist",
-    sourcemap: false,
-    chunkSizeWarningLimit: 1600,
-    minify: "terser",
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
+    proxy: {
+      // Backend API (default 5000)
+      '/api/v1': {
+        target: process.env.VITE_BACKEND_PROXY_TARGET || 'http://localhost:5000',
+        changeOrigin: true,
       },
     },
   },
-});
+})

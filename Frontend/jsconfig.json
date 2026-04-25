@@ -1,14 +1,10 @@
 {
-  "files": [],
-  "references": [
-    {
-      "path": "./jsconfig.app.json"
-    }
-  ],
   "compilerOptions": {
-    "baseUrl": ".", 
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"] 
+      "@/*": ["./src/*"],
+      "@food/*": ["./src/modules/food/frontend/src/*"]
     }
-  }
+  },
+  "include": ["src"]
 }
