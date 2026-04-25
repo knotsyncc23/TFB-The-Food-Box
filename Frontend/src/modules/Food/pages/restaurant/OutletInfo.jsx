@@ -559,7 +559,7 @@ export default function OutletInfo() {
               <Input 
                 value={editNameValue} 
                 onChange={(e) => setEditNameValue(e.target.value)} 
-                placeholder="Ex: Foodelo Express" 
+                placeholder="Ex: Tifunbox Express" 
                 className="w-full h-14 px-5 rounded-2xl border-2 border-gray-100 focus:border-[#7e3866] focus:ring-0 transition-all font-bold text-lg bg-gray-50 group-hover:bg-white" 
               />
               <Pencil className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-hover:text-[#7e3866] transition-colors" />
@@ -591,3 +591,4 @@ export default function OutletInfo() {
     </>
   )
 }
+

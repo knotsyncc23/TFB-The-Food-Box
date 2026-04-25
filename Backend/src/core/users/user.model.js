@@ -1,5 +1,14 @@
 import mongoose from 'mongoose';
 
+const normalizeOptionalUniqueValue = (value) => {
+    if (value === null || value === undefined) {
+        return undefined;
+    }
+
+    const normalized = String(value).trim();
+    return normalized || undefined;
+};
+
 const userAddressSchema = new mongoose.Schema(
     {
         label: {
@@ -156,13 +165,15 @@ const userSchema = new mongoose.Schema(
         },
         appleId: {
             type: String,
-            default: null,
-            trim: true
+            default: undefined,
+            trim: true,
+            set: normalizeOptionalUniqueValue
         },
         googleId: {
             type: String,
-            default: null,
-            trim: true
+            default: undefined,
+            trim: true,
+            set: normalizeOptionalUniqueValue
         },
         profileImage: {
             type: String,
@@ -232,9 +243,53 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ phone: 1 }, { unique: true });
-userSchema.index({ appleId: 1 }, { unique: true, sparse: true });
-userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
+userSchema.index(
+    { appleId: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            appleId: { $exists: true, $type: 'string' }
+        }
+    }
+);
+userSchema.index(
+    { googleId: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            googleId: { $exists: true, $type: 'string' }
+        }
+    }
+);
 userSchema.index({ 'addresses.location': '2dsphere' });
 
 export const FoodUser = mongoose.model('FoodUser', userSchema);
+
+export const ensureFoodUserIndexes = async () => {
+    const collection = FoodUser.collection;
+    const indexes = await collection.indexes();
+
+    const rebuildIndexIfNeeded = async (indexName, fieldName) => {
+        const existing = indexes.find((index) => index.name === indexName);
+        const hasPartialFilter = Boolean(existing?.partialFilterExpression?.[fieldName]);
+
+        if (existing && !hasPartialFilter) {
+            await collection.dropIndex(indexName);
+        }
+
+        await collection.createIndex(
+            { [fieldName]: 1 },
+            {
+                name: indexName,
+                unique: true,
+                partialFilterExpression: {
+                    [fieldName]: { $exists: true, $type: 'string' }
+                }
+            }
+        );
+    };
+
+    await rebuildIndexIfNeeded('appleId_1', 'appleId');
+    await rebuildIndexIfNeeded('googleId_1', 'googleId');
+};
 

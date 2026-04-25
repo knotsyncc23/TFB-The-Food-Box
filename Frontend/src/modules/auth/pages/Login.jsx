@@ -271,7 +271,7 @@ export default function UnifiedOTPFastLogin() {
             >
               <img 
                 src={logoNew} 
-                alt="Foodelo Logo" 
+                alt="Tifunbox Logo" 
                 className="w-40 h-40 md:w-48 md:h-48 object-contain mx-auto"
               />
             </motion.div>
@@ -523,3 +523,4 @@ export default function UnifiedOTPFastLogin() {
     </div>
   )
 }
+

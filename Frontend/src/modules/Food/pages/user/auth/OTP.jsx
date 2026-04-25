@@ -564,10 +564,11 @@ export default function OTP() {
         {/* Footer info */}
         <div className="bg-[#fffaf0] p-6 text-center">
             <p className="text-[10px] font-bold uppercase tracking-widest text-[#b39b67]">
-                Foodelo Food Delivery
+                Tifunbox Food Delivery
             </p>
         </div>
       </div>
     </AnimatedPage>
   )
 }
+

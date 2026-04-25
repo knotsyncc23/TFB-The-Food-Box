@@ -81,7 +81,7 @@ export default function RestaurantLogin() {
             >
               <img 
                 src={logoNew} 
-                alt="Foodelo Logo" 
+                alt="Tifunbox Logo" 
                 className="w-32 h-32 md:w-36 md:h-36 object-contain mx-auto"
               />
             </motion.div>
@@ -156,7 +156,7 @@ export default function RestaurantLogin() {
           {/* Footer Info */}
           <div className="mt-8 text-center">
             <p className="text-[11px] text-gray-400 font-medium leading-relaxed max-w-[320px] mx-auto">
-              By continuing, you agree to Foodelo's <br />
+              By continuing, you agree to Tifunbox's <br />
               <Link to="/food/restaurant/terms" className="text-gray-900 dark:text-white font-bold hover:text-[#7e3866] transition-colors">Terms of Service</Link> & <Link to="/food/restaurant/privacy" className="text-gray-900 dark:text-white font-bold hover:text-[#7e3866] transition-colors">Privacy Policy</Link>
             </p>
           </div>
@@ -176,3 +176,4 @@ export default function RestaurantLogin() {
     </div>
   )
 }
+

@@ -434,10 +434,10 @@ export default function OrderHelp() {
                       Include order {order.id} in subject
                     </p>
                     <a
-                      href={`mailto:support@foodelo.com?subject=Help with Order ${order.id}`}
+                      href={`mailto:support@tifunbox.com?subject=Help with Order ${order.id}`}
                       className="text-sm text-primary hover:underline font-medium"
                     >
-                      support@foodelo.com
+                      support@tifunbox.com
                     </a>
                   </div>
                 </div>
@@ -476,3 +476,4 @@ export default function OrderHelp() {
     </AnimatedPage>
   )
 }
+

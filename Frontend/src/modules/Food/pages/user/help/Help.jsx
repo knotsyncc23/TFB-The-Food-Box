@@ -406,10 +406,10 @@ export default function Help() {
                       We'll respond within 24 hours
                     </p>
                     <a
-                      href="mailto:support@foodelo.com"
+                      href="mailto:support@tifunbox.com"
                       className="text-sm text-primary hover:underline font-medium"
                     >
-                      support@foodelo.com
+                      support@tifunbox.com
                     </a>
                   </div>
                 </div>
@@ -446,3 +446,4 @@ export default function Help() {
     </AnimatedPage>
   )
 }
+

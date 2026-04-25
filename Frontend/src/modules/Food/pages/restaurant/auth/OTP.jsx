@@ -287,10 +287,11 @@ export default function RestaurantOTP() {
           </div>
 
           <p className="mt-12 text-[10px] font-black text-gray-300 dark:text-gray-600 text-center uppercase tracking-[0.3em]">
-            Secure Verification &bull; Foodelo Partner
+            Secure Verification &bull; Tifunbox Partner
           </p>
         </motion.div>
       </div>
     </div>
   )
 }
+
