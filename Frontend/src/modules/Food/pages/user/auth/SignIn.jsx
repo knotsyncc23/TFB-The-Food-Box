@@ -12,8 +12,11 @@ import logoNew from "@food/assets/logo.png"
 
 const REMEMBER_LOGIN_KEY = "user_login_phone"
 const APPLE_SDK_SRC = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"
+const APPLE_CLIENT_ID_FALLBACK = import.meta.env.VITE_APPLE_CLIENT_ID || ""
 const APPLE_REDIRECT_URI_FALLBACK =
   import.meta.env.VITE_APPLE_USER_REDIRECT_URI || import.meta.env.VITE_APPLE_REDIRECT_URI || ""
+
+const sanitizeConfigValue = (value) => (value ? String(value).trim() : "")
 
 const loadAppleSdk = () =>
   new Promise((resolve, reject) => {
@@ -53,7 +56,7 @@ export default function SignIn() {
     countryCode: "+91",
   })
   const [rememberLogin, setRememberLogin] = useState(true)
-  const [error, setError] = useState("")
+  const [phoneError, setPhoneError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isAppleLoading, setIsAppleLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
@@ -96,7 +99,7 @@ export default function SignIn() {
 
     if (name === "phone") {
       value = value.replace(/\D/g, "").slice(0, 10)
-      setError(validatePhone(value))
+      setPhoneError(validatePhone(value))
     }
 
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -105,13 +108,13 @@ export default function SignIn() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     const phoneError = validatePhone(formData.phone)
-    setError(phoneError)
+    setPhoneError(phoneError)
     if (phoneError) return
     if (submittingRef.current) return
 
     submittingRef.current = true
     setIsLoading(true)
-    setError("")
+    setPhoneError("")
 
     try {
       const countryCode = formData.countryCode?.trim() || "+91"
@@ -144,7 +147,7 @@ export default function SignIn() {
         apiError?.response?.data?.message ||
         apiError?.response?.data?.error ||
         "Failed to send OTP. Please try again."
-      setError(message)
+      setPhoneError(message)
     } finally {
       setIsLoading(false)
       submittingRef.current = false
@@ -159,22 +162,25 @@ export default function SignIn() {
     if (isAppleLoading) return
 
     setIsAppleLoading(true)
-    setError("")
 
     try {
       const apiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\/$/, "")
-      const configResponse = await fetch(`${apiBaseUrl}/food/public/env`)
-      const configPayload = await configResponse.json().catch(() => ({}))
+      const configResponse = await fetch(`${apiBaseUrl}/food/public/env`).catch(() => null)
+      const configPayload = await configResponse?.json().catch(() => ({}))
       const publicConfig = configPayload?.data || {}
-      const clientId = publicConfig.APPLE_CLIENT_ID || publicConfig.VITE_APPLE_CLIENT_ID
+      const clientId = sanitizeConfigValue(
+        publicConfig.APPLE_CLIENT_ID || publicConfig.VITE_APPLE_CLIENT_ID || APPLE_CLIENT_ID_FALLBACK
+      )
       const redirectURI =
-        publicConfig.APPLE_USER_REDIRECT_URI ||
-        publicConfig.VITE_APPLE_USER_REDIRECT_URI ||
-        publicConfig.APPLE_REDIRECT_URI ||
-        publicConfig.VITE_APPLE_REDIRECT_URI ||
-        APPLE_REDIRECT_URI_FALLBACK
+        sanitizeConfigValue(
+          publicConfig.APPLE_USER_REDIRECT_URI ||
+            publicConfig.VITE_APPLE_USER_REDIRECT_URI ||
+            publicConfig.APPLE_REDIRECT_URI ||
+            publicConfig.VITE_APPLE_REDIRECT_URI ||
+            APPLE_REDIRECT_URI_FALLBACK
+        )
 
-      if (!configResponse.ok || !clientId || !redirectURI) {
+      if (!clientId || !redirectURI) {
         throw new Error("Apple sign-in is not configured yet")
       }
 
@@ -199,7 +205,6 @@ export default function SignIn() {
     } catch (providerError) {
       const message =
         providerError?.message || "Apple sign-in could not be started. Please try again."
-      setError(message)
       toast.error(message)
       setIsAppleLoading(false)
     }
@@ -209,7 +214,6 @@ export default function SignIn() {
     if (isGoogleLoading) return
 
     setIsGoogleLoading(true)
-    setError("")
 
     try {
       const [{ signInWithPopup }, firebaseAuth, googleProvider] = await Promise.all([
@@ -268,7 +272,6 @@ export default function SignIn() {
         providerError?.response?.data?.error ||
         providerError?.message ||
         "Google sign-in failed. Please try again."
-      setError(message)
       toast.error(message)
     } finally {
       setIsGoogleLoading(false)
@@ -318,16 +321,16 @@ export default function SignIn() {
                   value={formData.phone}
                   onChange={handleChange}
                   className={`h-14 flex-1 rounded-2xl border bg-white px-4 text-lg text-[#7d4f1c] placeholder:text-[#9f6d37] focus-visible:ring-0 focus-visible:border-[#8a2323] ${
-                    error ? "border-red-400" : "border-[#d7d5d2]"
+                    phoneError ? "border-red-400" : "border-[#d7d5d2]"
                   }`}
-                  aria-invalid={error ? "true" : "false"}
+                  aria-invalid={phoneError ? "true" : "false"}
                 />
               </div>
 
-              {error ? (
+              {phoneError ? (
                 <div className="flex items-center gap-1.5 pl-1 text-sm text-red-600">
                   <AlertCircle className="h-4 w-4" />
-                  <span>{error}</span>
+                  <span>{phoneError}</span>
                 </div>
               ) : null}
 
